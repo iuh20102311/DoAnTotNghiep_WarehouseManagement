@@ -10,10 +10,9 @@ use App\Models\StorageArea;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
-use Lcobucci\JWT\Configuration;
-use Lcobucci\JWT\Signer\Hmac\Sha256;
-use Lcobucci\JWT\Signer\Key\InMemory;
+use Lcobucci\JWT\Encoding\JoseEncoder;
+use Lcobucci\JWT\Token\Parser;
+
 
 class ProductExportReceiptController
 {
@@ -145,6 +144,19 @@ class ProductExportReceiptController
         $data = json_decode(file_get_contents('php://input'), true);
 
         try {
+            // Lấy token từ header
+            $headers = apache_request_headers();
+            $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
+
+            if (!$token) {
+                throw new \Exception('Token không tồn tại');
+            }
+
+            // Giải mã token và lấy ID người dùng
+            $parser = new Parser(new JoseEncoder());
+            $parsedToken = $parser->parse($token);
+            $createdById = $parsedToken->claims()->get('id');
+
             // Kiểm tra xem kho cần xuất kho có tồn tại và đang hoạt động không
             $storageArea = StorageArea::where('id', $data['storage_area_id'])
                 ->where('status', 'ACTIVE')
@@ -195,8 +207,8 @@ class ProductExportReceiptController
                 'note' => $data['note'] ?? '',
                 'type' => 'NORMAL',
                 'status' => 'PENDING',
-                'created_by' => 1,
-                'approved_by' => 1,
+                'created_by' => $createdById,
+                'approved_by' => $createdById,
                 'receiver_id' => $receiver->id,
             ]);
 
