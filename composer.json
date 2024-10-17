@@ -1,0 +1,28 @@
+{
+  "require": {
+    "vlucas/phpdotenv": "v5.6.0",
+    "ext-pdo": "*",
+    "ext-openssl": "*",
+    "phroute/phroute": "^2.2",
+    "propel/propel": "~2.0@beta",
+    "illuminate/database": "^9.48",
+    "illuminate/http": "v9.0.0",
+    "lcobucci/jwt": "4.0.0",
+    "respect/validation" : "2.3.7" ,
+    "ext-curl": "*",
+    "phpmailer/phpmailer": "^6.9",
+    "laravel/scout": "^9.0",
+    "illuminate/console": "^9.52",
+    "illuminate/filesystem": "^9.52",
+    "illuminate/events": "^9.0",
+    "illuminate/validation": "^9.0",
+    "illuminate/translation": "^9.0",
+    "illuminate/routing": "^9.48",
+    "illuminate/container": "^9.48"
+  },
+  "autoload": {
+    "psr-4": {
+      "App\\": "app/"
+    }
+  }
+}

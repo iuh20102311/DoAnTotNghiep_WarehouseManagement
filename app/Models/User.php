@@ -1,0 +1,93 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Exception;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Validation\Validator;
+use Illuminate\Translation\ArrayLoader;
+use Illuminate\Translation\Translator;
+use Illuminate\Validation\Factory;
+
+class User extends Model
+{
+    use HasFactory;
+
+    protected $table = 'users';
+    protected $fillable = ['role_id', 'email', 'email_verified_at', 'password', 'status', 'reset_password_token', 'token_expiry', 'created_at', 'updated_at', 'deleted'];
+    protected $primaryKey = 'id';
+    public $timestamps = true;
+
+
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class, 'user_id');
+    }
+
+    public function role(): BelongsTo
+    {
+        return $this->belongsTo(Role::class, 'role_id');
+    }
+
+    public function profile(): HasOne
+    {
+        return $this->hasOne(Profile::class);
+    }
+
+
+    /**
+     * @throws Exception
+     */
+    public function validate(array $data, bool $isUpdate = false): string
+    {
+        $rules = [
+            'role_id' => ['required', 'integer'],
+            'email' => ['required', 'email'],
+            'password' => ['required', 'min:8'],
+        ];
+
+        $messages = [
+            'role_id.required' => 'ID vai trò không được để trống.',
+            'role_id.integer' => 'ID vai trò phải là một số nguyên.',
+            'email.required' => 'Email không được để trống.',
+            'email.email' => 'Email không hợp lệ.',
+            'password.required' => 'Mật khẩu không được để trống.',
+            'password.min' => 'Mật khẩu phải có ít nhất 8 ký tự.',
+        ];
+
+        if ($isUpdate) {
+            $rules = array_intersect_key($rules, $data);
+        }
+
+        $translator = new Translator(new ArrayLoader(), 'en');
+        $factory = new Factory($translator);
+        $validator = $factory->make($data, $rules, $messages);
+
+        if ($validator->fails()) {
+            return $validator->errors()->first();
+        }
+
+        // Manually check for role existence
+        if (isset($data['role_id'])) {
+            $role = Role::find($data['role_id']);
+            if (!$role) {
+                return 'ID vai trò không tồn tại.';
+            }
+        }
+
+        // Manually check for email uniqueness
+        if (isset($data['email'])) {
+            $existingUser = self::where('email', $data['email'])->first();
+            if ($existingUser && (!$isUpdate || $existingUser->id != $this->id)) {
+                return 'Email đã tồn tại.';
+            }
+        }
+
+        return '';
+    }
+}
