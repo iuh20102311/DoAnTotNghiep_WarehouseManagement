@@ -4,11 +4,13 @@ namespace App\Controllers;
 
 use App\Models\Product;
 use App\Models\ProductImportReceipt;
-use App\Models\ProductInventory;
-use App\Models\Provider;
-use App\Models\Warehouse;
+use App\Models\ProductStorageLocation;
+use App\Models\StorageArea;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Lcobucci\JWT\Encoding\JoseEncoder;
+use Lcobucci\JWT\Token\Parser;
 
 class ProductImportReceiptController
 {
@@ -49,9 +51,15 @@ class ProductImportReceiptController
 
         $productIRs = $productIRs->get();
         foreach ($productIRs as $index => $productIR) {
-            $warehouse = Warehouse::query()->where('id', $productIR->warehouse_id)->first();
-            unset($productIR->warehouse_id);
-            $productIR->warehouse = $warehouse;
+            $creator = User::query()->where('id', $productIR->created_by)->first();
+            $receiver = User::query()->where('id', $productIR->receiver_id)->first();
+            $approver = User::query()->where('id', $productIR->approved_by)->first();
+
+            unset($productIR->provider_id);
+
+            $productIR->created_by = $creator;
+            $productIR->receiver_id = $receiver;
+            $productIR->approved_by = $approver;
         }
 
         return $productIRs;
@@ -60,10 +68,15 @@ class ProductImportReceiptController
     public function getProductImportReceiptById($id) : ?Model
     {
         $productIR = ProductImportReceipt::query()->where('id',$id)->first();
-        $warehouse = Warehouse::query()->where('id',$productIR->warehouse_id)->first();
+        $creator = User::query()->where('id', $productIR->created_by)->first();
+        $receiver = User::query()->where('id', $productIR->receiver_id)->first();
+        $approver = User::query()->where('id', $productIR->approved_by)->first();
+
         if ($productIR) {
-            unset($productIR->warehouse_id);
-            $productIR->warehouse = $warehouse;
+            $productIR->created_by = $creator;
+            $productIR->receiver_id = $receiver;
+            $productIR->approved_by = $approver;
+
             return $productIR;
         } else {
             return null;
@@ -73,11 +86,14 @@ class ProductImportReceiptController
     public function getImportReceiptDetailsByExportReceipt($id)
     {
         $productIRs = ProductImportReceipt::query()->where('id',$id)->first();
-        $productIRList = $productIRs->ProductImportReceiptDetails;
+        $productIRList = $productIRs->details;
         foreach ($productIRList as $key => $value) {
             $product = Product::query()->where('id', $value->product_id)->first();
+            $storage = StorageArea::query()->where('id', $value->storage_area_id)->first();
             unset($value->product_id);
+            unset($value->storage_area_id);
             $value->product = $product;
+            $value->storage_area = $storage;
         }
         return $productIRList;
     }
@@ -140,54 +156,117 @@ class ProductImportReceiptController
     {
         $data = json_decode(file_get_contents('php://input'), true);
 
-        $warehouseExists = Warehouse::where('id', $data['warehouse_id'])->exists();
-        if (!$warehouseExists) {
-            header('Content-Type: application/json');
-            echo json_encode(['error' => 'Kho nhập kho không tồn tại']);
-            return;
-        }
+        try {
+            // Kiểm tra dữ liệu đầu vào
+            if (!isset($data['storage_area_id'])) {
+                throw new \Exception('storage_area_id là bắt buộc');
+            }
+            if (!isset($data['receiver_id'])) {
+                throw new \Exception('receiver_id là bắt buộc');
+            }
+            if (!isset($data['products']) || !is_array($data['products'])) {
+                throw new \Exception('Danh sách products là bắt buộc và phải là một mảng');
+            }
 
-        $productImportReceipt = ProductImportReceipt::create([
-            'warehouse_id' => $data['warehouse_id']
-        ]);
+            // Lấy token JWT từ header
+            $headers = apache_request_headers();
+            $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
 
-        $products = $data['products'] ?? [];
+            if (!$token) {
+                throw new \Exception('Token không tồn tại');
+            }
 
-        $totalPrice = 0;
+            // Giải mã token JWT và lấy ID người dùng
+            $parser = new Parser(new JoseEncoder());
+            $parsedToken = $parser->parse($token);
+            $createdById = $parsedToken->claims()->get('id');
+            $approvedById = $parsedToken->claims()->get('id');
 
-        foreach ($products as $product) {
-            $productInventory = ProductInventory::where('product_id', $product['product_id'])
-                ->where('warehouse_id', $data['warehouse_id'])
+            $storageExists = StorageArea::where('id', $data['storage_area_id'])->exists();
+            if (!$storageExists) {
+                throw new \Exception('Kho nhập kho không tồn tại');
+            }
+
+            // Kiểm tra người nhận có tồn tại và đang hoạt động không
+            $receiver = User::where('id', $data['receiver_id'])
+                ->where('status', 'ACTIVE')
+                ->where('deleted', false)
                 ->first();
 
-            $productImportReceiptDetail = $productImportReceipt->details()->create([
-                'product_id' => $product['product_id'],
-                'quantity' => $product['quantity'],
+            if (!$receiver) {
+                throw new \Exception('Người nhận không tồn tại hoặc không hoạt động');
+            }
+
+            // Kiểm tra tất cả các sản phẩm trước khi thực hiện bất kỳ thao tác nào
+            $invalidProducts = [];
+            foreach ($data['products'] as $product) {
+                if (!isset($product['product_id']) || !isset($product['quantity'])) {
+                    throw new \Exception('Thông tin product_id và quantity là bắt buộc cho mỗi sản phẩm');
+                }
+
+                $productModel = Product::find($product['product_id']);
+                if (!$productModel) {
+                    $invalidProducts[] = $product['product_id'];
+                }
+            }
+
+            // Nếu có bất kỳ sản phẩm không hợp lệ nào, dừng quá trình và trả về lỗi
+            if (!empty($invalidProducts)) {
+                throw new \Exception('Một số sản phẩm không tồn tại: ' . implode(', ', $invalidProducts));
+            }
+
+            // Nếu tất cả sản phẩm đều hợp lệ, tiến hành nhập kho
+            $productImportReceipt = ProductImportReceipt::create([
+                'note' => $data['note'] ?? null,
+                'created_by' => $createdById,
+                'approved_by' => $approvedById,
+                'receiver_id' => $receiver->id,
             ]);
 
-            if ($productInventory) {
-                $productInventory->quantity_available += $product['quantity'];
-                $productInventory->minimum_stock_level = max($productInventory->minimum_stock_level, $product['minimum_stock_level']);
-                $productInventory->save();
-            } else {
-                ProductInventory::create([
-                    'product_id' => $product['product_id'],
-                    'warehouse_id' => $data['warehouse_id'],
-                    'quantity_available' => $product['quantity'],
-                    'minimum_stock_level' => $product['minimum_stock_level'],
-                ]);
-            }
+            foreach ($data['products'] as $product) {
+                $productModel = Product::find($product['product_id']);
+                $quantity = $product['quantity'];
 
-            // Cập nhật số lượng sản phẩm trong bảng products
-            $productModel = Product::find($product['product_id']);
-            if ($productModel) {
-                $productModel->quantity += $product['quantity'];
+                $productImportReceiptDetail = $productImportReceipt->details()->create([
+                    'product_id' => $product['product_id'],
+                    'storage_area_id' => $data['storage_area_id'],
+                    'quantity' => $quantity,
+                ]);
+
+                $productStorageLocation = ProductStorageLocation::firstOrNew([
+                    'product_id' => $product['product_id'],
+                    'storage_area_id' => $data['storage_area_id'],
+                ]);
+
+                // Thêm vào bảng Product Storage Location
+                $productStorageLocation->quantity = ($productStorageLocation->quantity ?? 0) + $quantity;
+                $productStorageLocation->save();
+
+                // Thêm vào bảng Products
+                $productModel->quantity_available += $quantity;
+
+                // Chỉ cập nhật minimum_stock_level nếu có giá trị mới được cung cấp
+                if (isset($product['minimum_stock_level'])) {
+                    $productModel->minimum_stock_level = $product['minimum_stock_level'];
+                }
+
                 $productModel->save();
             }
+
+            $productImportReceipt->status = 'PENDING';
+            $productImportReceipt->save();
+
+            $response = [
+                'message' => 'Nhập kho thành công',
+                'product_import_receipt_id' => $productImportReceipt->id
+            ];
+
+            header('Content-Type: application/json');
+            echo json_encode($response, JSON_UNESCAPED_UNICODE);
+        } catch (\Exception $e) {
+            header('Content-Type: application/json');
+            http_response_code(400);
+            echo json_encode(['error' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
         }
-
-        header('Content-Type: application/json');
-        echo json_encode(['message' => 'Nhập kho thành công']);
     }
-
 }
