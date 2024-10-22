@@ -264,6 +264,8 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
         });
 
         $router->group(array('prefix' => '/v1/orders'), function (RouteCollector $router) {
+            $router->get('/{id}/order_gift_sets', ['App\Controllers\OrderController', 'getOrderGiftSetsByOrder']);
+            $router->get('/{id}/gift_sets', ['App\Controllers\OrderController', 'getGiftSetsByOrder']);
             $router->get('/{id}/details', ['App\Controllers\OrderController', 'getOrderDetailByOrder']);
             $router->post('/{id}/products', ['App\Controllers\OrderController', 'addProductToOrder']);
             $router->get('/{id}/products', ['App\Controllers\OrderController', 'getProductByOrder']);
