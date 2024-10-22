@@ -28,6 +28,16 @@ class StorageArea extends Model
         return $this->hasMany(MaterialStorageLocation::class);
     }
 
+    public function inventoryChecks(): HasMany
+    {
+        return $this->hasMany(InventoryCheck::class);
+    }
+
+    public function inventoryHistory(): HasMany
+    {
+        return $this->hasMany(InventoryHistory::class);
+    }
+
     /**
      * @throws Exception
      */

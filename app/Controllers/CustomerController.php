@@ -4,14 +4,22 @@ namespace App\Controllers;
 
 use App\Models\Customer;
 use App\Models\GroupCustomer;
+use App\Utils\PaginationTrait;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 
 class CustomerController
 {
-    public function getCustomers(): Collection
+    use PaginationTrait;
+
+    public function getCustomers(): array
     {
-        $customer = Customer::query()->where('status', '!=', 'DELETED')->where('deleted', false);
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $customer = Customer::with('groupCustomer')
+            ->where('status', '!=', 'DELETED')
+            ->where('deleted', false)->with(['groupCustomer', 'orders']);
 
         if (isset($_GET['status'])) {
             $status = urldecode($_GET['status']);
@@ -59,31 +67,41 @@ class CustomerController
             $customer->where('ward', 'like', '%' . $ward . '%');
         }
 
-        return $customer->get();
+        return $this->paginateResults($customer, $perPage, $page)->toArray();
     }
 
-    public function getCustomerById($id): ?Model
+    public function getCustomerById($id): string
     {
-        $customer = Customer::query()->where('id', $id)->first();
-        $group_customer = GroupCustomer::query()->where('id', $customer->group_customer_id)->first();
-        if ($customer) {
-            unset($customer->group_customer_id);
-            $customer->group_customer = $group_customer;
-            return $customer;
-        } else {
-            return null;
+        $customer = Customer::query()->where('id', $id)->with(['groupCustomer', 'orders'])
+            ->first();
+
+        if (!$customer) {
+            return json_encode(['error' => 'Không tìm thấy']);
         }
+
+        return json_encode($customer->toArray());
     }
 
-    public function getOrderByCustomer($id): ?Collection
+    public function getOrderByCustomer($id): array
     {
-        $customer = Customer::query()->where('id', $id)->first();
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
 
-        if ($customer) {
-            return $customer->orders()->get();
-        } else {
-            return null;
-        }
+        $customer = Customer::query()->where('id', $id)->firstOrFail();
+        $ordersQuery = $customer->orders()->with(['customer','creator'])->getQuery();
+
+        return $this->paginateResults($ordersQuery, $perPage, $page)->toArray();
+    }
+
+    public function getGroupCustomerByCustomer($id): array
+    {
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $customer = Customer::query()->where('id', $id)->firstOrFail();
+        $groupCustomersQuery = $customer->groupCustomer()->with(['customers'])->getQuery();
+
+        return $this->paginateResults($groupCustomersQuery, $perPage, $page)->toArray();
     }
 
     public function createCustomer()

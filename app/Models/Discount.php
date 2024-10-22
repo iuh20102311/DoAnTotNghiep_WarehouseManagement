@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Exception;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Respect\Validation\Validator as v;
 use Respect\Validation\Exceptions\ValidationException;
 
@@ -26,6 +27,17 @@ class Discount extends Model
     public function products(): BelongsToMany
     {
         return $this->belongsToMany(Product::class, 'product_discounts');
+    }
+
+    // Quan hệ bảng nhiều nhiều
+    public function categoryDiscounts(): HasMany
+    {
+        return $this->hasMany(CategoryDiscount::class);
+    }
+
+    public function productDiscounts(): HasMany
+    {
+        return $this->hasMany(ProductDiscount::class);
     }
 
     public function validate(array $data, bool $isUpdate = false)

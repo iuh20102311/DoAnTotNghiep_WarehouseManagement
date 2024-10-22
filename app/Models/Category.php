@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Utils\Validator;
 use Exception;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Respect\Validation\Validator as v;
 use Respect\Validation\Exceptions\ValidationException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -31,6 +32,12 @@ class Category extends Model
     public function materials(): BelongsToMany
     {
         return $this->belongsToMany(Material::class, 'material_categories');
+    }
+
+    // Quan hệ bảng nhiều nhiều
+    public function categoryDiscounts(): HasMany
+    {
+        return $this->hasMany(CategoryDiscount::class);
     }
 
     public function validate(array $data)

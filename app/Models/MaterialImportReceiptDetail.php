@@ -23,7 +23,7 @@ class MaterialImportReceiptDetail extends Model
 
     public function materialImportReceipt(): BelongsTo
     {
-        return $this->belongsTo(MaterialImportReceipt::class);
+        return $this->belongsTo(MaterialImportReceipt::class,'material_import_receipt_id');
     }
 
     public function storageArea(): BelongsTo

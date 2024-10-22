@@ -19,6 +19,11 @@ class GiftSetProduct extends Model
     protected $primaryKey = ['gift_set_id', 'product_id'];
     public $timestamps = true;
 
+    protected $casts = [
+        'quantity' => 'integer',
+        'deleted' => 'boolean',
+    ];
+
     public function giftSet(): BelongsTo
     {
         return $this->belongsTo(GiftSet::class);

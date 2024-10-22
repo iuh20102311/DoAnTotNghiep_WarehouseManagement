@@ -8,6 +8,7 @@ use App\Models\MaterialStorageLocation;
 use App\Models\Provider;
 use App\Models\StorageArea;
 use App\Models\User;
+use App\Utils\PaginationTrait;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Lcobucci\JWT\Encoding\JoseEncoder;
@@ -15,6 +16,8 @@ use Lcobucci\JWT\Token\Parser;
 
 class MaterialImportReceiptController
 {
+    use PaginationTrait;
+
     public function countTotalReceipts()
     {
         $data = json_decode(file_get_contents('php://input'), true);
@@ -36,9 +39,12 @@ class MaterialImportReceiptController
         echo json_encode(['total_receipts' => $totalReceipts]);
     }
 
-    public function getMaterialImportReceipts(): Collection
+    public function getMaterialImportReceipts(): array
     {
-        $materialIRs = MaterialImportReceipt::query()->where('status', '!=', 'DELETED');
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $materialIRs = MaterialImportReceipt::query()->where('status', '!=', 'DELETED')->with(['provider', 'creator', 'approver', 'receiver', 'details']);
 
         if (isset($_GET['type'])) {
             $type = urldecode($_GET['type']);
@@ -65,59 +71,47 @@ class MaterialImportReceiptController
             $materialIRs->where('status', $status);
         }
 
-        $materialIRs = $materialIRs->get();
-        foreach ($materialIRs as $index => $materialIR) {
-            $provider = Provider::query()->where('id', $materialIR->provider_id)->first();
-            $creator = User::query()->where('id', $materialIR->created_by)->first();
-            $receiver = User::query()->where('id', $materialIR->receiver_id)->first();
-            $approver = User::query()->where('id', $materialIR->approved_by)->first();
+        return $this->paginateResults($materialIRs, $perPage, $page)->toArray();
 
-            unset($materialIR->provider_id);
-
-            $materialIR->provider = $provider;
-            $materialIR->created_by = $creator;
-            $materialIR->receiver_id = $receiver;
-            $materialIR->approved_by = $approver;
-        }
-
-        return $materialIRs;
     }
 
-    public function getMaterialImportReceiptById($id): ?Model
+    public function getMaterialImportReceiptById($id): false|string
     {
-        $materialIR = MaterialImportReceipt::query()->where('id', $id)->first();
-        $provider = Provider::query()->where('id', $materialIR->provider_id)->first();
-        $creator = User::query()->where('id', $materialIR->created_by)->first();
-        $receiver = User::query()->where('id', $materialIR->receiver_id)->first();
-        $approver = User::query()->where('id', $materialIR->approved_by)->first();
+        $materialIR = MaterialImportReceipt::query()->where('id', $id)
+            ->with(['provider', 'creator', 'approver', 'receiver', 'details'])
+            ->first();
 
-        if ($materialIR) {
-            unset($materialIR->provider_id);
-
-            $materialIR->provider = $provider;
-            $materialIR->created_by = $creator;
-            $materialIR->receiver_id = $receiver;
-            $materialIR->approved_by = $approver;
-
-            return $materialIR;
-        } else {
-            return null;
+        if (!$materialIR) {
+            return json_encode(['error' => 'Không tìm thấy']);
         }
+
+        return json_encode($materialIR->toArray());
     }
 
     public function getImportReceiptDetailsByImportReceipt($id)
     {
-        $materialIRs = MaterialImportReceipt::query()->where('id', $id)->first();
-        $materialIRDList = $materialIRs->details;
-        foreach ($materialIRDList as $key => $value) {
-            $material = Material::query()->where('id', $value->material_id)->first();
-            $storage = StorageArea::query()->where('id', $value->storage_area_id)->first();
-            unset($value->material_id);
-            unset($value->storage_area_id);
-            $value->material = $material;
-            $value->storage_area = $storage;
-        }
-        return $materialIRDList;
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $materialIRs = MaterialImportReceipt::query()->where('id', $id)->firstOrFail();
+        $materialImportReceiptDetailsQuery = $materialIRs->details()
+            ->with(['material', 'storageArea', 'materialImportReceipt'])
+            ->getQuery();
+
+        return $this->paginateResults($materialImportReceiptDetailsQuery, $perPage, $page)->toArray();
+    }
+
+    public function getProvidersByImportReceipt($id)
+    {
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $materialIRs = MaterialImportReceipt::query()->where('id', $id)->firstOrFail();
+        $providersQuery = $materialIRs->provider()
+            ->with(['materials', 'materialImportReceipt'])
+            ->getQuery();
+
+        return $this->paginateResults($providersQuery, $perPage, $page)->toArray();
     }
 
     public function createMaterialImportReceipt(): Model|string

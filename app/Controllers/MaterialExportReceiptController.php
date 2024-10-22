@@ -7,6 +7,7 @@ use App\Models\MaterialExportReceipt;
 use App\Models\MaterialStorageLocation;
 use App\Models\StorageArea;
 use App\Models\User;
+use App\Utils\PaginationTrait;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Lcobucci\JWT\Encoding\JoseEncoder;
@@ -14,6 +15,8 @@ use Lcobucci\JWT\Token\Parser;
 
 class MaterialExportReceiptController
 {
+    use PaginationTrait;
+
     public function countTotalReceipts()
     {
         $data = json_decode(file_get_contents('php://input'), true);
@@ -36,55 +39,47 @@ class MaterialExportReceiptController
     }
 
 
-    public function getMaterialExportReceipts(): Collection
+    public function getMaterialExportReceipts(): array
     {
-        $materialERs = MaterialExportReceipt::query()->where('status', '!=', 'DELETED')->get();
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $materialERs = MaterialExportReceipt::query()->where('status', '!=', 'DELETED')->with(['creator', 'approver', 'details']);
 
         if (isset($_GET['type'])) {
             $type = urldecode($_GET['type']);
             $materialERs->where('type', $type);
         }
 
-        foreach ($materialERs as $index => $materialER) {
-            $storage = StorageArea::query()->where('id', $materialER->storage_area_id)->first();
-            unset($materialER->storage_area_id);
-            $materialER->storageArea = $storage;
-        }
-
-        return $materialERs;
+        return $this->paginateResults($materialERs, $perPage, $page)->toArray();
     }
 
-    public function getMaterialExportReceiptById($id): ?Model
+    public function getMaterialExportReceiptById($id): string
     {
-        $materialER = MaterialExportReceipt::query()->where('id', $id)->first();
-        $created_by = User::query()->where('id', $materialER->created_by)->first();
-        $approved_by = User::query()->where('id', $materialER->approved_by)->first();
-        $receiver_id = User::query()->where('id', $materialER->receiver_id)->first();
+        $materialER = MaterialExportReceipt::query()
+            ->where('id', $id)
+            ->where('status', '!=', 'DELETED')
+            ->with(['creator', 'approver', 'details'])
+            ->first();
 
-        if ($materialER) {
-            unset($materialER->created_by);
-            unset($materialER->approved_by);
-            unset($materialER->receiver_id);
-            $materialER->creator = $created_by;
-            $materialER->approver = $approved_by;
-            $materialER->receiver = $receiver_id;
-            return $materialER;
-        } else {
-            return null;
+        if (!$materialER) {
+            return json_encode(['error' => 'Không tìm thấy']);
         }
+
+        return json_encode($materialER->toArray());
     }
 
-    public function getExportReceiptDetailsByExportReceipt($id)
+    public function getExportReceiptDetailsByExportReceipt($id): array
     {
-        $materialERs = MaterialExportReceipt::query()->where('id', $id)->first();
-        $materialERDList = $materialERs->details;
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
 
-        foreach ($materialERDList as $key => $value) {
-            $material = Material::query()->where('id', $value->material_id)->first();
-            unset($value->material_id);
-            $value->material = $material;
-        }
-        return $materialERDList;
+        $materialER = MaterialExportReceipt::query()->where('id', $id)->firstOrFail();
+        $materialExportReceiptDetailsQuery = $materialER->details()
+            ->with(['material', 'storageArea', 'materialExportReceipt'])
+            ->getQuery();
+
+        return $this->paginateResults($materialExportReceiptDetailsQuery, $perPage, $page)->toArray();
     }
 
     public function createMaterialExportReceipt(): Model|string

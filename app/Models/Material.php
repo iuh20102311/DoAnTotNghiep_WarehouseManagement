@@ -34,19 +34,30 @@ class Material extends Model
         return $this->hasMany(MaterialStorageLocation::class);
     }
 
-    public function MaterialExportReceiptDetails(): HasMany
+    public function exportReceiptDetails(): HasMany
     {
-        return $this->hasMany(MaterialExportReceiptDetail::class, 'material_id');
+        return $this->hasMany(MaterialExportReceiptDetail::class);
     }
 
-    public function MaterialImportReceiptDetails(): HasMany
+    public function importReceiptDetails(): HasMany
     {
-        return $this->hasMany(MaterialImportReceiptDetail::class, 'material_id');
+        return $this->hasMany(MaterialImportReceiptDetail::class);
     }
 
-    public function MaterialInventories()
+    public function inventoryCheckDetails(): HasMany
     {
-        return $this->hasMany(MaterialInventory::class,'material_id');
+        return $this->hasMany(InventoryCheckDetail::class,'material_id');
+    }
+
+    public function inventoryHistory(): HasMany
+    {
+        return $this->hasMany(InventoryHistory::class);
+    }
+
+    // Quan hệ bảng nhiều nhiều
+    public function materialCategories(): HasMany
+    {
+        return $this->hasMany(MaterialCategory::class);
     }
 
     /**

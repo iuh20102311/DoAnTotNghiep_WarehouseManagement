@@ -4,14 +4,20 @@ namespace App\Controllers;
 
 use App\Models\Customer;
 use App\Models\GroupCustomer;
+use App\Utils\PaginationTrait;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 
 class GroupCustomerController
 {
-    public function getGroupCustomers(): Collection
+    use PaginationTrait;
+
+    public function getGroupCustomers(): array
     {
-        $groupcustomer = GroupCustomer::query()->where('status', '!=' , 'DISABLE');
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $groupcustomer = GroupCustomer::query()->where('status', '!=', 'DISABLE')->with(['customers']);
 
         if (isset($_GET['status'])) {
             $status = urldecode($_GET['status']);
@@ -23,27 +29,36 @@ class GroupCustomerController
             $groupcustomer->where('name', 'like', '%' . $name . '%');
         }
 
-        return $groupcustomer->get();
+        return $this->paginateResults($groupcustomer, $perPage, $page)->toArray();
     }
 
-    public function getGroupCustomerById($id) : Model
+    public function getGroupCustomerById($id): string
     {
-        $groupcustomer = GroupCustomer::query()->where('id',$id)->first();
-        return $groupcustomer;
-    }
+        $groupcustomer = GroupCustomer::query()->where('id', $id)
+            ->with(['customers'])
+            ->first();
 
-    public function getCustomerByGroupCustomer($id) : ?Collection
-    {
-        $groupcustomer = GroupCustomer::query()->where('id', $id)->first();
-
-        if ($groupcustomer) {
-            return $groupcustomer->customers()->get();
-        } else {
-            return null;
+        if (!$groupcustomer) {
+            return json_encode(['error' => 'Không tìm thấy']);
         }
+
+        return json_encode($groupcustomer->toArray());
     }
 
-    public function createGroupCustomer(): Model | string
+    public function getCustomerByGroupCustomer($id): array
+    {
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $groupcustomer = GroupCustomer::findOrFail($id);
+        $customersQuery = $groupcustomer->customers()
+            ->with('groupCustomer')
+            ->getQuery();
+
+        return $this->paginateResults($customersQuery, $perPage, $page)->toArray();
+    }
+
+    public function createGroupCustomer(): Model|string
     {
         $data = json_decode(file_get_contents('php://input'), true);
         $groupcustomer = new GroupCustomer();
@@ -58,7 +73,7 @@ class GroupCustomerController
         return $groupcustomer;
     }
 
-    public function updateGroupCustomerById($id): bool | int | string
+    public function updateGroupCustomerById($id): bool|int|string
     {
         $groupcustomer = GroupCustomer::find($id);
 
@@ -82,7 +97,7 @@ class GroupCustomerController
         return $groupcustomer;
     }
 
-    public function deleteGroupCustomer($id)
+    public function deleteGroupCustomer($id): string
     {
         $groupcustomer = GroupCustomer::find($id);
 
@@ -90,8 +105,7 @@ class GroupCustomerController
             $groupcustomer->status = 'DISABLE';
             $groupcustomer->save();
             return "Xóa thành công";
-        }
-        else {
+        } else {
             http_response_code(404);
             return "Không tìm thấy";
         }

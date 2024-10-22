@@ -23,6 +23,11 @@ class Profile extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function createdOrders()
+    {
+        return $this->hasMany(Order::class, 'created_by');
+    }
+
     /**
      * @throws Exception
      */

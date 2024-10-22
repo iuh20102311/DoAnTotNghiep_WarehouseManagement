@@ -19,16 +19,33 @@ class InventoryCheckDetail extends Model
 
     public function inventoryCheck(): BelongsTo
     {
-        return $this->belongsTo(InventoryCheck::class);
+        return $this->belongsTo(InventoryCheck::class, 'inventory_check_id');
     }
 
     public function product(): BelongsTo
     {
-        return $this->belongsTo(Product::class);
+        return $this->belongsTo(Product::class, 'product_id');
     }
 
     public function material(): BelongsTo
     {
-        return $this->belongsTo(Material::class);
+        return $this->belongsTo(Material::class, 'material_id');
+    }
+
+    // Mutator to enforce constraint programmatically
+    public function setProductIdAttribute($value)
+    {
+        if (!is_null($value)) {
+            $this->attributes['product_id'] = $value;
+            $this->attributes['material_id'] = null; // Force material_id to null
+        }
+    }
+
+    public function setMaterialIdAttribute($value)
+    {
+        if (!is_null($value)) {
+            $this->attributes['material_id'] = $value;
+            $this->attributes['product_id'] = null; // Force product_id to null
+        }
     }
 }
