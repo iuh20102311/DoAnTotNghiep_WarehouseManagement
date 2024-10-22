@@ -23,7 +23,7 @@ class ProductImportReceiptDetail extends Model
 
     public function productImportReceipt(): BelongsTo
     {
-        return $this->belongsTo(ProductImportReceipt::class);
+        return $this->belongsTo(ProductImportReceipt::class,'product_import_receipt_id');
     }
 
     public function storageArea(): BelongsTo

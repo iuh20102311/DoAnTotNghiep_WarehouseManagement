@@ -31,4 +31,14 @@ class GiftSet extends Model
         return $this->belongsToMany(Order::class, 'order_gift_sets')->withPivot('quantity', 'price');
     }
 
+    // Quan hệ bảng nhiều nhiều
+    public function giftSetProducts(): HasMany
+    {
+        return $this->hasMany(GiftSetProduct::class);
+    }
+
+    public function orderGiftSets(): HasMany
+    {
+        return $this->hasMany(OrderGiftSet::class);
+    }
 }

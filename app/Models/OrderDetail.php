@@ -17,11 +17,6 @@ class OrderDetail extends Model
     protected $primaryKey = ['order_id', 'product_id'];
     public $timestamps = true;
 
-    //    public function products(): BelongsToMany
-    //    {
-    //        return $this->belongsToMany(Product::class, 'order_details');
-    //    }
-
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);

@@ -172,9 +172,11 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
         $router->group(array('prefix' => '/v1/materials'), function (RouteCollector $router) {
             $router->get('/count', ['App\Controllers\MaterialController', 'countMaterials']);
 
-            $router->post('/{id}/export_receipt_details', ['App\Controllers\MaterialController', 'addExportReceiptDetailToMaterial']);
+            $router->get('/{id}/material_storage_locations', ['App\Controllers\MaterialController', 'getMaterialStorageLocationsByMaterial']);
+            $router->get('/{id}/inventory_check_details', ['App\Controllers\MaterialController', 'getInventoryCheckDetailsByMaterial']);
             $router->get('/{id}/export_receipt_details', ['App\Controllers\MaterialController', 'getExportReceiptDetailsByMaterial']);
             $router->get('/{id}/import_receipt_details', ['App\Controllers\MaterialController', 'getImportReceiptDetailsByMaterial']);
+            $router->get('/{id}/inventory_history', ['App\Controllers\MaterialController', 'getInventoryHistoryByMaterial']);
             $router->post('/{id}/categories', ['App\Controllers\MaterialController', 'addCategoryToMaterial']);
             $router->post('/{id}/providers', ['App\Controllers\MaterialController', 'addProviderToMaterial']);
             $router->get('/{id}/categories', ['App\Controllers\MaterialController', 'getCategoryByMaterial']);
@@ -186,12 +188,15 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
             $router->get('/', ['App\Controllers\MaterialController', 'getMaterials']);
         });
 
-        $router->group(array('prefix' => '/v1/material_inventories'), function (RouteCollector $router) {
-            $router->put('/{id}', ['App\Controllers\MaterialInventoryController', 'updateMaterialInventoryById']);
-            $router->delete('/{id}', ['App\Controllers\MaterialInventoryController', 'deleteMaterialInventory']);
-            $router->get('/{id}', ['App\Controllers\MaterialInventoryController', 'getMaterialInventoryById']);
-            $router->post('/', ['App\Controllers\MaterialInventoryController', 'createMaterialInventory']);
-            $router->get('/', ['App\Controllers\MaterialInventoryController', 'getMaterialInventories']);
+        $router->group(array('prefix' => '/v1/material_storage_locations'), function (RouteCollector $router) {
+            $router->get('/{id}/storage_areas', ['App\Controllers\MaterialStorageLocationController', 'getStorageAreaByMaterialStorageLocation']);
+            $router->get('/{id}/providers', ['App\Controllers\MaterialStorageLocationController', 'getProvidersByMaterialStorageLocation']);
+            $router->get('/{id}/materials', ['App\Controllers\MaterialStorageLocationController', 'getMaterialByMaterialStorageLocation']);
+            $router->put('/{id}', ['App\Controllers\MaterialStorageLocationController', 'updateMaterialStorageLocationById']);
+            $router->delete('/{id}', ['App\Controllers\MaterialStorageLocationController', 'deleteMaterialStorageLocation']);
+            $router->get('/{id}', ['App\Controllers\MaterialStorageLocationController', 'getMaterialStorageLocationById']);
+            $router->post('/', ['App\Controllers\MaterialStorageLocationController', 'createMaterialStorageLocation']);
+            $router->get('/', ['App\Controllers\MaterialStorageLocationController', 'getMaterialStorageLocations']);
         });
 
         $router->group(array('prefix' => '/v1/providers'), function (RouteCollector $router) {
@@ -207,7 +212,7 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
         $router->group(array('prefix' => '/v1/material_export_receipts'), function (RouteCollector $router) {
             $router->post('/count', ['App\Controllers\MaterialExportReceiptController', 'countTotalReceipts']);
 
-            $router->get('/{id}/details', ['App\Controllers\MaterialExportReceiptController', 'getExportReceiptDetailsByExportReceipt']);
+            $router->get('/{id}/material_export_receipt_details', ['App\Controllers\MaterialExportReceiptController', 'getExportReceiptDetailsByExportReceipt']);
             $router->put('/{id}', ['App\Controllers\MaterialExportReceiptController', 'updateMaterialExportReceiptById']);
             $router->delete('/{id}', ['App\Controllers\MaterialExportReceiptController', 'deleteMaterialExportReceipt']);
             $router->get('/{id}', ['App\Controllers\MaterialExportReceiptController', 'getMaterialExportReceiptById']);
@@ -218,7 +223,8 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
         $router->group(array('prefix' => '/v1/material_import_receipts'), function (RouteCollector $router) {
             $router->post('/count', ['App\Controllers\MaterialImportReceiptController', 'countTotalReceipts']);
 
-            $router->get('/{id}/details', ['App\Controllers\MaterialImportReceiptController', 'getImportReceiptDetailsByImportReceipt']);
+            $router->get('/{id}/material_import_receipt_details', ['App\Controllers\MaterialImportReceiptController', 'getImportReceiptDetailsByImportReceipt']);
+            $router->get('/{id}/providers', ['App\Controllers\MaterialImportReceiptController', 'getProvidersByImportReceipt']);
             $router->put('/{id}', ['App\Controllers\MaterialImportReceiptController', 'updateMaterialImportReceiptById']);
             $router->delete('/{id}', ['App\Controllers\MaterialImportReceiptController', 'deleteMaterialImportReceipt']);
             $router->get('/{id}', ['App\Controllers\MaterialImportReceiptController', 'getMaterialImportReceiptById']);
@@ -269,7 +275,6 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
         });
 
         $router->group(array('prefix' => '/v1/order_details'), function (RouteCollector $router) {
-            $router->delete('/{id}', ['App\Controllers\OrderController', 'deleteOrder']);
             $router->get('/', ['App\Controllers\OrderController', 'getOrderDetails']);
         });
 
@@ -301,6 +306,7 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
         });
 
         $router->group(array('prefix' => '/v1/customers'), function (RouteCollector $router) {
+            $router->get('/{id}/group_customers', ['App\Controllers\CustomerController', 'getGroupCustomerByCustomer']);
             $router->get('/{id}/orders', ['App\Controllers\CustomerController', 'getOrderByCustomer']);
             $router->put('/{id}', ['App\Controllers\CustomerController', 'updateCustomerById']);
             $router->delete('/{id}', ['App\Controllers\CustomerController', 'deleteCustomer']);

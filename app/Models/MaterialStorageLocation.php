@@ -16,13 +16,18 @@ class MaterialStorageLocation extends Model
     use HasFactory;
 
     protected $table = 'material_storage_locations';
-    protected $fillable = ['material_id', 'storage_area_id', 'quantity', 'created_at', 'updated_at', 'deleted'];
+    protected $fillable = ['material_id', 'provider_id','storage_area_id', 'quantity', 'created_at', 'updated_at', 'deleted'];
     protected $primaryKey = 'id';
     public $timestamps = true;
 
     public function material(): BelongsTo
     {
         return $this->belongsTo(Material::class);
+    }
+
+    public function provider(): BelongsTo
+    {
+        return $this->belongsTo(Provider::class);
     }
 
     public function storageArea(): BelongsTo

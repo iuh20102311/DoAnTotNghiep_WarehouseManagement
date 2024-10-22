@@ -4,25 +4,29 @@ namespace App\Controllers;
 
 use App\Models\Customer;
 use App\Models\Order;
+use App\Models\OrderDetail;
 use App\Models\Product;
+use App\Models\Profile;
 use App\Utils\PaginationTrait;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 use Lcobucci\JWT\Encoding\CannotDecodeContent;
 use Lcobucci\JWT\Token\InvalidTokenStructure;
 use Lcobucci\JWT\Token\UnsupportedHeaderFound;
 use Lcobucci\JWT\Encoding\JoseEncoder;
+use Lcobucci\JWT\Token\Plain;
 use Lcobucci\JWT\Token\Parser;
 
-class OrderController
+class OrderDetailController
 {
     use PaginationTrait;
 
-    public function getOrders(): array
+    public function getOrderDetails(): array
     {
         $perPage = $_GET['per_page'] ?? 10;
         $page = $_GET['page'] ?? 1;
 
-        $orders = Order::query()->where('status', '!=' , 'DELETED')
-            ->with(['customer', 'creator','orderDetails','giftSets']);
+        $orders = Order::query()->where('status', '!=' , 'DELETED')->with(['customer', 'creator','orderDetails','giftSets']);
 
         if (isset($_GET['status'])) {
             $status = urldecode($_GET['status']);
@@ -63,7 +67,7 @@ class OrderController
         return $this->paginateResults($orders, $perPage, $page)->toArray();
     }
 
-    public function getOrderById($id) : false|string
+    public function getOrderDetailById($id) : false|string
     {
         $order = Order::query()->where('id', $id)
             ->with(['customer', 'creator','orderDetails','giftSets'])
@@ -76,15 +80,25 @@ class OrderController
         return json_encode($order->toArray());
     }
 
+    public function getProductByOrder($id)
+    {
+        $order = Order::query()->where('id',$id)->first();
+        return $order->products;
+    }
+
+    public function addProductToOrder($id)
+    {
+        $order = Order::query()->where('id',$id)->first();
+        $data = json_decode(file_get_contents('php://input'),true);
+        $product = Product::query()->where('id',$data['product_id'])->first();
+        $order->products()->attach($product);
+        return 'Thêm thành công';
+    }
+
     public function getOrderDetailByOrder($id)
     {
-        $perPage = $_GET['per_page'] ?? 10;
-        $page = $_GET['page'] ?? 1;
-
-        $order = Order::query()->where('id', $id)->firstOrFail();
-        $orderDetailsQuery = $order->orderDetails()->with(['order','product'])->getQuery();
-
-        return $this->paginateResults($orderDetailsQuery, $perPage, $page)->toArray();
+        $orderDetails = OrderDetail::query()->where('order_id', $id)->get();
+        return $orderDetails;
     }
 
     public function updateOrderById($id): bool | int | string

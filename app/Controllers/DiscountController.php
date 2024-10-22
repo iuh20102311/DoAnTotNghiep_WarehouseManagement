@@ -5,14 +5,20 @@ namespace App\Controllers;
 use App\Models\Category;
 use App\Models\Discount;
 use App\Models\Product;
+use App\Utils\PaginationTrait;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 
 class DiscountController
 {
-    public function getDiscounts(): Collection
+    use PaginationTrait;
+
+    public function getDiscounts(): array
     {
-        $discount = Discount::query()->where('status', '!=' , 'DELETED');
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $discount = Discount::query()->where('status', '!=' , 'DELETED')->with(['categories', 'products']);
 
         if (isset($_GET['status'])) {
             $status = urldecode($_GET['status']);
@@ -29,22 +35,34 @@ class DiscountController
             $discount->where('discount_value', $discount_value);
         }
 
-        return $discount->get();
+        return $this->paginateResults($discount, $perPage, $page)->toArray();
     }
 
-    public function getDiscountById($id) : Model
+    public function getDiscountById($id) : string
     {
-        $discount = Discount::query()->where('id',$id)->first();
-        return $discount;
+        $discount = Discount::query()->where('id',$id)
+            ->with(['categories', 'products'])
+            ->first();
+
+        if (!$discount) {
+            return json_encode(['error' => 'Không tìm thấy']);
+        }
+
+        return json_encode($discount->toArray());
     }
 
-    public function getProductByDiscount($id)
+    public function getProductByDiscount($id): array
     {
-        $discount = Discount::query()->where('id',$id)->first();
-        return $discount->products;
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $discount = Discount::query()->where('id', $id)->firstOrFail();
+        $productsQuery = $discount->products()->with(['discounts'])->getQuery();
+
+        return $this->paginateResults($productsQuery, $perPage, $page)->toArray();
     }
 
-    public function addProductToDiscount($id)
+    public function addProductToDiscount($id): string
     {
         $discount = Discount::query()->where('id',$id)->first();
         $data = json_decode(file_get_contents('php://input'),true);
@@ -53,13 +71,18 @@ class DiscountController
         return 'Thêm thành công';
     }
 
-    public function getCategoryByDiscount($id)
+    public function getCategoryByDiscount($id): array
     {
-        $discount = Discount::query()->where('id',$id)->first();
-        return $discount->categories;
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $discount = Discount::query()->where('id', $id)->firstOrFail();
+        $categoriesQuery = $discount->categories()->with(['discounts'])->getQuery();
+
+        return $this->paginateResults($categoriesQuery, $perPage, $page)->toArray();
     }
 
-    public function addCategoryToDiscount($id)
+    public function addCategoryToDiscount($id): string
     {
         $discount = Discount::query()->where('id',$id)->first();
         $data = json_decode(file_get_contents('php://input'),true);
@@ -111,7 +134,7 @@ class DiscountController
         return json_encode($discount);
     }
 
-    public function deleteDiscount($id)
+    public function deleteDiscount($id): string
     {
         $discount = Discount::find($id);
 

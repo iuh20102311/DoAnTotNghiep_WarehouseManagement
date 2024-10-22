@@ -8,6 +8,7 @@ $bootstrap = require __DIR__.'/../app/bootstrap.php';
 
 $router = $bootstrap['router'];
 
+
 $dispatcher = new Dispatcher($router->getData());
 
 $url = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -15,7 +16,7 @@ $url = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 // Add detailed logging
 error_log("Request Method: " . $_SERVER['REQUEST_METHOD']);
 error_log("Request URI: " . $url);
-
+error_log("Route data: " . print_r($router->getData(), true));
 // Initialize UrlEncryption
 $urlEncryption = new UrlEncryption($_ENV['URL_ENCRYPTION_KEY']);
 
@@ -44,7 +45,13 @@ $_SERVER['REQUEST_URI'] = '/' . $decryptedPath;
 
 try {
     $response = $dispatcher->dispatch($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI']);
-    echo $response;
+    // Kiểm tra nếu response là một mảng
+    if (is_array($response)) {
+        header('Content-Type: application/json');
+        echo json_encode($response);
+    } else {
+        echo $response;
+    }
 } catch (Exception $e) {
     // Log the error with more details
     error_log("Route error: " . $e->getMessage());

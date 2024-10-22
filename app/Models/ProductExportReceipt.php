@@ -29,10 +29,6 @@ class ProductExportReceipt extends Model
         return $this->belongsTo(User::class, 'approved_by');
     }
 
-    public function receiver(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'receiver_id');
-    }
     public function details(): HasMany
     {
         return $this->hasMany(ProductExportReceiptDetail::class);

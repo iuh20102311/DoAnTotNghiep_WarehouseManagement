@@ -38,6 +38,47 @@ class Product extends Model
         return $this->hasMany(ProductStorageLocation::class);
     }
 
+    public function orderDetails(): HasMany
+    {
+        return $this->hasMany(OrderDetail::class);
+    }
+
+    public function exportReceiptDetails(): HasMany
+    {
+        return $this->hasMany(ProductExportReceiptDetail::class);
+    }
+
+    public function importReceiptDetails(): HasMany
+    {
+        return $this->hasMany(ProductImportReceiptDetail::class);
+    }
+
+    public function giftSets(): BelongsToMany
+    {
+        return $this->belongsToMany(GiftSet::class, 'gift_set_products')->withPivot('quantity');
+    }
+
+    public function inventoryCheckDetails(): HasMany
+    {
+        return $this->hasMany(InventoryCheckDetail::class);
+    }
+
+    public function inventoryHistory(): HasMany
+    {
+        return $this->hasMany(InventoryHistory::class);
+    }
+
+    // Quan hệ bảng nhiều nhiều
+    public function productDiscounts(): HasMany
+    {
+        return $this->hasMany(ProductDiscount::class);
+    }
+
+    public function productCategories(): HasMany
+    {
+        return $this->hasMany(ProductCategory::class);
+    }
+
     /**
      * @throws Exception
      */

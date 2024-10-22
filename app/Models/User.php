@@ -29,14 +29,74 @@ class User extends Model
         return $this->hasMany(Order::class, 'user_id');
     }
 
-    public function role(): BelongsTo
+    public function role()
     {
-        return $this->belongsTo(Role::class, 'role_id');
+        return $this->belongsTo(Role::class);
     }
 
-    public function profile(): HasOne
+    public function profile()
     {
         return $this->hasOne(Profile::class);
+    }
+
+    public function createdMaterialExportReceipts()
+    {
+        return $this->hasMany(MaterialExportReceipt::class, 'created_by');
+    }
+
+    public function approvedMaterialExportReceipts()
+    {
+        return $this->hasMany(MaterialExportReceipt::class, 'approved_by');
+    }
+
+    public function createdMaterialImportReceipts()
+    {
+        return $this->hasMany(MaterialImportReceipt::class, 'created_by');
+    }
+
+    public function approvedMaterialImportReceipts()
+    {
+        return $this->hasMany(MaterialImportReceipt::class, 'approved_by');
+    }
+
+    public function receivedMaterialImportReceipts()
+    {
+        return $this->hasMany(MaterialImportReceipt::class, 'receiver_id');
+    }
+
+    public function createdProductExportReceipts()
+    {
+        return $this->hasMany(ProductExportReceipt::class, 'created_by');
+    }
+
+    public function approvedProductExportReceipts()
+    {
+        return $this->hasMany(ProductExportReceipt::class, 'approved_by');
+    }
+
+    public function createdProductImportReceipts()
+    {
+        return $this->hasMany(ProductImportReceipt::class, 'created_by');
+    }
+
+    public function approvedProductImportReceipts()
+    {
+        return $this->hasMany(ProductImportReceipt::class, 'approved_by');
+    }
+
+    public function receivedProductImportReceipts()
+    {
+        return $this->hasMany(ProductImportReceipt::class, 'receiver_id');
+    }
+
+    public function createdInventoryChecks()
+    {
+        return $this->hasMany(InventoryCheck::class, 'created_by');
+    }
+
+    public function inventoryHistory()
+    {
+        return $this->hasMany(InventoryHistory::class, 'created_by');
     }
 
 

@@ -15,7 +15,7 @@ class MaterialExportReceipt extends Model
 {
     use HasFactory;
     protected $table = 'material_export_receipts';
-    protected $fillable = ['note', 'receipt_date', 'type', 'status', 'created_at', 'updated_at', 'deleted', 'created_by', 'approved_by', 'receiver_id'];
+    protected $fillable = ['note', 'receipt_date', 'type', 'status', 'created_at', 'updated_at', 'deleted', 'created_by', 'approved_by'];
     protected $primaryKey = 'id';
     public $timestamps = true;
 
@@ -27,11 +27,6 @@ class MaterialExportReceipt extends Model
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
-    }
-
-    public function receiver(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'receiver_id');
     }
 
     public function details(): HasMany
