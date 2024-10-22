@@ -42,7 +42,7 @@ class CustomPaginator extends LengthAwarePaginator
                 // Remove redundant foreign keys and other fields if needed
                 // $fieldsToRemove = ['product_id', 'category_id', 'discount_id', 'material_id', 'created_by', 'provider_id',
                 //                    'receiver_id', 'approved_by', 'material_export_receipt_id', 'storage_area_id', 'receipt_id',
-                //                    'material_import_receipt_id' , 'customer_id'];
+                //                    'material_import_receipt_id' , 'customer_id', 'gift_set_id', 'order_id'];
                 //  foreach ($fieldsToRemove as $field) {
                 //  if (isset($array[$field])) {
                 //  unset($array[$field]);

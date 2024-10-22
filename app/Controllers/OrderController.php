@@ -87,6 +87,32 @@ class OrderController
         return $this->paginateResults($orderDetailsQuery, $perPage, $page)->toArray();
     }
 
+    public function getGiftSetsByOrder($id)
+    {
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $order = Order::query()->where('id', $id)->firstOrFail();
+        $giftSetsQuery = $order->giftSets()
+            ->with(['products','prices','orders','giftSetProducts','orderGiftSets'])
+            ->getQuery();
+
+        return $this->paginateResults($giftSetsQuery, $perPage, $page)->toArray();
+    }
+
+    public function getOrderGiftSetsByOrder($id)
+    {
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $order = Order::query()->where('id', $id)->firstOrFail();
+        $orderGiftSetsQuery = $order->orderGiftSets()
+            ->with(['order','giftSet'])
+            ->getQuery();
+
+        return $this->paginateResults($orderGiftSetsQuery, $perPage, $page)->toArray();
+    }
+
     public function updateOrderById($id): bool | int | string
     {
         $order = Order::find($id);
