@@ -7,6 +7,7 @@ use App\Models\ProductImportReceipt;
 use App\Models\ProductStorageLocation;
 use App\Models\StorageArea;
 use App\Models\User;
+use App\Utils\PaginationTrait;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Lcobucci\JWT\Encoding\JoseEncoder;
@@ -14,6 +15,8 @@ use Lcobucci\JWT\Token\Parser;
 
 class ProductImportReceiptController
 {
+    use PaginationTrait;
+
     public function countTotalReceipts()
     {
         $data = json_decode(file_get_contents('php://input'), true);
@@ -35,9 +38,13 @@ class ProductImportReceiptController
         echo json_encode(['total_receipts' => $totalReceipts]);
     }
 
-    public function getProductImportReceipts(): Collection
+    public function getProductImportReceipts(): array
     {
-        $productIRs = ProductImportReceipt::query()->where('status', '!=' , 'DELETED');
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $productIRs = ProductImportReceipt::query()->where('status', '!=' , 'DELETED')
+            ->with(['creator', 'approver', 'receiver','details']);
 
         if (isset($_GET['quantity'])) {
             $quantity = urldecode($_GET['quantity']);
@@ -49,53 +56,33 @@ class ProductImportReceiptController
             $productIRs->where('type', $type);
         }
 
-        $productIRs = $productIRs->get();
-        foreach ($productIRs as $index => $productIR) {
-            $creator = User::query()->where('id', $productIR->created_by)->first();
-            $receiver = User::query()->where('id', $productIR->receiver_id)->first();
-            $approver = User::query()->where('id', $productIR->approved_by)->first();
-
-            unset($productIR->provider_id);
-
-            $productIR->created_by = $creator;
-            $productIR->receiver_id = $receiver;
-            $productIR->approved_by = $approver;
-        }
-
-        return $productIRs;
+        return $this->paginateResults($productIRs, $perPage, $page)->toArray();
     }
 
-    public function getProductImportReceiptById($id) : ?Model
+    public function getProductImportReceiptById($id) : false|string
     {
-        $productIR = ProductImportReceipt::query()->where('id',$id)->first();
-        $creator = User::query()->where('id', $productIR->created_by)->first();
-        $receiver = User::query()->where('id', $productIR->receiver_id)->first();
-        $approver = User::query()->where('id', $productIR->approved_by)->first();
+        $productIR = ProductImportReceipt::query()->where('id',$id)
+            ->with(['creator', 'approver', 'receiver','details'])
+            ->first();
 
-        if ($productIR) {
-            $productIR->created_by = $creator;
-            $productIR->receiver_id = $receiver;
-            $productIR->approved_by = $approver;
-
-            return $productIR;
-        } else {
-            return null;
+        if (!$productIR) {
+            return json_encode(['error' => 'Không tìm thấy']);
         }
+
+        return json_encode($productIR->toArray());
     }
 
-    public function getImportReceiptDetailsByExportReceipt($id)
+    public function getImportReceiptDetailsByExportReceipt($id): array
     {
-        $productIRs = ProductImportReceipt::query()->where('id',$id)->first();
-        $productIRList = $productIRs->details;
-        foreach ($productIRList as $key => $value) {
-            $product = Product::query()->where('id', $value->product_id)->first();
-            $storage = StorageArea::query()->where('id', $value->storage_area_id)->first();
-            unset($value->product_id);
-            unset($value->storage_area_id);
-            $value->product = $product;
-            $value->storage_area = $storage;
-        }
-        return $productIRList;
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $productIRs = ProductImportReceipt::query()->where('id', $id)->firstOrFail();
+        $productImportReceiptDetailsQuery = $productIRs->details()
+            ->with(['product','productImportReceipt','storageArea'])
+            ->getQuery();
+
+        return $this->paginateResults($productImportReceiptDetailsQuery, $perPage, $page)->toArray();
     }
 
     public function createProductImportReceipt(): Model | string

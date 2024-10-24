@@ -5,14 +5,21 @@ namespace App\Controllers;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductPrice;
+use App\Utils\PaginationTrait;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 
 class ProductPriceController
 {
-    public function getProductPrices(): Collection
+    use PaginationTrait;
+
+    public function getProductPrices(): array
     {
-        $productprices = ProductPrice::query()->where('status', '!=' , 'DISABLE');
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $productprices = ProductPrice::query()->where('status', '!=' , 'DISABLE')
+            ->with(['product']);
 
         if (isset($_GET['status'])) {
             $status = urldecode($_GET['status']);
@@ -34,27 +41,33 @@ class ProductPriceController
             $productprices->where('price', '<=', $price_max);
         }
 
-        $productprices = $productprices->get();
-        foreach ($productprices as $index => $productprice) {
-            $product = Product::query()->where('id', $productprice->product_id)->first();
-            unset($productprice->product_id);
-            $productprice->product = $product;
-        }
+        return $this->paginateResults($productprices, $perPage, $page)->toArray();
 
-        return $productprices;
     }
 
-    public function getProductPriceById($id) : ?Model
+    public function getProductPriceById($id) : false|string
     {
-        $productprice = ProductPrice::query()->where('id',$id)->first();
-        $product = Product::query()->where('id',$productprice->product_id)->first();
-        if ($productprice) {
-            unset($productprice->product_id);
-            $productprice->product = $product;
-            return $productprice;
-        } else {
-            return null;
+        $productprice = ProductPrice::query()->where('id',$id)
+            ->with(['product'])
+            ->first();
+
+        if (!$productprice) {
+            return json_encode(['error' => 'Không tìm thấy']);
         }
+
+        return json_encode($productprice->toArray());
+    }
+
+    public function getProductsByProductPrice($id): array
+    {
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $productprice = ProductPrice::query()->where('id', $id)->firstOrFail();
+        $productsQuery = $productprice->product()
+            ->getQuery();
+
+        return $this->paginateResults($productsQuery, $perPage, $page)->toArray();
     }
 
     public function createProductPrice(): Model | string

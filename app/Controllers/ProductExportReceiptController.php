@@ -7,6 +7,7 @@ use App\Models\ProductExportReceipt;
 use App\Models\ProductInventory;
 use App\Models\ProductStorageLocation;
 use App\Models\StorageArea;
+use App\Utils\PaginationTrait;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\User;
@@ -16,6 +17,8 @@ use Lcobucci\JWT\Token\Parser;
 
 class ProductExportReceiptController
 {
+    use PaginationTrait;
+
     public function countTotalReceipts()
     {
         $data = json_decode(file_get_contents('php://input'), true);
@@ -37,9 +40,13 @@ class ProductExportReceiptController
         echo json_encode(['total_receipts' => $totalReceipts]);
     }
 
-    public function getProductExportReceipts(): Collection
+    public function getProductExportReceipts(): array
     {
-        $productERs = ProductExportReceipt::query()->where('status', '!=', 'DELETED');
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $productERs = ProductExportReceipt::query()->where('status', '!=', 'DELETED')
+            ->with(['creator', 'approver', 'details']);
 
         if (isset($_GET['type'])) {
             $type = urldecode($_GET['type']);
@@ -51,39 +58,34 @@ class ProductExportReceiptController
             $productERs->where('status', $status);
         }
 
-        $productERs = $productERs->get();
-        foreach ($productERs as $index => $productER) {
-            $storage = StorageArea::query()->where('id', $productER->storage_area_id)->first();
-            unset($productER->storage_area_id);
-            $productER->storage = $storage;
-        }
+        return $this->paginateResults($productERs, $perPage, $page)->toArray();
 
-        return $productERs;
     }
 
-    public function getProductExportReceiptById($id): ?Model
+    public function getProductExportReceiptById($id): false|string
     {
-        $productER = ProductExportReceipt::query()->where('id', $id)->first();
-        $storage = StorageArea::query()->where('id', $productER->storage_area_id)->first();
-        if ($productER) {
-            unset($productER->storage_area_id);
-            $productER->storage = $storage;
-            return $productER;
-        } else {
-            return null;
+        $productER = ProductExportReceipt::query()->where('id', $id)
+            ->with(['creator', 'approver', 'details'])
+            ->first();
+
+        if (!$productER) {
+            return json_encode(['error' => 'Không tìm thấy']);
         }
+
+        return json_encode($productER->toArray());
     }
 
     public function getExportReceiptDetailsByExportReceipt($id)
     {
-        $productERs = ProductExportReceipt::query()->where('id', $id)->first();
-        $productERList = $productERs->ProductExportReceiptDetails;
-        foreach ($productERList as $key => $value) {
-            $product = Product::query()->where('id', $value->product_id)->first();
-            unset($value->product_id);
-            $value->product = $product;
-        }
-        return $productERList;
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $productER = ProductExportReceipt::query()->where('id', $id)->firstOrFail();
+        $productExportReceiptDetailsQuery = $productER->details()
+            ->with(['product','productExportReceipt','storageArea'])
+            ->getQuery();
+
+        return $this->paginateResults($productExportReceiptDetailsQuery, $perPage, $page)->toArray();
     }
 
     public function createProductExportReceipt(): Model|string

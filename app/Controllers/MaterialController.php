@@ -29,7 +29,9 @@ class MaterialController
         $perPage = $_GET['per_page'] ?? 10;
         $page = $_GET['page'] ?? 1;
 
-        $material = Material::query()->where('status', '!=', 'DELETED')->with(['categories', 'providers', 'storageLocations','exportReceiptDetails','importReceiptDetails','inventoryCheckDetails','inventoryHistory']);
+        $material = Material::query()->where('status', '!=', 'DELETED')
+            ->with(['categories', 'providers', 'storageLocations','exportReceiptDetails',
+                    'importReceiptDetails','inventoryCheckDetails','inventoryHistory']);
 
         if (isset($_GET['status'])) {
             $status = urldecode($_GET['status']);
