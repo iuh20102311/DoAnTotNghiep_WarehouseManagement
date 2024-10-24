@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Models\Material;
 use App\Models\Provider;
+use App\Utils\PaginationTrait;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Respect\Validation\Validator as v;
@@ -11,9 +12,15 @@ use Respect\Validation\Exceptions\ValidationException;
 
 class ProviderController
 {
-    public function getProviders(): Collection
+    use PaginationTrait;
+
+    public function getProviders(): array
     {
-        $provider = Provider::query()->where('status', '!=' , 'DELETED');
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $provider = Provider::query()->where('status', '!=', 'DELETED')
+            ->with(['materials', 'materialImportReceipts']);
 
         if (isset($_GET['status'])) {
             $status = urldecode($_GET['status']);
@@ -56,31 +63,59 @@ class ProviderController
             $provider->where('ward', 'like', '%' . $ward . '%');
         }
 
-        return $provider->get();
+        return $this->paginateResults($provider, $perPage, $page)->toArray();
     }
 
-    public function getProviderById($id) : Model
+    public function getProviderById($id): false|string
     {
-        $provider = Provider::query()->where('id',$id)->first();
-        return $provider;
+        $provider = Provider::query()->where('id', $id)
+            ->with(['materials', 'materialImportReceipts'])
+            ->first();
+
+        if (!$provider) {
+            return json_encode(['error' => 'Không tìm thấy']);
+        }
+
+        return json_encode($provider->toArray());
     }
 
     public function getMaterialByProvider($id)
     {
-        $provider = Provider::query()->where('id',$id)->first();
-        return $provider->materials;
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $provider = Provider::query()->where('id', $id)->firstOrFail();
+        $materialsQuery = $provider->materials()
+            ->with(['categories', 'providers', 'storageLocations','exportReceiptDetails',
+                    'importReceiptDetails','inventoryCheckDetails','inventoryHistory'])
+            ->getQuery();
+
+        return $this->paginateResults($materialsQuery, $perPage, $page)->toArray();
+    }
+
+    public function getMaterialImportReceiptsByProvider($id): array
+    {
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $provider = Provider::query()->where('id', $id)->firstOrFail();
+        $materialImportReceiptsQuery = $provider->materialImportReceipts()
+            ->with(['provider', 'creator', 'approver', 'receiver', 'details'])
+            ->getQuery();
+
+        return $this->paginateResults($materialImportReceiptsQuery, $perPage, $page)->toArray();
     }
 
     public function addMaterialToProvider($id)
     {
-        $provider = Provider::query()->where('id',$id)->first();
-        $data = json_decode(file_get_contents('php://input'),true);
-        $material = Material::query()->where('id',$data['material_id'])->first();
+        $provider = Provider::query()->where('id', $id)->first();
+        $data = json_decode(file_get_contents('php://input'), true);
+        $material = Material::query()->where('id', $data['material_id'])->first();
         $provider->material()->attach($material);
         return 'Thêm thành công';
     }
 
-    public function createProvider(): Model | string
+    public function createProvider(): Model|string
     {
         $data = json_decode(file_get_contents('php://input'), true);
         $provider = new Provider();
@@ -95,7 +130,7 @@ class ProviderController
         return $provider;
     }
 
-    public function updateProviderById($id): bool | int | string
+    public function updateProviderById($id): bool|int|string
     {
         $provider = Provider::find($id);
 
@@ -127,8 +162,7 @@ class ProviderController
             $provider->status = 'DELETED';
             $provider->save();
             return "Xóa thành công";
-        }
-        else {
+        } else {
             http_response_code(404);
             return "Không tìm thấy";
         }

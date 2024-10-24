@@ -4,14 +4,22 @@ namespace App\Controllers;
 
 use App\Models\Profile;
 use App\Models\User;
+use App\Utils\PaginationTrait;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 
 class ProfileController
 {
-    public function getProfile(): Collection
+    use PaginationTrait;
+
+    public function getProfile(): array
     {
-        $profile = Profile::query();
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $profile = Profile::query()
+            ->where('deleted', false)
+            ->with(['user', 'createdOrders']);
 
         if (isset($_GET['phone'])) {
             $phone = urldecode($_GET['phone']);
@@ -34,23 +42,49 @@ class ProfileController
             $profile->where('last_name', 'like', '%' . $last_name . '%');
         }
 
-        return $profile->get();
+        return $this->paginateResults($profile, $perPage, $page)->toArray();
     }
 
-    public function getProfileById($id) : ?Model
+    public function getProfileById($id): false|string
     {
-        $profile = Profile::query()->where('id',$id)->first();
-        $user = User::query()->where('id',$profile->user_id)->first();
-        if ($profile) {
-            unset($profile->user_id);
-            $profile->user = $user;
-            return $profile;
-        } else {
-            return null;
+        $profile = Profile::query()->where('id', $id)
+            ->with(['user', 'createdOrders'])
+            ->first();
+
+        if (!$profile) {
+            return json_encode(['error' => 'Không tìm thấy']);
         }
+
+        return json_encode($profile->toArray());
     }
 
-    public function createProfile(): Model | string
+    public function getUserByProfile($id): array
+    {
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $profile = Profile::query()->where('id', $id)->firstOrFail();
+        $usersQuery = $profile->product()
+            ->with(['orders', 'role','createdInventoryChecks','inventoryHistory'])
+            ->getQuery();
+
+        return $this->paginateResults($usersQuery, $perPage, $page)->toArray();
+    }
+
+    public function getCreatedOrdersByProfile($id): array
+    {
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $profile = Profile::query()->where('id', $id)->firstOrFail();
+        $createdOrdersQuery = $profile->createdOrders()
+            ->with(['customer', 'creator','orderDetails','giftSets','orderGiftSets'])
+            ->getQuery();
+
+        return $this->paginateResults($createdOrdersQuery, $perPage, $page)->toArray();
+    }
+
+    public function createProfile(): Model|string
     {
         $data = json_decode(file_get_contents('php://input'), true);
         $profile = new Profile();
@@ -65,7 +99,7 @@ class ProfileController
         return $profile;
     }
 
-    public function updateProfileById($id): bool | int | string
+    public function updateProfileById($id): bool|int|string
     {
         $profile = Profile::find($id);
 
