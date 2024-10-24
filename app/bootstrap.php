@@ -112,14 +112,20 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
         $router->group(array('prefix' => '/v1/products'), function (RouteCollector $router) {
             $router->get('/count', ['App\Controllers\ProductController', 'countProducts']);
 
-            $router->get('/{id}/inventories', ['App\Controllers\ProductController', 'getProductIventoryByProduct']);
+            $router->get('/{id}/product_import_receipt_details', ['App\Controllers\ProductController', 'getProductImportReceiptDetailsByProduct']);
+            $router->get('/{id}/product_export_receipt_details', ['App\Controllers\ProductController', 'getProductExportReceiptDetailsByProduct']);
+            $router->get('/{id}/product_storage_locations', ['App\Controllers\ProductController', 'getProductStorageLocationByProduct']);
+            $router->get('/{id}/inventory_check_details', ['App\Controllers\ProductController', 'getInventoryCheckDetailsByProduct']);
+            $router->get('/{id}/product_categories', ['App\Controllers\ProductController', 'getProductCategoriesByProduct']);
+            $router->get('/{id}/inventory_history', ['App\Controllers\ProductController', 'getInventoryHistoryByProduct']);
+            $router->get('/{id}/product_discounts', ['App\Controllers\ProductController', 'getProductDiscountsByProduct']);
             $router->post('/{id}/categories', ['App\Controllers\ProductController', 'addCategoryToProduct']);
             $router->get('/{id}/categories', ['App\Controllers\ProductController', 'getCategoryByProduct']);
             $router->post('/{id}/discounts', ['App\Controllers\ProductController', 'addDiscountToProduct']);
-            $router->get('/{id}/materials', ['App\Controllers\ProductController', 'getMaterialByProduct']);
+            $router->get('/{id}/orders', ['App\Controllers\ProductController', 'getOrderDetailsByProduct']);
+            $router->get('/{id}/gift_sets', ['App\Controllers\ProductController', 'getGiftSetsByProduct']);
             $router->get('/{id}/discounts', ['App\Controllers\ProductController', 'getDiscountByProduct']);
-            $router->post('/{id}/orders', ['App\Controllers\ProductController', 'addOrderToProduct']);
-            $router->get('/{id}/orders', ['App\Controllers\ProductController', 'getOrderByProduct']);
+            $router->get('/{id}/prices', ['App\Controllers\ProductController', 'getPriceByProduct']);
             $router->put('/{id}', ['App\Controllers\ProductController', 'updateProductById']);
             $router->delete('/{id}', ['App\Controllers\ProductController', 'deleteProduct']);
             $router->get('/{id}', ['App\Controllers\ProductController', 'getProductById']);
@@ -266,7 +272,7 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
         $router->group(array('prefix' => '/v1/orders'), function (RouteCollector $router) {
             $router->get('/{id}/order_gift_sets', ['App\Controllers\OrderController', 'getOrderGiftSetsByOrder']);
             $router->get('/{id}/gift_sets', ['App\Controllers\OrderController', 'getGiftSetsByOrder']);
-            $router->get('/{id}/details', ['App\Controllers\OrderController', 'getOrderDetailByOrder']);
+            $router->get('/{id}/order_details', ['App\Controllers\OrderController', 'getOrderDetailByOrder']);
             $router->post('/{id}/products', ['App\Controllers\OrderController', 'addProductToOrder']);
             $router->get('/{id}/products', ['App\Controllers\OrderController', 'getProductByOrder']);
             $router->put('/{id}', ['App\Controllers\OrderController', 'updateOrderById']);
@@ -277,8 +283,9 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
         });
 
         $router->group(array('prefix' => '/v1/order_details'), function (RouteCollector $router) {
-            $router->get('/', ['App\Controllers\OrderController', 'getOrderDetails']);
+            $router->get('/', ['App\Controllers\OrderDetailController', 'getOrderDetails']);
         });
+
 
         $router->group(array('prefix' => '/v1/users'), function (RouteCollector $router) {
             $router->get('/{id}/inventorytransactions', ['App\Controllers\UserController', 'getInventoryTransactionByUser']);

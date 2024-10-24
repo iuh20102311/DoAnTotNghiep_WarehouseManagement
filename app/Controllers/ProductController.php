@@ -7,11 +7,15 @@ use App\Models\Discount;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductInventory;
+use App\Models\ProductPrice;
+use App\Utils\PaginationTrait;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 
 class ProductController
 {
+    use PaginationTrait;
+
     public function countProducts()
     {
         $total = Product::where('status', 'IN_STOCK')->count();
@@ -20,9 +24,14 @@ class ProductController
     }
 
 
-    public function getProducts() : Collection
+    public function getProducts() : array
     {
-        $product = Product::query()->where('status', '!=' , 'DELETED');
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $product = Product::query()->where('status', '!=' , 'DELETED')
+            ->with(['categories','discounts','prices','storageLocations','orderDetails', 'exportReceiptDetails',
+                    'importReceiptDetails','giftSets','inventoryCheckDetails','inventoryHistory']);
 
         if (isset($_GET['status'])) {
             $status = urldecode($_GET['status']);
@@ -69,22 +78,37 @@ class ProductController
             $product->where('price', '<=', $price_max);
         }
 
-        return $product->get();
+        return $this->paginateResults($product, $perPage, $page)->toArray();
     }
 
-    public function getProductById($id) : Model
+    public function getProductById($id) : false|string
     {
-        $product = Product::query()->where('id',$id)->first();
-        return $product;
+        $product = Product::query()->where('id',$id)
+            ->with(['categories','discounts','prices','storageLocations','orderDetails', 'exportReceiptDetails',
+                    'importReceiptDetails','giftSets','inventoryCheckDetails','inventoryHistory'])
+            ->first();
+
+        if (!$product) {
+            return json_encode(['error' => 'Không tìm thấy']);
+        }
+
+        return json_encode($product->toArray());
     }
 
-    public function getCategoryByProduct($id)
+    public function getCategoryByProduct($id): array
     {
-        $product = Product::query()->where('id',$id)->first();
-        return $product->categories;
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $product = Product::query()->where('id', $id)->firstOrFail();
+        $categoriesQuery = $product->categories()
+            ->with(['products','discounts','materials'])
+            ->getQuery();
+
+        return $this->paginateResults($categoriesQuery, $perPage, $page)->toArray();
     }
 
-    public function addCategoryToProduct($id)
+    public function addCategoryToProduct($id): string
     {
         $product = Product::query()->where('id',$id)->first();
         $data = json_decode(file_get_contents('php://input'),true);
@@ -93,19 +117,20 @@ class ProductController
         return 'Thêm thành công';
     }
 
-    public function getMaterialByProduct($id)
+    public function getDiscountByProduct($id): array
     {
-        $product = Product::query()->where('id',$id)->first();
-        return $product->materials;
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $product = Product::query()->where('id', $id)->firstOrFail();
+        $discountsQuery = $product->discounts()
+            ->with(['products','categories'])
+            ->getQuery();
+
+        return $this->paginateResults($discountsQuery, $perPage, $page)->toArray();
     }
 
-    public function getDiscountByProduct($id)
-    {
-        $product = Product::query()->where('id',$id)->first();
-        return $product->discounts;
-    }
-
-    public function addDiscountToProduct($id)
+    public function addDiscountToProduct($id): string
     {
         $product = Product::query()->where('id',$id)->first();
         $data = json_decode(file_get_contents('php://input'),true);
@@ -114,25 +139,134 @@ class ProductController
         return 'Thêm thành công';
     }
 
-    public function getOrderByProduct($id)
+    public function getOrderDetailsByProduct($id): array
     {
-        $product = Product::query()->where('id',$id)->first();
-        return $product->orders;
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $product = Product::query()->where('id', $id)->firstOrFail();
+        $orderDetailsQuery = $product->orderDetails()
+            ->with(['product','order'])
+            ->getQuery();
+
+        return $this->paginateResults($orderDetailsQuery, $perPage, $page)->toArray();
     }
 
-    public function addOrderToProduct($id)
+    public function getPriceByProduct($id): array
     {
-        $product = Product::query()->where('id',$id)->first();
-        $data = json_decode(file_get_contents('php://input'),true);
-        $order = Order::query()->where('id',$data['order_id'])->first();
-        $product->orders()->attach($order);
-        return 'Thêm thành công';
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $product = Product::query()->where('id', $id)->firstOrFail();
+        $pricesQuery = $product->prices()
+            ->with(['product'])
+            ->getQuery();
+
+        return $this->paginateResults($pricesQuery, $perPage, $page)->toArray();
     }
 
-    public function getProductIventoryByProduct($id)
+    public function getProductStorageLocationByProduct($id): array
     {
-        $product = Product::query()->where('id',$id)->first();
-        return $product->inventories;
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $product = Product::query()->where('id', $id)->firstOrFail();
+        $productStorageLocationsQuery = $product->storageLocations()
+            ->with(['product','storageArea'])
+            ->getQuery();
+
+        return $this->paginateResults($productStorageLocationsQuery, $perPage, $page)->toArray();
+    }
+
+    public function getProductImportReceiptDetailsByProduct($id): array
+    {
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $product = Product::query()->where('id', $id)->firstOrFail();
+        $productImportReceiptDetailsQuery = $product->importReceiptDetails()
+            ->with(['product','productImportReceipt','storageArea'])
+            ->getQuery();
+
+        return $this->paginateResults($productImportReceiptDetailsQuery, $perPage, $page)->toArray();
+    }
+
+    public function getProductExportReceiptDetailsByProduct($id): array
+    {
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $product = Product::query()->where('id', $id)->firstOrFail();
+        $productExportReceiptDetailsQuery = $product->exportReceiptDetails()
+            ->with(['product','productExportReceipt','storageArea'])
+            ->getQuery();
+
+        return $this->paginateResults($productExportReceiptDetailsQuery, $perPage, $page)->toArray();
+    }
+
+    public function getGiftSetsByProduct($id): array
+    {
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $product = Product::query()->where('id', $id)->firstOrFail();
+        $giftSetsQuery = $product->giftSets()
+            ->with(['products','prices','orders'])
+            ->getQuery();
+
+        return $this->paginateResults($giftSetsQuery, $perPage, $page)->toArray();
+    }
+
+    public function getInventoryCheckDetailsByProduct($id): array
+    {
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $product = Product::query()->where('id', $id)->firstOrFail();
+        $inventoryCheckDetailsQuery = $product->inventoryCheckDetails()
+            ->with(['product','inventoryCheck'])
+            ->getQuery();
+
+        return $this->paginateResults($inventoryCheckDetailsQuery, $perPage, $page)->toArray();
+    }
+
+    public function getInventoryHistoryByProduct($id): array
+    {
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $product = Product::query()->where('id', $id)->firstOrFail();
+        $inventoryHistoryQuery = $product->inventoryHistory()
+            ->with(['product','creator','storageArea'])
+            ->getQuery();
+
+        return $this->paginateResults($inventoryHistoryQuery, $perPage, $page)->toArray();
+    }
+
+    public function getProductDiscountsByProduct($id): array
+    {
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $product = Product::query()->where('id', $id)->firstOrFail();
+        $productDiscountsQuery = $product->productDiscounts()
+            ->with(['product','discount'])
+            ->getQuery();
+
+        return $this->paginateResults($productDiscountsQuery, $perPage, $page)->toArray();
+    }
+
+    public function getProductCategoriesByProduct($id): array
+    {
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $product = Product::query()->where('id', $id)->firstOrFail();
+        $productCategoriesQuery = $product->productCategories()
+            ->with(['product','category'])
+            ->getQuery();
+
+        return $this->paginateResults($productCategoriesQuery, $perPage, $page)->toArray();
     }
 
     public function createProduct(): Model | string

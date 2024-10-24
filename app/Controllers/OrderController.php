@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
 use App\Utils\PaginationTrait;
+use Exception;
 use Lcobucci\JWT\Encoding\CannotDecodeContent;
 use Lcobucci\JWT\Token\InvalidTokenStructure;
 use Lcobucci\JWT\Token\UnsupportedHeaderFound;
@@ -154,79 +155,104 @@ class OrderController
 
     public function createOrder()
     {
-        $data = json_decode(file_get_contents('php://input'), true);
+        $rawInput = file_get_contents('php://input');
 
-        // Xử lý khách hàng (tạo mới hoặc cập nhật)
-        $customer = $this->handleCustomer($data);
-
-        // Kiểm tra khách hàng tồn tại
-        if (!$customer) {
+        // Decode JSON và kiểm tra lỗi
+        $data = json_decode($rawInput, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            error_log("JSON decode error: " . json_last_error_msg());
             header('Content-Type: application/json');
-            echo json_encode(['error' => 'Khách hàng không tồn tại']);
-            return;
-        }
-
-        $headers = apache_request_headers();
-        $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
-
-        if (!$token) {
-            header('Content-Type: application/json');
-            echo json_encode(['error' => 'Token không tồn tại'], JSON_UNESCAPED_UNICODE);
+            echo json_encode(['error' => 'Invalid JSON data: ' . json_last_error_msg()]);
             return;
         }
 
         try {
-            $parser = new Parser(new JoseEncoder());
-            $parsedToken = $parser->parse($token);
+            // Xử lý khách hàng
+            $customer = $this->handleCustomer($data);
 
-            $profileId = $parsedToken->claims()->get('profile_id');
-            if (!$profileId) {
-                header('Content-Type: application/json');
-                echo json_encode(['error' => 'Profile ID không tồn tại trong token'], JSON_UNESCAPED_UNICODE);
-                return;
+            if (!$customer) {
+                throw new Exception('Không thể tạo hoặc cập nhật khách hàng');
             }
 
-            $order = Order::create([
-                'customer_id' => $customer->id, // Sử dụng id của khách hàng mới được tạo
+            // Xác thực token
+            $headers = apache_request_headers();
+            error_log("Headers: " . print_r($headers, true));
+
+            $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
+            if (!$token) {
+                throw new Exception('Token không tồn tại');
+            }
+
+            // Parse token
+            $parser = new Parser(new JoseEncoder());
+            $parsedToken = $parser->parse($token);
+            $profileId = $parsedToken->claims()->get('profile_id');
+
+            if (!$profileId) {
+                throw new Exception('Profile ID không tồn tại trong token');
+            }
+            error_log("Profile ID from token: " . $profileId);
+
+            // Tạo đơn hàng
+            $orderData = [
+                'customer_id' => $customer->id,
                 'created_by' => $profileId,
                 'phone' => $data['phone'],
                 'address' => $data['address'],
                 'city' => $data['city'],
                 'district' => $data['district'],
                 'ward' => $data['ward'],
-            ]);
+                'delivery_date' => $data['delivery_date'] ?? date('Y-m-d', strtotime('+3 days')),
+                'status' => 'PROCESSING',
+                'total_price' => 0
+            ];
 
-            $orderDetails = $data['order_details'] ?? [];
+            $order = Order::create($orderData);
+
+            // Xử lý chi tiết đơn hàng
             $totalPrice = 0;
 
-            foreach ($orderDetails as $orderDetail) {
-                $productExists = Product::where('id', $orderDetail['product_id'])->exists();
-                if (!$productExists) {
-                    header('Content-Type: application/json');
-                    echo json_encode(['error' => 'Sản phẩm không tồn tại']);
-                    return;
+            foreach ($data['order_details'] as $detail) {
+
+                $product = Product::find($detail['product_id']);
+                if (!$product) {
+                    throw new Exception("Sản phẩm #{$detail['product_id']} không tồn tại");
                 }
 
-                $price = $orderDetail['price'];
-                $quantity = $orderDetail['quantity'];
-                $totalPrice += $price * $quantity;
+                $detailData = [
+                    'product_id' => $detail['product_id'],
+                    'quantity' => $detail['quantity'],
+                    'price' => $detail['price'],
+                    'packaging_type' => $detail['packaging_type'] ?? 'PLASTIC_JAR',
+                    'packaging_weight' => $detail['packaging_weight'] ?? 0,
+                    'status' => 'ACTIVE',
+                    'note' => $detail['note'] ?? null
+                ];
 
-                $order->orderDetails()->create([
-                    'product_id' => $orderDetail['product_id'],
-                    'quantity' => $quantity,
-                    'price' => $price,
-                ]);
+                $order->orderDetails()->create($detailData);
+                $totalPrice += $detail['price'] * $detail['quantity'];
             }
 
+            // Cập nhật tổng tiền
             $order->total_price = $totalPrice;
             $order->save();
 
             header('Content-Type: application/json');
-            echo json_encode(['message' => 'Tạo đơn hàng thành công']);
-        } catch (CannotDecodeContent|InvalidTokenStructure|UnsupportedHeaderFound $e) {
+            echo json_encode([
+                'status' => 'success',
+                'message' => 'Tạo đơn hàng thành công',
+                'order_id' => $order->id
+            ], JSON_UNESCAPED_UNICODE);
+
+        } catch (Exception $e) {
+            error_log("ERROR: " . $e->getMessage());
+            error_log("Stack trace: " . $e->getTraceAsString());
+
             header('Content-Type: application/json');
-            echo json_encode(['error' => 'Token không hợp lệ'], JSON_UNESCAPED_UNICODE);
-            return;
+            echo json_encode([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], JSON_UNESCAPED_UNICODE);
         }
     }
 
