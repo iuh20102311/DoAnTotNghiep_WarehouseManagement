@@ -110,11 +110,44 @@ class ProductController
 
     public function addCategoryToProduct($id): string
     {
-        $product = Product::query()->where('id',$id)->first();
-        $data = json_decode(file_get_contents('php://input'),true);
-        $category = Category::query()->where('id',$data['category_id'])->first();
-        $product->categories()->attach($category);
-        return 'Thêm thành công';
+        try {
+            $data = json_decode(file_get_contents('php://input'), true);
+            if (!isset($data['category_id'])) {
+                http_response_code(400);
+                return json_encode(['message' => 'Category ID không được để trống']);
+            }
+
+            // Tìm product
+            $product = Product::query()->find($id);
+            if (!$product) {
+                http_response_code(404);
+                return json_encode(['message' => 'Không tìm thấy sản phẩm']);
+            }
+
+            // Tìm category
+            $category = Category::query()->find($data['category_id']);
+            if (!$category) {
+                http_response_code(404);
+                return json_encode(['message' => 'Không tìm thấy danh mục']);
+            }
+
+            // Kiểm tra xem category đã được thêm chưa
+            $exists = $product->categories()->where('category_id', $category->id)->exists();
+            if ($exists) {
+                http_response_code(400);
+                return json_encode(['message' => 'Danh mục đã tồn tại cho sản phẩm này']);
+            }
+
+            // Thêm category vào product
+            $product->categories()->attach($category->id);
+
+            http_response_code(200);
+            return json_encode(['message' => 'Thêm danh mục thành công']);
+
+        } catch (\Exception $e) {
+            http_response_code(500);
+            return json_encode(['message' => 'Có lỗi xảy ra: ' . $e->getMessage()]);
+        }
     }
 
     public function getDiscountByProduct($id): array
@@ -123,20 +156,53 @@ class ProductController
         $page = $_GET['page'] ?? 1;
 
         $product = Product::query()->where('id', $id)->firstOrFail();
-        $discountsQuery = $product->discounts()
+        $categoriesQuery = $product->discounts()
             ->with(['products','categories'])
             ->getQuery();
 
-        return $this->paginateResults($discountsQuery, $perPage, $page)->toArray();
+        return $this->paginateResults($categoriesQuery, $perPage, $page)->toArray();
     }
 
     public function addDiscountToProduct($id): string
     {
-        $product = Product::query()->where('id',$id)->first();
-        $data = json_decode(file_get_contents('php://input'),true);
-        $discount = Discount::query()->where('id',$data['discount_id'])->first();
-        $product->discounts()->attach($discount);
-        return 'Thêm thành công';
+        try {
+            $data = json_decode(file_get_contents('php://input'), true);
+            if (!isset($data['discount_id'])) {
+                http_response_code(400);
+                return json_encode(['message' => 'Discount ID không được để trống']);
+            }
+
+            // Tìm product
+            $product = Product::query()->find($id);
+            if (!$product) {
+                http_response_code(404);
+                return json_encode(['message' => 'Không tìm thấy sản phẩm']);
+            }
+
+            // Tìm category
+            $discount = Category::query()->find($data['discount_id']);
+            if (!$discount) {
+                http_response_code(404);
+                return json_encode(['message' => 'Không tìm thấy mã giảm giá']);
+            }
+
+            // Kiểm tra xem category đã được thêm chưa
+            $exists = $product->discounts()->where('discount_id', $discount->id)->exists();
+            if ($exists) {
+                http_response_code(400);
+                return json_encode(['message' => 'Mã giảm giá đã được áp dụng cho sản phẩm này']);
+            }
+
+            // Thêm category vào product
+            $product->discounts()->attach($discount->id);
+
+            http_response_code(200);
+            return json_encode(['message' => 'Thêm mã giảm giá cho sản phẩm thành công']);
+
+        } catch (\Exception $e) {
+            http_response_code(500);
+            return json_encode(['message' => 'Có lỗi xảy ra: ' . $e->getMessage()]);
+        }
     }
 
     public function getOrderDetailsByProduct($id): array
