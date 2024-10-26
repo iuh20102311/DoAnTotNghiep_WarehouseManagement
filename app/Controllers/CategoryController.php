@@ -124,59 +124,100 @@ class CategoryController
      * @throws Exception
      */
 
-    public function createCategory(): Model|string
+    public function createCategory(): array
     {
-        $data = json_decode(file_get_contents('php://input'), true);
-        $category = new Category();
-        $errors = $category->validate($data);
+        try {
+            $data = json_decode(file_get_contents('php://input'), true);
+            $category = new Category();
+            $errors = $category->validate($data);
 
-        if ($errors) {
-            http_response_code(422);
-            return json_encode(["errors" => $errors]);
-        }
+            if ($errors) {
+                return [
+                    'success' => false,
+                    'error' => 'Validation failed',
+                    'details' => $errors
+                ];
+            }
 
-        $category->fill($data);
-        $category->save();
-
-        http_response_code(201);
-        return json_encode($category);
-    }
-
-    public function updateCategoryById($id): bool|int|string
-    {
-        $category = Category::find($id);
-
-        if (!$category) {
-            http_response_code(404);
-            return json_encode(["error" => "Provider not found"]);
-        }
-
-        $data = json_decode(file_get_contents('php://input'), true);
-        $errors = $category->validate($data, true);
-
-        if ($errors) {
-            http_response_code(422);
-            return json_encode(["errors" => $errors]);
-        }
-
-        $category->fill($data);
-        $category->save();
-
-        http_response_code(200);
-        return json_encode($category);
-    }
-
-    public function deleteCategory($id)
-    {
-        $category = Category::find($id);
-
-        if ($category) {
-            $category->status = 'DELETED';
+            $category->fill($data);
             $category->save();
-            return "Xóa thành công";
-        } else {
-            http_response_code(404);
-            return "Không tìm thấy";
+
+            return [
+                'success' => true,
+                'data' => $category->toArray()
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in createCategory: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function updateCategoryById($id): array
+    {
+        try {
+            $category = Category::find($id);
+
+            if (!$category) {
+                return [
+                    'error' => 'Không tìm thấy'
+                ];
+            }
+
+            $data = json_decode(file_get_contents('php://input'), true);
+            $errors = $category->validate($data, true);
+
+            if ($errors) {
+                return [
+                    'error' => 'Validation failed',
+                    'details' => $errors
+                ];
+            }
+
+            $category->fill($data);
+            $category->save();
+
+            return [
+                'data' => $category->toArray()
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in updateCategoryById: " . $e->getMessage());
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function deleteCategory($id): array
+    {
+        try {
+            $category = Category::find($id);
+
+            if (!$category) {
+                return [
+                    'error' => 'Không tìm thấy'
+                ];
+            }
+
+            $category->deleted = true;
+            $category->save();
+
+            return [
+                'message' => 'Xóa thành công'
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in deleteCategory: " . $e->getMessage());
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
     }
 }

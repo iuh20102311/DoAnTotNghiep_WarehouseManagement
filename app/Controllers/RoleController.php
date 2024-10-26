@@ -4,14 +4,21 @@ namespace App\Controllers;
 
 use App\Models\Role;
 use App\Models\User;
+use App\Utils\PaginationTrait;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 
 class RoleController
 {
-    public function getRoles(): Collection
+    use PaginationTrait;
+
+    public function getRoles(): array
     {
-        $role = Role::query()->where('status', '!=' , 'DELETED');
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $role = Role::query()->where('status', '!=' , 'DELETED')
+            ->with(['users']);
 
         if (isset($_GET['status'])) {
             $status = urldecode($_GET['status']);
@@ -23,24 +30,31 @@ class RoleController
             $role->where('name', 'like', '%' . $name . '%');
         }
 
-        return $role->get();
+        return $this->paginateResults($role, $perPage, $page)->toArray();
     }
 
-    public function getRoleById($id) : Model
+    public function getRoleById($id) : false|string
     {
-        $role = Role::query()->where('id',$id)->first();
-        return $role;
-    }
+        $role = Role::query()->where('id',$id)
+            ->with(['users'])
+            ->first();
 
-    public function getUserByRole($id) : ?Collection
-    {
-        $role = Role::query()->where('id', $id)->first();
-
-        if ($role) {
-            return $role->users()->get();
-        } else {
-            return null;
+        if (!$role) {
+            return json_encode(['error' => 'Không tìm thấy']);
         }
+
+        return json_encode($role->toArray());
+    }
+
+    public function getUserByRole($id) : array
+    {
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $role = Role::query()->where('id', $id)->firstOrFail();
+        $usersQuery = $role->users()->getQuery();
+
+        return $this->paginateResults($usersQuery, $perPage, $page)->toArray();
     }
 
     public function createRole(): Model | string

@@ -2,6 +2,8 @@
 
 namespace App\Utils;
 
+use DateTime;
+
 class Validator
 {
     protected $errors = [];
@@ -119,7 +121,7 @@ class Validator
 
     public function validateDate($field, $value, $format = 'Y-m-d')
     {
-        $date = \DateTime::createFromFormat($format, $value);
+        $date = DateTime::createFromFormat($format, $value);
         if (!$date || $date->format($format) !== $value) {
             $this->addError($field, 'date', ['format' => $format]);
             return false;
@@ -172,9 +174,7 @@ class Validator
         }
         return true;
     }
-
-
-
+    
     public function validateCapitalizedWords($field, $value)
     {
         $words = explode(' ', $value);
@@ -185,6 +185,74 @@ class Validator
             }
         }
         return true;
+    }
+
+    public function validateDatetime($field, $value, $format = 'Y-m-d H:i:s')
+    {
+        if (empty($value)) {
+            return true; // Bỏ qua nếu giá trị rỗng (sẽ được xử lý bởi rule required)
+        }
+
+        // Chuyển đổi string sang datetime object
+        $date = DateTime::createFromFormat($format, $value);
+        $lastErrors = DateTime::getLastErrors();
+
+        // Kiểm tra xem parse có thành công và không có warning/errors
+        if ($date && $lastErrors['warning_count'] === 0 && $lastErrors['error_count'] === 0) {
+            return true;
+        }
+
+        $this->addError($field, 'datetime', ['format' => $format]);
+        return false;
+    }
+
+    public function validateAfter($field, $value, $parameter)
+    {
+        // $parameter có thể là một ngày cụ thể hoặc tên của field khác
+        try {
+            $dateToValidate = new DateTime($value);
+
+            if (isset($this->data[$parameter])) {
+                // So sánh với field khác
+                $compareDate = new DateTime($this->data[$parameter]);
+            } else {
+                // So sánh với ngày cụ thể
+                $compareDate = new DateTime($parameter);
+            }
+
+            if ($dateToValidate <= $compareDate) {
+                $this->addError($field, 'after', ['date' => $parameter]);
+                return false;
+            }
+            return true;
+        } catch (\Exception $e) {
+            $this->addError($field, 'invalid_date');
+            return false;
+        }
+    }
+
+    public function validateAfterOrEqual($field, $value, $parameter)
+    {
+        try {
+            $dateToValidate = new DateTime($value);
+
+            if (isset($this->data[$parameter])) {
+                // So sánh với field khác
+                $compareDate = new DateTime($this->data[$parameter]);
+            } else {
+                // So sánh với ngày cụ thể
+                $compareDate = new DateTime($parameter);
+            }
+
+            if ($dateToValidate < $compareDate) {
+                $this->addError($field, 'after_or_equal', ['date' => $parameter]);
+                return false;
+            }
+            return true;
+        } catch (\Exception $e) {
+            $this->addError($field, 'invalid_date');
+            return false;
+        }
     }
 
     protected function addError($field, $rule, $parameters = [])
@@ -209,11 +277,15 @@ class Validator
             'max_numeric' => ':field phải nhỏ hơn hoặc bằng :max.',
             'enum' => ':field phải là một trong các giá trị: :values.',
             'date' => ':field phải là ngày hợp lệ theo định dạng :format.',
+            'datetime' => ':field phải là ngày giờ hợp lệ theo định dạng :format.',
             'integer' => ':field phải là số nguyên.',
             'no_whitespace' => ':field không được chứa khoảng trắng.',
             'no_special_chars' => ':field không được chứa ký tự đặc biệt.',
             'no_emoji' => ':field không được chứa emoji.',
             'capitalized_words' => 'Mỗi từ trong :field phải bắt đầu bằng chữ cái viết hoa.',
+            'after' => ':field phải sau ngày :date.',
+            'after_or_equal' => ':field phải sau hoặc bằng ngày :date.',
+            'invalid_date' => ':field không phải là ngày hợp lệ.',
         ];
         return str_replace(':field', $field, $messages[$rule] ?? ':field không hợp lệ.');
     }

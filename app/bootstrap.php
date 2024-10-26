@@ -262,13 +262,16 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
             $router->get('/', ['App\Controllers\ProductImportReceiptController', 'getProductImportReceipts']);
         });
 
-        $router->group(array('prefix' => '/v1/storages'), function (RouteCollector $router) {
-            $router->get('/{id}/inventories', ['App\Controllers\StorageController', 'getProductInventoryByStorage']);
-            $router->put('/{id}', ['App\Controllers\StorageController', 'updateStorageById']);
-            $router->delete('/{id}', ['App\Controllers\StorageController', 'deleteStorage']);
-            $router->get('/{id}', ['App\Controllers\StorageController', 'getStorageById']);
-            $router->post('/', ['App\Controllers\StorageController', 'createStorage']);
-            $router->get('/', ['App\Controllers\StorageController', 'getStorages']);
+        $router->group(array('prefix' => '/v1/storage_areas'), function (RouteCollector $router) {
+            $router->get('/{id}/material_storage_locations', ['App\Controllers\StorageAreaController', 'getMaterialStorageLocationsByStorageArea']);
+            $router->get('/{id}/product_storage_locations', ['App\Controllers\StorageAreaController', 'getProductStorageLocationsByStorageArea']);
+            $router->get('/{id}/inventory_checks', ['App\Controllers\StorageAreaController', 'getInventoryChecksByStorageArea']);
+            $router->get('/{id}/inventory_history', ['App\Controllers\StorageAreaController', 'getInventoryHistoryByStorageArea']);
+            $router->put('/{id}', ['App\Controllers\StorageAreaController', 'updateStorageAreaById']);
+            $router->delete('/{id}', ['App\Controllers\StorageAreaController', 'deleteStorage']);
+            $router->get('/{id}', ['App\Controllers\StorageAreaController', 'getStorageAreaById']);
+            $router->post('/', ['App\Controllers\StorageAreaController', 'createStorageArea']);
+            $router->get('/', ['App\Controllers\StorageAreaController', 'getStorageAreas']);
         });
 
         $router->group(array('prefix' => '/v1/orders'), function (RouteCollector $router) {
@@ -289,9 +292,10 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
         });
 
         $router->group(array('prefix' => '/v1/users'), function (RouteCollector $router) {
-            $router->get('/{id}/inventorytransactions', ['App\Controllers\UserController', 'getInventoryTransactionByUser']);
+            $router->get('/{id}/inventory_history', ['App\Controllers\UserController', 'getInventoryHistoryByUser']);
             $router->get('/{id}/profile', ['App\Controllers\UserController', 'getProfileByUser']);
-            $router->get('/{id}/orders', ['App\Controllers\UserController', 'getOrderByUser']);
+            $router->get('/{id}/roles', ['App\Controllers\UserController', 'getRolesByUser']);
+            $router->get('/{id}/orders', ['App\Controllers\UserController', 'getOrdersByUser']);
             $router->put('/{id}', ['App\Controllers\UserController', 'updateUserById']);
             $router->delete('/{id}', ['App\Controllers\UserController', 'deleteUser']);
             $router->get('/{id}', ['App\Controllers\UserController', 'getUserById']);
@@ -334,6 +338,29 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
             $router->get('/{id}', ['App\Controllers\RoleController', 'getRoleById']);
             $router->post('/', ['App\Controllers\RoleController', 'createRole']);
             $router->get('/', ['App\Controllers\RoleController', 'getRoles']);
+        });
+
+        $router->group(array('prefix' => '/v1/gift_sets'), function (RouteCollector $router) {
+            $router->put('/{id}/products', ['App\Controllers\GiftSetController', 'updateProductQuantityInGiftSet']);
+            $router->delete('/{id}/products', ['App\Controllers\GiftSetController', 'removeProductFromGiftSet']);
+            $router->get('/{id}/products', ['App\Controllers\GiftSetController', 'getProductsByGiftSet']);
+            $router->post('/{id}/products', ['App\Controllers\GiftSetController', 'addProductToGiftSet']);
+
+            $router->delete('/{id}/orders', ['App\Controllers\GiftSetController', 'removeOrderFromGiftSet']);
+            $router->put('/{id}/orders', ['App\Controllers\GiftSetController', 'updateOrderByGiftSet']);
+            $router->get('/{id}/orders', ['App\Controllers\GiftSetController', 'getOrdersByGiftSet']);
+            $router->post('/{id}/orders', ['App\Controllers\GiftSetController', 'addOrderToGiftSet']);
+
+            $router->delete('/{id}/gift_set_prices/{priceId}', ['App\Controllers\GiftSetController', 'removeGiftSetPricesFromGiftSet']);
+            $router->put('/{id}/gift_set_prices/{priceId}', ['App\Controllers\GiftSetController', 'updateGiftSetPriceByGiftSet']);
+            $router->post('/{id}/gift_set_prices', ['App\Controllers\GiftSetController', 'addGiftSetPricesToGiftSet']);
+            $router->get('/{id}/gift_set_prices', ['App\Controllers\GiftSetController', 'getGiftSetPricesByGiftSet']);
+
+            $router->put('/{id}', ['App\Controllers\GiftSetController', 'updateGiftSetById']);
+            $router->delete('/{id}', ['App\Controllers\GiftSetController', 'deleteGiftSet']);
+            $router->get('/{id}', ['App\Controllers\GiftSetController', 'getGiftSetById']);
+            $router->post('/', ['App\Controllers\GiftSetController', 'createGiftSet']);
+            $router->get('/', ['App\Controllers\GiftSetController', 'getGiftSets']);
         });
     });
 });

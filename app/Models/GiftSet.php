@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Utils\Validator;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -37,8 +38,47 @@ class GiftSet extends Model
         return $this->hasMany(GiftSetProduct::class);
     }
 
-    public function orderGiftSets(): HasMany
+    public function validate(array $data, $isUpdate = false)
     {
-        return $this->hasMany(OrderGiftSet::class);
+        $validator = new Validator($data, $this->messages());
+
+        $rules = [
+            'name' => ['required', 'string', 'min' => 2, 'max' => 100, 'no_special_chars', 'no_emoji'],
+            'description' => ['nullable', 'string', 'max' => 500],
+            'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE', 'SUSPENDED']]
+        ];
+
+        // Nếu là update thì không bắt buộc phải có các trường
+        if ($isUpdate) {
+            foreach ($rules as $field => $constraints) {
+                $rules[$field] = array_filter($constraints, fn($c) => $c !== 'required');
+            }
+        }
+
+        if (!$validator->validate($rules)) {
+            return $validator->getErrors();
+        }
+
+        return null;
+    }
+
+    protected function messages()
+    {
+        return [
+            'name' => [
+                'required' => 'Tên quà tặng là bắt buộc.',
+                'min' => 'Tên quà tặng phải có ít nhất :min ký tự.',
+                'max' => 'Tên quà tặng không được vượt quá :max ký tự.',
+                'no_special_chars' => 'Không nhập các ký tự đặc biệt.',
+                'no_emoji' => 'Không được nhập ký tự chứa emoji.',
+            ],
+            'description' => [
+                'max' => 'Mô tả không được vượt quá :max ký tự.',
+            ],
+            'status' => [
+                'required' => 'Trạng thái là bắt buộc.',
+                'enum' => 'Trạng thái phải là ACTIVE, INACTIVE hoặc SUSPENDED.',
+            ],
+        ];
     }
 }
