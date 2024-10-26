@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Models\Profile;
 use App\Models\Role;
 use App\Models\User;
+use App\Utils\PaginationTrait;
 use Exception;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
@@ -16,87 +17,97 @@ use Lcobucci\JWT\Token\UnsupportedHeaderFound;
 
 class UserController
 {
-    public function getUsers(): Collection
+    use PaginationTrait;
+
+    public function getUsers(): array
     {
-        $users = User::query()->where('status', '!=' , 'DELETED');
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
 
-        if (isset($_GET['email'])) {
-            $email = urldecode($_GET['email']);
-            $users->where('email', 'like', '%' . $email . '%');
-        }
+        try {
+            $query = User::query()->where('deleted', false)
+                ->with(['orders','role','profile','createdInventoryChecks','inventoryHistory']);
 
-        if (isset($_GET['name'])) {
-            $name = urldecode($_GET['name']);
-            $users->where('name', 'like', '%' . $name . '%');
+            if (isset($_GET['email'])) {
+                $email = urldecode($_GET['email']);
+                $query->where('email', 'like', '%' . $email . '%');
+            }
 
-        }
+            if (isset($_GET['status'])) {
+                $status = urldecode($_GET['status']);
+                $query->where('status', 'like', '%' . $status . '%');
+            }
 
-        if (isset($_GET['role_name'])) {
-            $roleName = urldecode($_GET['role_name']);
-            $users->whereHas('role', function ($query) use ($roleName) {
-                $query->where('name', 'like', $roleName . '%');
-            });
-        }
-
-        $users = $users->get();
-        foreach ($users as $index => $user) {
-            $role = Role::query()->where('id',$user->role_id)->first();
-            unset($user->customer_id);
-            unset($user->password);
-            unset($user->role_id);
-            $user->role = $role;
-
-            $profile = Profile::query()->where('user_id', $user->id)->first();
-            $user->profile = $profile;
-        }
-        return $users;
-    }
-
-    public function getUserById($id): ?Model
-    {
-        $user = User::query()->where('id', $id)->first();
-        $role = Role::query()->where('id',$user->role_id)->first();
-        if ($user) {
-            unset($user->role_id);
-            unset($user->password);
-            $user->role = $role;
-            return $user;
-        } else {
-            return null;
+            return $this->paginateResults($query, $perPage, $page)->toArray();
+        } catch (\Exception $e) {
+            error_log("Error in getUsers: " . $e->getMessage());
+            return ['error' => 'Database error occurred', 'details' => $e->getMessage()];
         }
     }
 
-    public function getInventoryTransactionByUser($id) : ?Collection
+    public function getUserById($id): false|string
     {
-        $user = User::query()->where('id', $id)->first();
+        $user = User::query()->where('id', $id)
+            ->with(['orders','role','profile','createdInventoryChecks','inventoryHistory'])
+            ->first();
 
-        if ($user) {
-            return $user->inventorytransactions()->get();
-        } else {
-            return null;
+        if (!$user) {
+            return json_encode(['error' => 'Không tìm thấy']);
         }
+
+        return json_encode($user->toArray());
     }
 
-    public function getOrderByUser($id) : ?Collection
+    public function getRolesByUser($id) : array
     {
-        $user = User::query()->where('id', $id)->first();
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
 
-        if ($user) {
-            return $user->orders()->get();
-        } else {
-            return null;
-        }
+        $user = User::query()->where('id', $id)->firstOrFail();
+        $rolesQuery = $user->role()
+            ->with(['users'])
+            ->getQuery();
+
+        return $this->paginateResults($rolesQuery, $perPage, $page)->toArray();
     }
 
-    public function getProfileByUser($id) : ?Collection
+    public function getOrdersByUser($id) : array
     {
-        $user = User::query()->where('id', $id)->first();
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
 
-        if ($user) {
-            return $user->profile()->get();
-        } else {
-            return null;
-        }
+        $user = User::query()->where('id', $id)->firstOrFail();
+        $ordersQuery = $user->orders()
+            ->with(['users'])
+            ->getQuery();
+
+        return $this->paginateResults($ordersQuery, $perPage, $page)->toArray();
+    }
+
+    public function getProfileByUser($id) : array
+    {
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $user = User::query()->where('id', $id)->firstOrFail();
+        $profilesQuery = $user->profile()
+            ->with(['user','createdOrders'])
+            ->getQuery();
+
+        return $this->paginateResults($profilesQuery, $perPage, $page)->toArray();
+    }
+
+    public function getInventoryHistoryByUser($id) : array
+    {
+        $perPage = $_GET['per_page'] ?? 10;
+        $page = $_GET['page'] ?? 1;
+
+        $user = User::query()->where('id', $id)->firstOrFail();
+        $inventoryHistoryQuery = $user->inventoryHistory()
+            ->with(['storageArea','product','material'])
+            ->getQuery();
+
+        return $this->paginateResults($inventoryHistoryQuery, $perPage, $page)->toArray();
     }
 
     public function updateUserById(int $id): Model | string

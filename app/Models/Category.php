@@ -3,10 +3,7 @@
 namespace App\Models;
 
 use App\Utils\Validator;
-use Exception;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Respect\Validation\Validator as v;
-use Respect\Validation\Exceptions\ValidationException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
