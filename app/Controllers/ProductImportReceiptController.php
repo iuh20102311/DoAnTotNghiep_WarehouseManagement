@@ -17,125 +17,289 @@ class ProductImportReceiptController
 {
     use PaginationTrait;
 
-    public function countTotalReceipts()
+    public function countTotalReceipts(): array
     {
-        $data = json_decode(file_get_contents('php://input'), true);
+        try {
+            $data = json_decode(file_get_contents('php://input'), true);
 
-        if (!isset($data['month']) || !isset($data['year'])) {
-            header('Content-Type: application/json');
-            echo json_encode(['error' => 'Tháng và năm là bắt buộc.'], JSON_UNESCAPED_UNICODE);
-            return;
+            if (!isset($data['month']) || !isset($data['year'])) {
+                return [
+                    'success' => false,
+                    'error' => 'Tháng và năm là bắt buộc'
+                ];
+            }
+
+            $month = $data['month'];
+            $year = $data['year'];
+
+            $totalReceipts = (new ProductImportReceipt())
+                ->whereMonth('created_at', $month)
+                ->whereYear('created_at', $year)
+                ->count();
+
+            return [
+                'success' => true,
+                'data' => ['total_receipts' => $totalReceipts]
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in countTotalReceipts: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
-
-        $month = $data['month'];
-        $year = $data['year'];
-
-        $totalReceipts = ProductImportReceipt::whereMonth('created_at', $month)
-            ->whereYear('created_at', $year)
-            ->count();
-
-        header('Content-Type: application/json');
-        echo json_encode(['total_receipts' => $totalReceipts]);
     }
 
     public function getProductImportReceipts(): array
     {
-        $perPage = $_GET['per_page'] ?? 10;
-        $page = $_GET['page'] ?? 1;
+        try {
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
 
-        $productIRs = ProductImportReceipt::query()->where('status', '!=' , 'DELETED')
-            ->with(['creator', 'approver', 'receiver','details']);
+            $query = (new ProductImportReceipt())
+                ->where('deleted', false)
+                ->with([
+                    'creator' => function($query) {
+                        $query->select('id', 'email', 'role_id')
+                            ->with(['profile' => function($q) {
+                                $q->select('user_id', 'first_name', 'last_name');
+                            }]);
+                    },
+                    'receiver' => function($query) {
+                        $query->select('id', 'email', 'role_id')
+                            ->with(['profile' => function($q) {
+                                $q->select('user_id', 'first_name', 'last_name');
+                            }]);
+                    },
+                    'details'
+                ]);
 
-        if (isset($_GET['quantity'])) {
-            $quantity = urldecode($_GET['quantity']);
-            $productIRs->where('quantity', $quantity);
+            if (isset($_GET['type'])) {
+                $query->where('type', urldecode($_GET['type']));
+            }
+
+            if (isset($_GET['quantity'])) {
+                $query->where('quantity', urldecode($_GET['quantity']));
+            }
+
+            $result = $this->paginateResults($query, $perPage, $page)->toArray();
+
+            if (isset($result['data']) && is_array($result['data'])) {
+                foreach ($result['data'] as &$item) {
+                    if (isset($item['creator']['profile'])) {
+                        $item['creator']['full_name'] = trim($item['creator']['profile']['first_name'] . ' ' . $item['creator']['profile']['last_name']);
+                    }
+                    if (isset($item['receiver']['profile'])) {
+                        $item['receiver']['full_name'] = trim($item['receiver']['profile']['first_name'] . ' ' . $item['receiver']['profile']['last_name']);
+                    }
+                }
+            }
+
+            return $result;
+
+        } catch (\Exception $e) {
+            error_log("Error in getProductImportReceipts: " . $e->getMessage());
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
-
-        if (isset($_GET['type'])) {
-            $type = urldecode($_GET['type']);
-            $productIRs->where('type', $type);
-        }
-
-        return $this->paginateResults($productIRs, $perPage, $page)->toArray();
     }
 
-    public function getProductImportReceiptById($id) : false|string
+    public function getProductImportReceiptById($id): array
     {
-        $productIR = ProductImportReceipt::query()->where('id',$id)
-            ->with(['creator', 'approver', 'receiver','details'])
-            ->first();
+        try {
+            $productIR = (new ProductImportReceipt())
+                ->where('id', $id)
+                ->where('deleted', false)
+                ->with([
+                    'creator' => function($query) {
+                        $query->select('id', 'email', 'role_id')
+                            ->with(['profile' => function($q) {
+                                $q->select('user_id', 'first_name', 'last_name');
+                            }]);
+                    },
+                    'receiver' => function($query) {
+                        $query->select('id', 'email', 'role_id')
+                            ->with(['profile' => function($q) {
+                                $q->select('user_id', 'first_name', 'last_name');
+                            }]);
+                    },
+                    'details'
+                ])
+                ->first();
 
-        if (!$productIR) {
-            return json_encode(['error' => 'Không tìm thấy']);
+            if (!$productIR) {
+                return [
+                    'error' => 'Không tìm thấy'
+                ];
+            }
+
+            $data = $productIR->toArray();
+
+            // Thêm full_name
+            if (isset($data['creator']['profile'])) {
+                $data['creator']['full_name'] = trim($data['creator']['profile']['first_name'] . ' ' . $data['creator']['profile']['last_name']);
+            }
+            if (isset($data['approver']['profile'])) {
+                $data['approver']['full_name'] = trim($data['approver']['profile']['first_name'] . ' ' . $data['approver']['profile']['last_name']);
+            }
+            if (isset($data['receiver']['profile'])) {
+                $data['receiver']['full_name'] = trim($data['receiver']['profile']['first_name'] . ' ' . $data['receiver']['profile']['last_name']);
+            }
+
+            return $data;
+
+        } catch (\Exception $e) {
+            error_log("Error in getProductImportReceiptById: " . $e->getMessage());
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
-
-        return json_encode($productIR->toArray());
     }
 
-    public function getImportReceiptDetailsByExportReceipt($id): array
+    public function getImportReceiptDetailsByImportReceipt($id): array
     {
-        $perPage = $_GET['per_page'] ?? 10;
-        $page = $_GET['page'] ?? 1;
+        try {
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
 
-        $productIRs = ProductImportReceipt::query()->where('id', $id)->firstOrFail();
-        $productImportReceiptDetailsQuery = $productIRs->details()
-            ->with(['product','productImportReceipt','storageArea'])
-            ->getQuery();
+            $productIR = (new ProductImportReceipt())
+                ->where('id', $id)
+                ->where('deleted', false)
+                ->first();
 
-        return $this->paginateResults($productImportReceiptDetailsQuery, $perPage, $page)->toArray();
+            if (!$productIR) {
+                return [
+                    'error' => 'Không tìm thấy'
+                ];
+            }
+
+            $detailsQuery = $productIR->details()
+                ->with(['product', 'storageArea', 'productImportReceipt'])
+                ->getQuery();
+
+            return $this->paginateResults($detailsQuery, $perPage, $page)->toArray();
+
+        } catch (\Exception $e) {
+            error_log("Error in getImportReceiptDetailsByImportReceipt: " . $e->getMessage());
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
     }
 
-    public function createProductImportReceipt(): Model | string
+    public function createProductImportReceipt(): array
     {
-        $data = json_decode(file_get_contents('php://input'), true);
-        $productIR = new ProductImportReceipt();
-        $error = $productIR->validate($data);
-        if ($error != "") {
-            http_response_code(404);
-            error_log($error);
-            return json_encode(["error" => $error]);
-        }
-        $productIR->fill($data);
-        $productIR->save();
-        return $productIR;
-    }
+        try {
+            $data = json_decode(file_get_contents('php://input'), true);
+            $productIR = new ProductImportReceipt();
 
-    public function updateProductImportReceiptById($id): bool | int | string
-    {
-        $productIR = ProductImportReceipt::find($id);
+            $errors = $productIR->validate($data);
+            if ($errors) {
+                return [
+                    'success' => false,
+                    'error' => 'Validation failed',
+                    'details' => $errors
+                ];
+            }
 
-        if (!$productIR) {
-            http_response_code(404);
-            return json_encode(["error" => "Provider not found"]);
-        }
-
-        $data = json_decode(file_get_contents('php://input'), true);
-        $error = $productIR->validate($data, true);
-
-        if ($error != "") {
-            http_response_code(404);
-            error_log($error);
-            return json_encode(["error" => $error]);
-        }
-
-        $productIR->fill($data);
-        $productIR->save();
-
-        return $productIR;
-    }
-
-    public function deleteProductImportReceipt($id): string
-    {
-        $productIR = ProductImportReceipt::find($id);
-
-        if ($productIR) {
-            $productIR->status = 'DELETED';
+            $productIR->fill($data);
             $productIR->save();
-            return "Xóa thành công";
+
+            return [
+                'success' => true,
+                'data' => $productIR->toArray()
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in createProductImportReceipt: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
-        else {
-            http_response_code(404);
-            return "Không tìm thấy";
+    }
+
+    public function updateProductImportReceiptById($id): array
+    {
+        try {
+            $productIR = (new ProductImportReceipt())
+                ->where('id', $id)
+                ->where('deleted', false)
+                ->first();
+
+            if (!$productIR) {
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy'
+                ];
+            }
+
+            $data = json_decode(file_get_contents('php://input'), true);
+            $errors = $productIR->validate($data, true);
+
+            if ($errors) {
+                return [
+                    'success' => false,
+                    'error' => 'Validation failed',
+                    'details' => $errors
+                ];
+            }
+
+            $productIR->fill($data);
+            $productIR->save();
+
+            return [
+                'success' => true,
+                'data' => $productIR->toArray()
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in updateProductImportReceiptById: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function deleteProductImportReceipt($id): array
+    {
+        try {
+            $productIR = (new ProductImportReceipt())
+                ->where('id', $id)
+                ->where('deleted', false)
+                ->first();
+
+            if (!$productIR) {
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy'
+                ];
+            }
+
+            $productIR->deleted = true;
+            $productIR->save();
+
+            return [
+                'success' => true,
+                'message' => 'Xóa thành công'
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in deleteProductImportReceipt: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
     }
 
@@ -167,7 +331,6 @@ class ProductImportReceiptController
             $parser = new Parser(new JoseEncoder());
             $parsedToken = $parser->parse($token);
             $createdById = $parsedToken->claims()->get('id');
-            $approvedById = $parsedToken->claims()->get('id');
 
             $storageExists = StorageArea::where('id', $data['storage_area_id'])->exists();
             if (!$storageExists) {
@@ -206,7 +369,6 @@ class ProductImportReceiptController
             $productImportReceipt = ProductImportReceipt::create([
                 'note' => $data['note'] ?? null,
                 'created_by' => $createdById,
-                'approved_by' => $approvedById,
                 'receiver_id' => $receiver->id,
             ]);
 

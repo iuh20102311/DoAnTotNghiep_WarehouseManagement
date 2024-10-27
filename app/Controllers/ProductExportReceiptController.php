@@ -19,129 +19,270 @@ class ProductExportReceiptController
 {
     use PaginationTrait;
 
-    public function countTotalReceipts()
+    public function countTotalReceipts(): array
     {
-        $data = json_decode(file_get_contents('php://input'), true);
+        try {
+            $data = json_decode(file_get_contents('php://input'), true);
 
-        if (!isset($data['month']) || !isset($data['year'])) {
-            header('Content-Type: application/json');
-            echo json_encode(['error' => 'Tháng và năm là bắt buộc.'], JSON_UNESCAPED_UNICODE);
-            return;
+            if (!isset($data['month']) || !isset($data['year'])) {
+                return [
+                    'error' => 'Tháng và năm là bắt buộc'
+                ];
+            }
+
+            $month = $data['month'];
+            $year = $data['year'];
+
+            $totalReceipts = (new ProductExportReceipt())
+                ->whereMonth('created_at', $month)
+                ->whereYear('created_at', $year)
+                ->count();
+
+            return [
+                'data' => ['total_receipts' => $totalReceipts]
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in countTotalReceipts: " . $e->getMessage());
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
-
-        $month = $data['month'];
-        $year = $data['year'];
-
-        $totalReceipts = ProductExportReceipt::whereMonth('created_at', $month)
-            ->whereYear('created_at', $year)
-            ->count();
-
-        header('Content-Type: application/json');
-        echo json_encode(['total_receipts' => $totalReceipts]);
     }
 
     public function getProductExportReceipts(): array
     {
-        $perPage = $_GET['per_page'] ?? 10;
-        $page = $_GET['page'] ?? 1;
+        try {
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
 
-        $productERs = ProductExportReceipt::query()->where('status', '!=', 'DELETED')
-            ->with(['creator', 'approver', 'details']);
+            $productER = (new ProductExportReceipt())
+                ->where('deleted', false)
+                ->with([
+                    'creator' => function($productER) {
+                        $productER->select('id', 'email', 'role_id')
+                            ->with(['profile' => function($q) {
+                                $q->select('user_id', 'first_name', 'last_name');
+                            }]);
+                    },
+                    'details'
+                ]);
 
-        if (isset($_GET['type'])) {
-            $type = urldecode($_GET['type']);
-            $productERs->where('type', $type);
+            if (isset($_GET['type'])) {
+                $type = urldecode($_GET['type']);
+                $productER->where('type', $type);
+            }
+
+            if (isset($_GET['status'])) {
+                $status = urldecode($_GET['status']);
+                $productER->where('status', $status);
+            }
+
+            $result = $this->paginateResults($productER, $perPage, $page)->toArray();
+
+            if (isset($result['data']) && is_array($result['data'])) {
+                foreach ($result['data'] as &$item) {
+                    if (isset($item['creator']['profile'])) {
+                        $item['creator']['full_name'] = trim($item['creator']['profile']['first_name'] . ' ' . $item['creator']['profile']['last_name']);
+                    }
+                }
+            }
+
+            return  $result;
+
+        } catch (\Exception $e) {
+            error_log("Error in getProductExportReceipts: " . $e->getMessage());
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
-
-        if (isset($_GET['status'])) {
-            $status = urldecode($_GET['status']);
-            $productERs->where('status', $status);
-        }
-
-        return $this->paginateResults($productERs, $perPage, $page)->toArray();
-
     }
 
-    public function getProductExportReceiptById($id): false|string
+    public function getProductExportReceiptById($id): array
     {
-        $productER = ProductExportReceipt::query()->where('id', $id)
-            ->with(['creator', 'approver', 'details'])
-            ->first();
+        try {
+            $productER = (new ProductExportReceipt())
+                ->where('id', $id)
+                ->where('deleted', false)
+                ->with([
+                    'creator' => function($productER) {
+                        $productER->select('id', 'email', 'role_id')
+                            ->with(['profile' => function($q) {
+                                $q->select('user_id', 'first_name', 'last_name');
+                            }]);
+                    },
+                    'details'
+                ])
+                ->first();
 
-        if (!$productER) {
-            return json_encode(['error' => 'Không tìm thấy']);
+            if (!$productER) {
+                return [
+                    'error' => 'Không tìm thấy'
+                ];
+            }
+
+            $data = $productER->toArray();
+
+            if (isset($data['creator']['profile'])) {
+                $data['creator']['full_name'] = trim($data['creator']['profile']['first_name'] . ' ' . $data['creator']['profile']['last_name']);
+            }
+
+            return $data;
+
+        } catch (\Exception $e) {
+            error_log("Error in getProductExportReceiptById: " . $e->getMessage());
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
-
-        return json_encode($productER->toArray());
     }
 
-    public function getExportReceiptDetailsByExportReceipt($id)
+    public function getExportReceiptDetailsByExportReceipt($id): array
     {
-        $perPage = $_GET['per_page'] ?? 10;
-        $page = $_GET['page'] ?? 1;
+        try {
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
 
-        $productER = ProductExportReceipt::query()->where('id', $id)->firstOrFail();
-        $productExportReceiptDetailsQuery = $productER->details()
-            ->with(['product','productExportReceipt','storageArea'])
-            ->getQuery();
+            $productER = (new ProductExportReceipt())
+                ->where('id', $id)
+                ->where('deleted', false)
+                ->first();
 
-        return $this->paginateResults($productExportReceiptDetailsQuery, $perPage, $page)->toArray();
+            if (!$productER) {
+                return [
+                    'error' => 'Không tìm thấy'
+                ];
+            }
+
+            $detailsQuery = $productER->details()
+                ->with(['product', 'storageArea'])
+                ->getQuery();
+
+            return $this->paginateResults($detailsQuery, $perPage, $page)->toArray();
+
+        } catch (\Exception $e) {
+            error_log("Error in getExportReceiptDetailsByExportReceipt: " . $e->getMessage());
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
     }
 
-    public function createProductExportReceipt(): Model|string
+    public function createProductExportReceipt(): array
     {
-        $data = json_decode(file_get_contents('php://input'), true);
-        $productER = new ProductExportReceipt();
-        $error = $productER->validate($data);
-        if ($error != "") {
-            http_response_code(404);
-            error_log($error);
-            return json_encode(["error" => $error]);
-        }
-        $productER->fill($data);
-        $productER->save();
-        return $productER;
-    }
+        try {
+            $data = json_decode(file_get_contents('php://input'), true);
+            $productER = new ProductExportReceipt();
 
-    public function updateProductExportReceiptById($id): bool|int|string
-    {
-        $productER = ProductExportReceipt::find($id);
+            $errors = $productER->validate($data);
+            if ($errors) {
+                return [
+                    'success' => false,
+                    'error' => 'Validation failed',
+                    'details' => $errors
+                ];
+            }
 
-        if (!$productER) {
-            http_response_code(404);
-            return json_encode(["error" => "Provider not found"]);
-        }
-
-        $data = json_decode(file_get_contents('php://input'), true);
-        $error = $productER->validate($data, true);
-
-        if ($error != "") {
-            http_response_code(404);
-            error_log($error);
-            return json_encode(["error" => $error]);
-        }
-
-        $productER->fill($data);
-        $productER->save();
-
-        return $productER;
-    }
-
-    public function deleteProductExportReceipt($id): string
-    {
-        $productER = ProductExportReceipt::find($id);
-
-        if ($productER) {
-            $productER->status = 'DELETED';
+            $productER->fill($data);
             $productER->save();
-            return "Xóa thành công";
-        } else {
-            http_response_code(404);
-            return "Không tìm thấy";
+
+            return [
+                'success' => true,
+                'data' => $productER->toArray()
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in createProductExportReceipt: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
     }
 
-    public function exportProducts()
+    public function updateProductExportReceiptById($id): array
+    {
+        try {
+            $productER = (new ProductExportReceipt())
+                ->where('id', $id)
+                ->where('deleted', false)
+                ->first();
+
+            if (!$productER) {
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy'
+                ];
+            }
+
+            $data = json_decode(file_get_contents('php://input'), true);
+            $errors = $productER->validate($data, true);
+
+            if ($errors) {
+                return [
+                    'success' => false,
+                    'error' => 'Validation failed',
+                    'details' => $errors
+                ];
+            }
+
+            $productER->fill($data);
+            $productER->save();
+
+            return [
+                'success' => true,
+                'data' => $productER->toArray()
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in updateProductExportReceiptById: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function deleteProductExportReceipt($id): array
+    {
+        try {
+            $productER = (new ProductExportReceipt())
+                ->where('id', $id)
+                ->where('deleted', false)
+                ->first();
+
+            if (!$productER) {
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy'
+                ];
+            }
+
+            $productER->deleted = true;
+            $productER->save();
+
+            return [
+                'success' => true,
+                'message' => 'Xóa thành công'
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in deleteProductExportReceipt: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function exportProducts(): void
     {
         $data = json_decode(file_get_contents('php://input'), true);
 
@@ -167,16 +308,6 @@ class ProductExportReceiptController
 
             if (!$storageArea) {
                 throw new \Exception('Kho xuất kho không tồn tại hoặc không hoạt động');
-            }
-
-            // Kiểm tra người nhận có tồn tại và đang hoạt động không
-            $receiver = User::where('id', $data['receiver_id'])
-                ->where('status', 'ACTIVE')
-                ->where('deleted', false)
-                ->first();
-
-            if (!$receiver) {
-                throw new \Exception('Người nhận không tồn tại hoặc không hoạt động');
             }
 
             // Kiểm tra tất cả sản phẩm trước khi tạo hóa đơn
@@ -210,8 +341,6 @@ class ProductExportReceiptController
                 'type' => 'NORMAL',
                 'status' => 'PENDING',
                 'created_by' => $createdById,
-                'approved_by' => $createdById,
-                'receiver_id' => $receiver->id,
             ]);
 
             // Tạo chi tiết xuất kho và cập nhật số lượng

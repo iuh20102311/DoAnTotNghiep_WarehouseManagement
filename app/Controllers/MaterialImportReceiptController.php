@@ -18,152 +18,391 @@ class MaterialImportReceiptController
 {
     use PaginationTrait;
 
-    public function countTotalReceipts()
+    public function countTotalReceipts(): array
     {
-        $data = json_decode(file_get_contents('php://input'), true);
+        try {
+            $data = json_decode(file_get_contents('php://input'), true);
 
-        if (!isset($data['month']) || !isset($data['year'])) {
-            header('Content-Type: application/json');
-            echo json_encode(['error' => 'Tháng và năm là bắt buộc.'], JSON_UNESCAPED_UNICODE);
-            return;
+            if (!isset($data['month']) || !isset($data['year'])) {
+                return [
+                    'error' => 'Tháng và năm là bắt buộc'
+                ];
+            }
+
+            $month = $data['month'];
+            $year = $data['year'];
+
+            $totalReceipts = (new MaterialImportReceipt())
+                ->whereMonth('created_at', $month)
+                ->whereYear('created_at', $year)
+                ->count();
+
+            return [
+                'data' => ['total_receipts' => $totalReceipts]
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in countTotalReceipts: " . $e->getMessage());
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
-
-        $month = $data['month'];
-        $year = $data['year'];
-
-        $totalReceipts = MaterialImportReceipt::whereMonth('created_at', $month)
-            ->whereYear('created_at', $year)
-            ->count();
-
-        header('Content-Type: application/json');
-        echo json_encode(['total_receipts' => $totalReceipts]);
     }
 
     public function getMaterialImportReceipts(): array
     {
-        $perPage = $_GET['per_page'] ?? 10;
-        $page = $_GET['page'] ?? 1;
+        try {
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
 
-        $materialIRs = MaterialImportReceipt::query()->where('status', '!=', 'DELETED')->with(['provider', 'creator', 'approver', 'receiver', 'details']);
+            $query = (new MaterialImportReceipt())
+                ->where('deleted', false)
+                ->with([
+                    'provider',
+                    'creator' => function ($query) {
+                        $query->select('id', 'email', 'role_id')
+                            ->with(['profile' => function ($q) {
+                                $q->select('user_id', 'first_name', 'last_name');
+                            }]);
+                    },
+                    'approver' => function ($query) {
+                        $query->select('id', 'email', 'role_id')
+                            ->with(['profile' => function ($q) {
+                                $q->select('user_id', 'first_name', 'last_name');
+                            }]);
+                    },
+                    'receiver' => function ($query) {
+                        $query->select('id', 'email', 'role_id')
+                            ->with(['profile' => function ($q) {
+                                $q->select('user_id', 'first_name', 'last_name');
+                            }]);
+                    },
+                    'details'
+                ]);
 
-        if (isset($_GET['type'])) {
-            $type = urldecode($_GET['type']);
-            $materialIRs->where('type', $type);
+            if (isset($_GET['type'])) {
+                $query->where('type', urldecode($_GET['type']));
+            }
+
+            if (isset($_GET['status'])) {
+                $query->where('status', urldecode($_GET['status']));
+            }
+
+            if (isset($_GET['total_price'])) {
+                $query->where('total_price', urldecode($_GET['total_price']));
+            }
+
+            if (isset($_GET['total_price_min'])) {
+                $query->where('total_price', '>=', urldecode($_GET['total_price_min']));
+            }
+
+            if (isset($_GET['total_price_max'])) {
+                $query->where('total_price', '<=', urldecode($_GET['total_price_max']));
+            }
+
+            $result = $this->paginateResults($query, $perPage, $page)->toArray();
+
+            if (isset($result['data']) && is_array($result['data'])) {
+                foreach ($result['data'] as &$item) {
+                    if (isset($item['creator']['profile'])) {
+                        $item['creator']['full_name'] = trim($item['creator']['profile']['first_name'] . ' ' . $item['creator']['profile']['last_name']);
+                    }
+                    if (isset($item['approver']['profile'])) {
+                        $item['approver']['full_name'] = trim($item['approver']['profile']['first_name'] . ' ' . $item['approver']['profile']['last_name']);
+                    }
+                    if (isset($item['receiver']['profile'])) {
+                        $item['receiver']['full_name'] = trim($item['receiver']['profile']['first_name'] . ' ' . $item['receiver']['profile']['last_name']);
+                    }
+                }
+            }
+
+            return $result;
+
+        } catch (\Exception $e) {
+            error_log("Error in getMaterialImportReceipts: " . $e->getMessage());
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
-
-        if (isset($_GET['total_price'])) {
-            $total_price = urldecode($_GET['total_price']);
-            $materialIRs->where('total_price', $total_price);
-        }
-
-        if (isset($_GET['total_price_min'])) {
-            $total_price_min = urldecode($_GET['total_price_min']);
-            $materialIRs->where('total_price', '>=', $total_price_min);
-        }
-
-        if (isset($_GET['total_price_max'])) {
-            $total_price_max = urldecode($_GET['total_price_max']);
-            $materialIRs->where('total_price', '<=', $total_price_max);
-        }
-
-        if (isset($_GET['status'])) {
-            $status = urldecode($_GET['status']);
-            $materialIRs->where('status', $status);
-        }
-
-        return $this->paginateResults($materialIRs, $perPage, $page)->toArray();
-
     }
 
-    public function getMaterialImportReceiptById($id): false|string
+    public function getMaterialImportReceiptById($id): array
     {
-        $materialIR = MaterialImportReceipt::query()->where('id', $id)
-            ->with(['provider', 'creator', 'approver', 'receiver', 'details'])
-            ->first();
+        try {
+            $materialIR = (new MaterialImportReceipt())
+                ->where('id', $id)
+                ->where('deleted', false)
+                ->with([
+                    'provider',
+                    'creator' => function ($query) {
+                        $query->select('id', 'email', 'role_id')
+                            ->with(['profile' => function ($q) {
+                                $q->select('user_id', 'first_name', 'last_name');
+                            }]);
+                    },
+                    'approver' => function ($query) {
+                        $query->select('id', 'email', 'role_id')
+                            ->with(['profile' => function ($q) {
+                                $q->select('user_id', 'first_name', 'last_name');
+                            }]);
+                    },
+                    'receiver' => function ($query) {
+                        $query->select('id', 'email', 'role_id')
+                            ->with(['profile' => function ($q) {
+                                $q->select('user_id', 'first_name', 'last_name');
+                            }]);
+                    },
+                    'details'
+                ])->first();
 
-        if (!$materialIR) {
-            return json_encode(['error' => 'Không tìm thấy']);
+            if (!$materialIR) {
+                return [
+                    'error' => 'Không tìm thấy'
+                ];
+            }
+
+            $data = $materialIR->toArray();
+
+            if (isset($data['creator']['profile'])) {
+                $data['creator']['full_name'] = trim($data['creator']['profile']['first_name'] . ' ' . $data['creator']['profile']['last_name']);
+            }
+            if (isset($data['approver']['profile'])) {
+                $data['approver']['full_name'] = trim($data['approver']['profile']['first_name'] . ' ' . $data['approver']['profile']['last_name']);
+            }
+            if (isset($data['receiver']['profile'])) {
+                $data['receiver']['full_name'] = trim($data['receiver']['profile']['first_name'] . ' ' . $data['receiver']['profile']['last_name']);
+            }
+
+            return $data;
+
+        } catch (\Exception $e) {
+            error_log("Error in getMaterialImportReceiptById: " . $e->getMessage());
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
-
-        return json_encode($materialIR->toArray());
     }
 
-    public function getImportReceiptDetailsByImportReceipt($id)
+    public function getImportReceiptDetailsByImportReceipt($id): array
     {
-        $perPage = $_GET['per_page'] ?? 10;
-        $page = $_GET['page'] ?? 1;
+        try {
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
 
-        $materialIRs = MaterialImportReceipt::query()->where('id', $id)->firstOrFail();
-        $materialImportReceiptDetailsQuery = $materialIRs->details()
-            ->with(['material', 'storageArea', 'materialImportReceipt'])
-            ->getQuery();
+            $materialIR = (new MaterialImportReceipt())
+                ->where('id', $id)
+                ->where('deleted', false)
+                ->first();
 
-        return $this->paginateResults($materialImportReceiptDetailsQuery, $perPage, $page)->toArray();
-    }
+            if (!$materialIR) {
+                return [
+                    'error' => 'Không tìm thấy'
+                ];
+            }
 
-    public function getProvidersByImportReceipt($id)
-    {
-        $perPage = $_GET['per_page'] ?? 10;
-        $page = $_GET['page'] ?? 1;
+            $detailsQuery = $materialIR->details()
+                ->with(['material', 'storageArea', 'materialImportReceipt'])
+                ->getQuery();
 
-        $materialIRs = MaterialImportReceipt::query()->where('id', $id)->firstOrFail();
-        $providersQuery = $materialIRs->provider()
-            ->with(['materials', 'materialImportReceipt'])
-            ->getQuery();
+            return $this->paginateResults($detailsQuery, $perPage, $page)->toArray();
 
-        return $this->paginateResults($providersQuery, $perPage, $page)->toArray();
-    }
-
-    public function createMaterialImportReceipt(): Model|string
-    {
-        $data = json_decode(file_get_contents('php://input'), true);
-        $materialIR = new MaterialImportReceipt();
-        $error = $materialIR->validate($data);
-        if ($error != "") {
-            http_response_code(404);
-            error_log($error);
-            return json_encode(["error" => $error]);
+        } catch (\Exception $e) {
+            error_log("Error in getImportReceiptDetailsByImportReceipt: " . $e->getMessage());
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
-        $materialIR->fill($data);
-        $materialIR->save();
-        return $materialIR;
     }
 
-    public function updateMaterialImportReceiptById($id): bool|int|string
+    public function getProvidersByImportReceipt($id): array
     {
-        $materialIR = MaterialImportReceipt::find($id);
+        try {
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
 
-        if (!$materialIR) {
-            http_response_code(404);
-            return json_encode(["error" => "Provider not found"]);
+            $materialIR = (new MaterialImportReceipt())
+                ->where('id', $id)
+                ->where('deleted', false)
+                ->first();
+
+            if (!$materialIR) {
+                return [
+                    'error' => 'Không tìm thấy'
+                ];
+            }
+
+            $providersQuery = $materialIR->provider()
+                ->with(['materials', 'materialImportReceipt'])
+                ->getQuery();
+
+            return $this->paginateResults($providersQuery, $perPage, $page)->toArray();
+
+        } catch (\Exception $e) {
+            error_log("Error in getProvidersByImportReceipt: " . $e->getMessage());
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
-
-        $data = json_decode(file_get_contents('php://input'), true);
-        $error = $materialIR->validate($data, true);
-
-        if ($error != "") {
-            http_response_code(404);
-            error_log($error);
-            return json_encode(["error" => $error]);
-        }
-
-        $materialIR->fill($data);
-        $materialIR->save();
-
-        return $materialIR;
     }
 
-    public function deleteMaterialImportReceipt($id): string
+    public function createMaterialImportReceipt(): array
     {
-        $materialIR = MaterialImportReceipt::find($id);
+        try {
+            $data = json_decode(file_get_contents('php://input'), true);
+            $materialIR = new MaterialImportReceipt();
 
-        if ($materialIR) {
-            $materialIR->status = 'DELETED';
+            $errors = $materialIR->validate($data);
+            if ($errors) {
+                return [
+                    'success' => false,
+                    'error' => 'Validation failed',
+                    'details' => $errors
+                ];
+            }
+
+            $materialIR->fill($data);
             $materialIR->save();
-            return "Xóa thành công";
-        } else {
-            http_response_code(404);
-            return "Không tìm thấy";
+
+            return [
+                'success' => true,
+                'data' => $materialIR->toArray()
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in createMaterialImportReceipt: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function updateMaterialImportReceiptById($id): array
+    {
+        try {
+            $materialIR = (new MaterialImportReceipt())
+                ->where('id', $id)
+                ->where('deleted', false)
+                ->first();
+
+            if (!$materialIR) {
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy'
+                ];
+            }
+
+            $data = json_decode(file_get_contents('php://input'), true);
+            $errors = $materialIR->validate($data, true);
+
+            if ($errors) {
+                return [
+                    'success' => false,
+                    'error' => 'Validation failed',
+                    'details' => $errors
+                ];
+            }
+
+            $materialIR->fill($data);
+            $materialIR->save();
+
+            return [
+                'success' => true,
+                'data' => $materialIR->toArray()
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in updateMaterialImportReceiptById: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function deleteMaterialImportReceipt($id): array
+    {
+        try {
+            $materialIR = (new MaterialImportReceipt())
+                ->where('id', $id)
+                ->where('deleted', false)
+                ->first();
+
+            if (!$materialIR) {
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy'
+                ];
+            }
+
+            $materialIR->deleted = true;
+            $materialIR->save();
+
+            return [
+                'success' => true,
+                'message' => 'Xóa thành công'
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in deleteMaterialImportReceipt: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function approveImportReceipt($id): array
+    {
+        try {
+            $materialIR = (new MaterialImportReceipt())
+                ->where('id', $id)
+                ->where('deleted', false)
+                ->where('status', 'PENDING')
+                ->first();
+
+            if (!$materialIR) {
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy phiếu nhập hoặc phiếu không ở trạng thái chờ duyệt'
+                ];
+            }
+
+            $data = json_decode(file_get_contents('php://input'), true);
+
+            if (empty($data['approved_by'])) {
+                return [
+                    'success' => false,
+                    'error' => 'Thiếu thông tin người duyệt'
+                ];
+            }
+
+            // Cập nhật trạng thái và người duyệt
+            $materialIR->status = 'COMPLETED';
+            $materialIR->approved_by = $data['approved_by'];
+            $materialIR->save();
+
+            return [
+                'success' => true,
+                'message' => 'Duyệt phiếu nhập thành công',
+                'data' => $materialIR->toArray()
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in approveImportReceipt: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
     }
 
@@ -198,7 +437,6 @@ class MaterialImportReceiptController
             $parser = new Parser(new JoseEncoder());
             $parsedToken = $parser->parse($token);
             $createdById = $parsedToken->claims()->get('id');
-            $approvedById = $parsedToken->claims()->get('id');
 
             $storageExists = StorageArea::where('id', $data['storage_area_id'])->exists();
             if (!$storageExists) {
@@ -261,7 +499,6 @@ class MaterialImportReceiptController
                 'receipt_id' => $receiptId,
                 'note' => $data['note'],
                 'created_by' => $createdById,
-                'approved_by' => $approvedById,
                 'receiver_id' => $receiver->id,
             ]);
 

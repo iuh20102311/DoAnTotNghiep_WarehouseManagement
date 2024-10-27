@@ -6,10 +6,7 @@ use App\Models\Material;
 use App\Models\MaterialExportReceipt;
 use App\Models\MaterialStorageLocation;
 use App\Models\StorageArea;
-use App\Models\User;
 use App\Utils\PaginationTrait;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Model;
 use Lcobucci\JWT\Encoding\JoseEncoder;
 use Lcobucci\JWT\Token\Parser;
 
@@ -17,125 +14,255 @@ class MaterialExportReceiptController
 {
     use PaginationTrait;
 
-    public function countTotalReceipts()
+    public function countTotalReceipts(): array
     {
-        $data = json_decode(file_get_contents('php://input'), true);
+        try {
+            $data = json_decode(file_get_contents('php://input'), true);
 
-        if (!isset($data['month']) || !isset($data['year'])) {
-            header('Content-Type: application/json');
-            echo json_encode(['error' => 'Tháng và năm là bắt buộc.'], JSON_UNESCAPED_UNICODE);
-            return;
+            if (!isset($data['month']) || !isset($data['year'])) {
+                return [
+                    'error' => 'Tháng và năm là bắt buộc'
+                ];
+            }
+
+            $month = $data['month'];
+            $year = $data['year'];
+
+            $totalReceipts = MaterialExportReceipt::whereMonth('created_at', $month)
+                ->whereYear('created_at', $year)
+                ->count();
+
+            return [
+                'data' => ['total_receipts' => $totalReceipts]
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in countTotalReceipts: " . $e->getMessage());
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
-
-        $month = $data['month'];
-        $year = $data['year'];
-
-        $totalReceipts = MaterialExportReceipt::whereMonth('created_at', $month)
-            ->whereYear('created_at', $year)
-            ->count();
-
-        header('Content-Type: application/json');
-        echo json_encode(['total_receipts' => $totalReceipts]);
     }
-
 
     public function getMaterialExportReceipts(): array
     {
-        $perPage = $_GET['per_page'] ?? 10;
-        $page = $_GET['page'] ?? 1;
+        try {
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
 
-        $materialERs = MaterialExportReceipt::query()->where('status', '!=', 'DELETED')->with(['creator', 'approver', 'details']);
+            $materialER = (new MaterialExportReceipt())
+                ->where('deleted', false)
+                ->with([
+                    'creator' => function($productER) {
+                        $productER->select('id', 'email', 'role_id')
+                            ->with(['profile' => function($q) {
+                                $q->select('user_id', 'first_name', 'last_name');
+                            }]);
+                    },
+                    'details'
+                ]);
 
-        if (isset($_GET['type'])) {
-            $type = urldecode($_GET['type']);
-            $materialERs->where('type', $type);
+            if (isset($_GET['type'])) {
+                $type = urldecode($_GET['type']);
+                $materialER->where('type', $type);
+            }
+
+            $result = $this->paginateResults($materialER, $perPage, $page)->toArray();
+
+            if (isset($result['data']) && is_array($result['data'])) {
+                foreach ($result['data'] as &$item) {
+                    if (isset($item['creator']['profile'])) {
+                        $item['creator']['full_name'] = trim($item['creator']['profile']['first_name'] . ' ' . $item['creator']['profile']['last_name']);
+                    }
+                }
+            }
+
+            return $result;
+
+        } catch (\Exception $e) {
+            error_log("Error in getMaterialExportReceipts: " . $e->getMessage());
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
-
-        return $this->paginateResults($materialERs, $perPage, $page)->toArray();
     }
 
-    public function getMaterialExportReceiptById($id): string
+    public function getMaterialExportReceiptById($id): array
     {
-        $materialER = MaterialExportReceipt::query()
-            ->where('id', $id)
-            ->where('status', '!=', 'DELETED')
-            ->with(['creator', 'approver', 'details'])
-            ->first();
+        try {
+            $materialER = (new MaterialExportReceipt())
+                ->where('id', $id)
+                ->where('deleted', false)
+                ->with([
+                    'creator' => function($productER) {
+                        $productER->select('id', 'email', 'role_id')
+                            ->with(['profile' => function($q) {
+                                $q->select('user_id', 'first_name', 'last_name');
+                            }]);
+                    },
+                    'details'
+                ])
+                ->first();
 
-        if (!$materialER) {
-            return json_encode(['error' => 'Không tìm thấy']);
+            if (!$materialER) {
+                return [
+                    'error' => 'Không tìm thấy'
+                ];
+            }
+
+            $data = $materialER->toArray();
+
+            if (isset($data['creator']['profile'])) {
+                $data['creator']['full_name'] = trim($data['creator']['profile']['first_name'] . ' ' . $data['creator']['profile']['last_name']);
+            }
+
+            return $data;
+
+        } catch (\Exception $e) {
+            error_log("Error in getMaterialExportReceiptById: " . $e->getMessage());
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
-
-        return json_encode($materialER->toArray());
     }
 
     public function getExportReceiptDetailsByExportReceipt($id): array
     {
-        $perPage = $_GET['per_page'] ?? 10;
-        $page = $_GET['page'] ?? 1;
+        try {
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
 
-        $materialER = MaterialExportReceipt::query()->where('id', $id)->firstOrFail();
-        $materialExportReceiptDetailsQuery = $materialER->details()
-            ->with(['material', 'storageArea', 'materialExportReceipt'])
-            ->getQuery();
+            $materialER = (new MaterialExportReceipt())->find($id);
 
-        return $this->paginateResults($materialExportReceiptDetailsQuery, $perPage, $page)->toArray();
+            if (!$materialER) {
+                return [
+                    'error' => 'Không tìm thấy'
+                ];
+            }
+
+            $detailsQuery = $materialER->details()
+                ->with(['material', 'storageArea', 'materialExportReceipt'])
+                ->getQuery();
+
+            return $this->paginateResults($detailsQuery, $perPage, $page)->toArray();
+
+        } catch (\Exception $e) {
+            error_log("Error in getExportReceiptDetailsByExportReceipt: " . $e->getMessage());
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
     }
 
-    public function createMaterialExportReceipt(): Model|string
+    public function createMaterialExportReceipt(): array
     {
-        $data = json_decode(file_get_contents('php://input'), true);
-        $materialER = new MaterialExportReceipt();
-        $error = $materialER->validate($data);
-        if ($error != "") {
-            http_response_code(404);
-            error_log($error);
-            return json_encode(["error" => $error]);
-        }
-        $materialER->fill($data);
-        $materialER->save();
-        return $materialER;
-    }
+        try {
+            $data = json_decode(file_get_contents('php://input'), true);
+            $materialER = new MaterialExportReceipt();
 
-    public function updateMaterialExportReceiptById($id): bool|int|string
-    {
-        $materialER = MaterialExportReceipt::find($id);
+            $errors = $materialER->validate($data);
+            if ($errors) {
+                return [
+                    'success' => false,
+                    'error' => 'Validation failed',
+                    'details' => $errors
+                ];
+            }
 
-        if (!$materialER) {
-            http_response_code(404);
-            return json_encode(["error" => "Provider not found"]);
-        }
-
-        $data = json_decode(file_get_contents('php://input'), true);
-        $error = $materialER->validate($data, true);
-
-        if ($error != "") {
-            http_response_code(404);
-            error_log($error);
-            return json_encode(["error" => $error]);
-        }
-
-        $materialER->fill($data);
-        $materialER->save();
-
-        return $materialER;
-    }
-
-    public function deleteMaterialExportReceipt($id): string
-    {
-        $materialER = MaterialExportReceipt::find($id);
-
-        if ($materialER) {
-            $materialER->status = 'DELETED';
+            $materialER->fill($data);
             $materialER->save();
-            return "Xóa thành công";
-        } else {
-            http_response_code(404);
-            return "Không tìm thấy";
+
+            return [
+                'success' => true,
+                'data' => $materialER->toArray()
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in createMaterialExportReceipt: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
     }
 
-    public function exportMaterials()
+    public function updateMaterialExportReceiptById($id): array
+    {
+        try {
+            $materialER = (new MaterialExportReceipt())->find($id);
+
+            if (!$materialER) {
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy'
+                ];
+            }
+
+            $data = json_decode(file_get_contents('php://input'), true);
+            $errors = $materialER->validate($data, true);
+
+            if ($errors) {
+                return [
+                    'success' => false,
+                    'error' => 'Validation failed',
+                    'details' => $errors
+                ];
+            }
+
+            $materialER->fill($data);
+            $materialER->save();
+
+            return [
+                'success' => true,
+                'data' => $materialER->toArray()
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in updateMaterialExportReceiptById: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function deleteMaterialExportReceipt($id): array
+    {
+        try {
+            $materialER = (new MaterialExportReceipt())->find($id);
+
+            if (!$materialER) {
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy'
+                ];
+            }
+
+            $materialER->deleted = true;
+            $materialER->save();
+
+            return [
+                'success' => true,
+                'message' => 'Xóa thành công'
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in deleteMaterialExportReceipt: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function exportMaterials(): void
     {
         $data = json_decode(file_get_contents('php://input'), true);
 
@@ -161,16 +288,6 @@ class MaterialExportReceiptController
 
             if (!$storageArea) {
                 throw new \Exception('Kho xuất kho không tồn tại hoặc không hoạt động');
-            }
-
-            // Kiểm tra người nhận có tồn tại và đang hoạt động không
-            $receiver = User::where('id', $data['receiver_id'])
-                ->where('status', 'ACTIVE')
-                ->where('deleted', false)
-                ->first();
-
-            if (!$receiver) {
-                throw new \Exception('Người nhận không tồn tại hoặc không hoạt động');
             }
 
             // Kiểm tra tất cả nguyên vật liệu trước khi tạo hóa đơn
@@ -204,8 +321,6 @@ class MaterialExportReceiptController
                 'type' => 'NORMAL',
                 'status' => 'PENDING',
                 'created_by' => $createdById,
-                'approved_by' => $createdById,
-                'receiver_id' => $receiver->id,
             ]);
 
             // Tạo chi tiết xuất kho và cập nhật số lượng

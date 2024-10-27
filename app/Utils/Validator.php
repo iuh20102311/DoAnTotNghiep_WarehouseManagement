@@ -58,6 +58,19 @@ class Validator
         return true;
     }
 
+    public function validateNullable($field, $value)
+    {
+        // Nếu field có thể null và giá trị là null hoặc rỗng thì cho qua
+        if (empty($value) && $value !== '0') {
+            // Remove any existing errors for this field since it's nullable
+            if (isset($this->errors[$field])) {
+                unset($this->errors[$field]);
+            }
+            return false; // Return false để dừng việc validate các rule khác
+        }
+        return true;
+    }
+
     public function validateEmail($field, $value)
     {
         if (!filter_var($value, FILTER_VALIDATE_EMAIL)) {
