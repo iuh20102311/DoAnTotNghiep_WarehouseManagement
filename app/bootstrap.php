@@ -236,8 +236,10 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
             $router->put('/{id}', ['App\Controllers\MaterialImportReceiptController', 'updateMaterialImportReceiptById']);
             $router->delete('/{id}', ['App\Controllers\MaterialImportReceiptController', 'deleteMaterialImportReceipt']);
             $router->get('/{id}', ['App\Controllers\MaterialImportReceiptController', 'getMaterialImportReceiptById']);
+            $router->patch('/{id}/approve', ['App\Controllers\MaterialImportReceiptController', 'approveImportReceipt']);
             $router->post('/', ['App\Controllers\MaterialImportReceiptController', 'createMaterialImportReceipt']);
             $router->get('/', ['App\Controllers\MaterialImportReceiptController', 'getMaterialImportReceipts']);
+
         });
 
         $router->group(array('prefix' => '/v1/product_export_receipts'), function (RouteCollector $router) {
@@ -254,7 +256,7 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
         $router->group(array('prefix' => '/v1/product_import_receipts'), function (RouteCollector $router) {
             $router->post('/count', ['App\Controllers\ProductImportReceiptController', 'countTotalReceipts']);
 
-            $router->get('/{id}/product_import_receipt_details', ['App\Controllers\ProductImportReceiptController', 'getImportReceiptDetailsByExportReceipt']);
+            $router->get('/{id}/product_import_receipt_details', ['App\Controllers\ProductImportReceiptController', 'getImportReceiptDetailsByImportReceipt']);
             $router->put('/{id}', ['App\Controllers\ProductImportReceiptController', 'updateProductImportReceiptById']);
             $router->delete('/{id}', ['App\Controllers\ProductImportReceiptController', 'deleteProductImportReceipt']);
             $router->get('/{id}', ['App\Controllers\ProductImportReceiptController', 'getProductImportReceiptById']);

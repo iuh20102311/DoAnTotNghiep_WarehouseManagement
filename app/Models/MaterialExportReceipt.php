@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Utils\Validator;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,7 +16,7 @@ class MaterialExportReceipt extends Model
 {
     use HasFactory;
     protected $table = 'material_export_receipts';
-    protected $fillable = ['note', 'receipt_date', 'type', 'status', 'created_at', 'updated_at', 'deleted', 'created_by', 'approved_by'];
+    protected $fillable = ['note', 'receipt_date', 'type', 'status', 'image', 'created_at', 'updated_at', 'deleted', 'created_by'];
     protected $primaryKey = 'id';
     public $timestamps = true;
 
@@ -24,40 +25,57 @@ class MaterialExportReceipt extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    public function approver(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'approved_by');
-    }
-
     public function details(): HasMany
     {
         return $this->hasMany(MaterialExportReceiptDetail::class);
     }
 
-    /**
-     * @throws Exception
-     */
-    public function validate(array $data, bool $isUpdate = false) : string
+    public function validate(array $data, $isUpdate = false)
     {
-        $validators = [
-            'warehouse_id' => v::notEmpty()->setName('warehouse_id')->setTemplate('Nhà kho không được rỗng'),
-            'type' => v::in(['NORMAL', 'RETURN'])->setName('type')->setTemplate('Loại không hợp lệ. Loại chỉ có thể là PRODUCT hoặc MATERIAL.'),
-            'status' => v::in(['ACTIVE', 'DELETED'])->setName('status')->setTemplate('Trạng thái không hợp lệ. Trạng thái chỉ có thể là ACTIVE hoặc DELETED.'),
+        $validator = new Validator($data, $this->messages());
+
+        // Debug: Log data được gửi vào
+        error_log("Validating data: " . json_encode($data));
+
+        $rules = [
+            'note' => ['nullable', 'string', 'max' => 500],
+            'receipt_date' => ['required', 'date' => 'Y-m-d H:i:s', 'after' => 'now'],
+            'type' => ['required', 'enum' => ['NORMAL', 'RETURN']],
+            'created_by' => ['required', 'integer'],
         ];
 
-        $error = "";
-        foreach ($validators as $field => $validator) {
-            if ($isUpdate && !array_key_exists($field, $data)) {
-                continue;
-            }
-
-            try {
-                $validator->assert(isset($data[$field]) ? $data[$field] : null);
-            } catch (ValidationException $exception) {
-                $error = $exception->getMessage();
-                break;
+        if ($isUpdate) {
+            foreach ($rules as $field => $constraints) {
+                $rules[$field] = array_filter($constraints, fn($c) => $c !== 'required');
             }
         }
-        return $error;
+
+        if (!$validator->validate($rules)) {
+            error_log("Validation failed: " . json_encode($validator->getErrors()));
+            return $validator->getErrors();
+        }
+
+        return null;
+    }
+
+    protected function messages()
+    {
+        return [
+            'note' => [
+                'max' => 'Ghi chú không được vượt quá :max ký tự.'
+            ],
+            'type' => [
+                'required' => 'Loại phiếu xuất là bắt buộc.',
+                'enum' => 'Loại phiếu xuất phải là NORMAL hoặc RETURN.'
+            ],
+            'created_by' => [
+                'required' => 'Người tạo là bắt buộc.',
+                'integer' => 'ID người tạo phải là số nguyên.'
+            ],
+            'receipt_date' => [
+                'required' => 'Ngày xuất kho là bắt buộc.',
+                'date' => 'Ngày xuất kho không hợp lệ.'
+            ]
+        ];
     }
 }

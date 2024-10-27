@@ -44,11 +44,6 @@ class User extends Model
         return $this->hasMany(MaterialExportReceipt::class, 'created_by');
     }
 
-    public function approvedMaterialExportReceipts()
-    {
-        return $this->hasMany(MaterialExportReceipt::class, 'approved_by');
-    }
-
     public function createdMaterialImportReceipts()
     {
         return $this->hasMany(MaterialImportReceipt::class, 'created_by');
@@ -67,11 +62,6 @@ class User extends Model
     public function createdProductExportReceipts()
     {
         return $this->hasMany(ProductExportReceipt::class, 'created_by');
-    }
-
-    public function approvedProductExportReceipts()
-    {
-        return $this->hasMany(ProductExportReceipt::class, 'approved_by');
     }
 
     public function createdProductImportReceipts()
