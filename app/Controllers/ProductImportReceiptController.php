@@ -402,7 +402,7 @@ class ProductImportReceiptController
                 $productModel->save();
             }
 
-            $productImportReceipt->status = 'PENDING';
+            $productImportReceipt->status = 'COMPLETED';
             $productImportReceipt->save();
 
             $response = [
