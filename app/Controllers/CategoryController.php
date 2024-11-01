@@ -19,7 +19,7 @@ class CategoryController
             $page = $_GET['page'] ?? 1;
 
             $category = Category::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->with(['products', 'discounts', 'materials']);
 
             // Basic filters
@@ -106,7 +106,7 @@ class CategoryController
     {
         try {
             $category = Category::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->with(['products', 'discounts', 'materials'])
                 ->find($id);
 
@@ -136,7 +136,7 @@ class CategoryController
             $page = $_GET['page'] ?? 1;
 
             $category = Category::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$category) {
@@ -178,7 +178,7 @@ class CategoryController
             }
 
             $category = Category::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$category) {
@@ -235,7 +235,7 @@ class CategoryController
             }
 
             $category = Category::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$category) {
@@ -277,7 +277,7 @@ class CategoryController
             $page = $_GET['page'] ?? 1;
 
             $category = Category::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$category) {
@@ -319,7 +319,7 @@ class CategoryController
             }
 
             $category = Category::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$category) {
@@ -376,7 +376,7 @@ class CategoryController
             }
 
             $category = Category::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$category) {
@@ -418,7 +418,7 @@ class CategoryController
             $page = $_GET['page'] ?? 1;
 
             $category = Category::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$category) {
@@ -460,7 +460,7 @@ class CategoryController
             }
 
             $category = Category::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$category) {
@@ -517,7 +517,7 @@ class CategoryController
             }
 
             $category = Category::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$category) {
@@ -593,7 +593,7 @@ class CategoryController
     {
         try {
             $category = Category::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$category) {
@@ -640,7 +640,7 @@ class CategoryController
     {
         try {
             $category = Category::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$category) {
@@ -651,7 +651,7 @@ class CategoryController
             }
 
             // Soft delete
-            $category->status = 'DELETED';
+            $category->deleted = true;
             $category->save();
 
             return [
@@ -676,7 +676,7 @@ class CategoryController
             $page = $_GET['page'] ?? 1;
 
             $category = Category::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$category) {
