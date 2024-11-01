@@ -3,6 +3,7 @@
 namespace App\Utils;
 
 use DateTime;
+use Illuminate\Support\Facades\DB;
 
 class Validator
 {
@@ -32,6 +33,13 @@ class Validator
                 $rule = $parameter;
                 $parameter = null;
             }
+
+            // Xử lý các rule có parameter được định nghĩa theo format "rule:param1,param2"
+            if (is_string($rule) && strpos($rule, ':') !== false) {
+                list($ruleName, $parameter) = explode(':', $rule, 2);
+                $rule = $ruleName;
+            }
+
             $ruleParts = explode('_', $rule);
             $rulePascalCase = '';
             foreach ($ruleParts as $part) {
@@ -41,7 +49,7 @@ class Validator
 
             if (method_exists($this, $method)) {
                 if (!$this->$method($field, $value, $parameter)) {
-                    break; // Nếu muốn tiếp tục kiểm tra tất cả các quy tắc, hãy xóa dòng này
+                    break;
                 }
             } else {
                 throw new \Exception("Validation rule '{$rule}' is not defined.");
@@ -268,6 +276,20 @@ class Validator
         }
     }
 
+    public function validateXor($field, $value, $parameter)
+    {
+        $otherField = $parameter;
+        $otherValue = $this->data[$otherField] ?? null;
+
+        // Both fields are set or both are empty
+        if ((!empty($value) && !empty($otherValue)) ||
+            (empty($value) && empty($otherValue))) {
+            $this->addError($field, 'xor', ['other' => $otherField]);
+            return false;
+        }
+        return true;
+    }
+
     protected function addError($field, $rule, $parameters = [])
     {
         $message = $this->messages[$field][$rule] ?? $this->getDefaultMessage($field, $rule);
@@ -299,6 +321,8 @@ class Validator
             'after' => ':field phải sau ngày :date.',
             'after_or_equal' => ':field phải sau hoặc bằng ngày :date.',
             'invalid_date' => ':field không phải là ngày hợp lệ.',
+            'exists' => ':field không tồn tại trong hệ thống.',
+            'xor' => 'Chỉ được chọn một trong hai trường :field hoặc :other.',
         ];
         return str_replace(':field', $field, $messages[$rule] ?? ':field không hợp lệ.');
     }

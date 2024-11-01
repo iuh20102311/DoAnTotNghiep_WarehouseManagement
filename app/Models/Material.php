@@ -15,7 +15,7 @@ class Material extends Model
     use HasFactory;
 
     protected $table = 'materials';
-    protected $fillable = ['name', 'unit', 'weight', 'origin', 'quantity_available', 'quantity' ,'minimum_stock_level', 'status', 'created_at', 'updated_at', 'note', 'deleted'];
+    protected $fillable = ['name', 'unit', 'weight', 'origin', 'quantity_available', 'quantity' ,'minimum_stock_level', 'maximum_stock_level', 'status', 'created_at', 'updated_at', 'note', 'deleted'];
     protected $primaryKey = 'id';
     public $timestamps = true;
 

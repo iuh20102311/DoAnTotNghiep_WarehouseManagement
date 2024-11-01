@@ -88,6 +88,7 @@ class GiftSetPriceController
             $giftSet = (new GiftSet())->find($data['gift_set_id']);
             if (!$giftSet) {
                 return [
+                    'success' => false,
                     'error' => 'Không tìm thấy quà tặng'
                 ];
             }
@@ -97,6 +98,7 @@ class GiftSetPriceController
 
             if ($errors) {
                 return [
+                    'success' => false,
                     'error' => 'Validation failed',
                     'details' => $errors
                 ];
@@ -106,12 +108,14 @@ class GiftSetPriceController
             $giftSetPrice->save();
 
             return [
+                'success' => true,
                 'data' => $giftSetPrice->toArray()
             ];
 
         } catch (\Exception $e) {
             error_log("Error in: " . $e->getMessage());
             return [
+                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -136,6 +140,7 @@ class GiftSetPriceController
                 $giftSet = (new GiftSet())->find($data['gift_set_id']);
                 if (!$giftSet) {
                     return [
+                        'success' => false,
                         'error' => 'Không tìm thấy quà tặng'
                     ];
                 }
@@ -145,6 +150,7 @@ class GiftSetPriceController
 
             if ($errors) {
                 return [
+                    'success' => false,
                     'error' => 'Validation failed',
                     'details' => $errors
                 ];
@@ -154,12 +160,14 @@ class GiftSetPriceController
             $giftSetPrice->save();
 
             return [
+                'success' => true,
                 'data' => $giftSetPrice->toArray()
             ];
 
         } catch (\Exception $e) {
             error_log("Error in: " . $e->getMessage());
             return [
+                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -173,6 +181,7 @@ class GiftSetPriceController
 
             if (!$giftSetPrice) {
                 return [
+                    'success' => false,
                     'error' => 'Không tìm thấy'
                 ];
             }

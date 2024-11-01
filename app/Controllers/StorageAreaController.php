@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use App\Models\InventoryCheck;
 use App\Models\StorageArea;
 use App\Utils\PaginationTrait;
 use Illuminate\Database\Eloquent\Collection;
@@ -152,25 +153,78 @@ class StorageAreaController
             $perPage = $_GET['per_page'] ?? 10;
             $page = $_GET['page'] ?? 1;
 
-            $storage = StorageArea::query()->where('id', $id)->first();
+            $storageArea = (new StorageArea())->find($id);
 
-            if (!$storage) {
+            if (!$storageArea) {
                 return [
-                    
-                    'error' => 'Không tìm thấy'
+                    'success' => false,
+                    'error' => 'Không tìm thấy khu vực kho'
                 ];
             }
 
-            $inventoryChecksQuery = $storage->inventoryChecks()
-                ->with(['creator','details'])
+            $checksQuery = $storageArea->inventoryChecks()
+                ->where('deleted', false)
+                ->with(['creator', 'details'])
                 ->getQuery();
 
-            return $this->paginateResults($inventoryChecksQuery, $perPage, $page)->toArray();
+            $result = $this->paginateResults($checksQuery, $perPage, $page);
 
+            return [
+                'success' => true,
+                'data' => $result->toArray()
+            ];
 
         } catch (\Exception $e) {
-            error_log("Error in getInventoryChecksByStorageArea: " . $e->getMessage());
+            error_log("Error in getChecksByStorageArea: " . $e->getMessage());
             return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function addInventoryCheckToStorageArea($id): array
+    {
+        try {
+            $storageArea = (new StorageArea())->find($id);
+
+            if (!$storageArea) {
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy khu vực kho'
+                ];
+            }
+
+            $data = json_decode(file_get_contents('php://input'), true);
+            $data['storage_area_id'] = $id;
+
+            // Tạo instance mới của InventoryCheck
+            $inventoryCheck = new InventoryCheck();
+
+            // Validate input
+            $errors = $inventoryCheck->validate($data);
+
+            if ($errors) {
+                return [
+                    'success' => false,
+                    'error' => 'Validation failed',
+                    'details' => $errors
+                ];
+            }
+
+            $inventoryCheck->fill($data);
+            $inventoryCheck->save();
+
+            return [
+                'success' => true,
+                'message' => 'Thêm phiếu kiểm kê thành công'
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in addCheckToStorageArea: " . $e->getMessage());
+            return [
+                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];

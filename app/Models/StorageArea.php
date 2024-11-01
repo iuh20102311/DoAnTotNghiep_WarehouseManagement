@@ -14,7 +14,7 @@ class StorageArea extends Model
     use HasFactory;
 
     protected $table = 'storage_areas';
-    protected $fillable = ['name', 'description', 'status', 'created_at', 'updated_at', 'deleted'];
+    protected $fillable = ['name', 'code', 'description', 'status', 'created_at', 'updated_at', 'deleted'];
     protected $primaryKey = 'id';
     public $timestamps = true;
 
