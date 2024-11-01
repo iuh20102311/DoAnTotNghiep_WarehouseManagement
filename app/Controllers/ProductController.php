@@ -37,7 +37,7 @@ class ProductController
             $page = $_GET['page'] ?? 1;
 
             $product = Product::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->with([
                     'categories',
                     'prices',
@@ -269,7 +269,7 @@ class ProductController
     {
         try {
             $product = Product::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$product) {
@@ -320,7 +320,7 @@ class ProductController
                 ];
             }
 
-            $product->status = 'DELETED';
+            $product->deleted = true;
             $product->save();
 
             return [
@@ -345,7 +345,7 @@ class ProductController
             $page = $_GET['page'] ?? 1;
 
             $product = Product::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$product) {
@@ -387,7 +387,7 @@ class ProductController
             }
 
             $product = Product::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$product) {
@@ -443,7 +443,7 @@ class ProductController
             }
 
             $product = Product::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$product) {
@@ -485,7 +485,7 @@ class ProductController
             $page = $_GET['page'] ?? 1;
 
             $product = Product::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$product) {
@@ -527,7 +527,7 @@ class ProductController
             }
 
             $product = Product::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$product) {
@@ -583,7 +583,7 @@ class ProductController
             }
 
             $product = Product::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$product) {
@@ -625,7 +625,7 @@ class ProductController
             $page = $_GET['page'] ?? 1;
 
             $product = Product::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$product) {
@@ -661,7 +661,7 @@ class ProductController
             $page = $_GET['page'] ?? 1;
 
             $product = Product::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$product) {
@@ -703,7 +703,7 @@ class ProductController
             }
 
             $product = Product::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$product) {
@@ -741,7 +741,7 @@ class ProductController
     {
         try {
             $product = Product::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$product) {
@@ -795,7 +795,7 @@ class ProductController
             $page = $_GET['page'] ?? 1;
 
             $product = Product::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$product) {
@@ -837,7 +837,7 @@ class ProductController
             }
 
             $product = Product::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$product) {
@@ -884,7 +884,7 @@ class ProductController
     {
         try {
             $product = Product::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$product) {
@@ -932,7 +932,7 @@ class ProductController
     {
         try {
             $product = Product::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$product) {
@@ -974,7 +974,7 @@ class ProductController
             $page = $_GET['page'] ?? 1;
 
             $product = Product::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$product) {
@@ -1010,7 +1010,7 @@ class ProductController
             $page = $_GET['page'] ?? 1;
 
             $product = Product::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$product) {
@@ -1046,7 +1046,7 @@ class ProductController
             $page = $_GET['page'] ?? 1;
 
             $product = Product::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$product) {
@@ -1082,7 +1082,7 @@ class ProductController
             $page = $_GET['page'] ?? 1;
 
             $product = Product::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$product) {
@@ -1118,7 +1118,7 @@ class ProductController
             $page = $_GET['page'] ?? 1;
 
             $product = Product::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$product) {
@@ -1154,7 +1154,7 @@ class ProductController
             $page = $_GET['page'] ?? 1;
 
             $product = Product::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$product) {
@@ -1190,7 +1190,7 @@ class ProductController
             $page = $_GET['page'] ?? 1;
 
             $product = Product::query()
-                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
                 ->find($id);
 
             if (!$product) {
