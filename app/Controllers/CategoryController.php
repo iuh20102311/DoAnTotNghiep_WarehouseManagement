@@ -90,10 +90,7 @@ class CategoryController
                 $category->orderBy('created_at', 'desc');
             }
 
-            return [
-                'success' => true,
-                'data' => $this->paginateResults($category, $perPage, $page)->toArray()
-            ];
+            return $this->paginateResults($category, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
             error_log("Error in getCategories: " . $e->getMessage());
@@ -120,10 +117,7 @@ class CategoryController
                 ];
             }
 
-            return [
-                'success' => true,
-                'data' => $category->toArray()
-            ];
+            return $category->toArray();
 
         } catch (\Exception $e) {
             error_log("Error in getCategoryById: " . $e->getMessage());

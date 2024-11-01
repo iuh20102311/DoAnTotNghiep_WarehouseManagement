@@ -187,9 +187,7 @@ class ProductController
                 $product->orderBy('created_at', 'desc');
             }
 
-            return [
-                'data' => $this->paginateResults($product, $perPage, $page)->toArray()
-            ];
+            return $this->paginateResults($product, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
             error_log("Error in getProducts: " . $e->getMessage());
@@ -223,9 +221,7 @@ class ProductController
                 ];
             }
 
-            return [
-                'data' => $product->toArray()
-            ];
+            return $product->toArray();
 
         } catch (\Exception $e) {
             error_log("Error in getProductById: " . $e->getMessage());
