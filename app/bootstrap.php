@@ -267,8 +267,9 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
         $router->group(array('prefix' => '/v1/storage_areas'), function (RouteCollector $router) {
             $router->get('/{id}/material_storage_locations', ['App\Controllers\StorageAreaController', 'getMaterialStorageLocationsByStorageArea']);
             $router->get('/{id}/product_storage_locations', ['App\Controllers\StorageAreaController', 'getProductStorageLocationsByStorageArea']);
-            $router->get('/{id}/inventory_checks', ['App\Controllers\StorageAreaController', 'getInventoryChecksByStorageArea']);
             $router->get('/{id}/inventory_history', ['App\Controllers\StorageAreaController', 'getInventoryHistoryByStorageArea']);
+            $router->post('/{id}/inventory_checks', ['App\Controllers\StorageAreaController', 'addInventoryCheckToStorageArea']);
+            $router->get('/{id}/inventory_checks', ['App\Controllers\StorageAreaController', 'getInventoryChecksByStorageArea']);
             $router->put('/{id}', ['App\Controllers\StorageAreaController', 'updateStorageAreaById']);
             $router->delete('/{id}', ['App\Controllers\StorageAreaController', 'deleteStorage']);
             $router->get('/{id}', ['App\Controllers\StorageAreaController', 'getStorageAreaById']);
@@ -363,6 +364,36 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
             $router->get('/{id}', ['App\Controllers\GiftSetController', 'getGiftSetById']);
             $router->post('/', ['App\Controllers\GiftSetController', 'createGiftSet']);
             $router->get('/', ['App\Controllers\GiftSetController', 'getGiftSets']);
+        });
+
+        $router->group(array('prefix' => '/v1/inventory_checks'), function (RouteCollector $router) {
+            $router->get('/{id}/storage_areas', ['App\Controllers\InventoryCheckController', 'getStorageAreaByInventoryCheck']);
+            $router->put('/{id}/storage_areas', ['App\Controllers\InventoryCheckController', 'updateStorageAreaByInventoryCheck']);
+            $router->put('/{id}/users', ['App\Controllers\InventoryCheckController', 'updateUserByInventoryCheck']);
+            $router->get('/{id}/users', ['App\Controllers\InventoryCheckController', 'getUserByInventoryCheck']);
+            $router->put('/{id}', ['App\Controllers\InventoryCheckController', 'updateInventoryCheckById']);
+            $router->delete('/{id}', ['App\Controllers\InventoryCheckController', 'deleteInventoryCheck']);
+            $router->get('/{id}', ['App\Controllers\InventoryCheckController', 'getInventoryCheckById']);
+            $router->post('/', ['App\Controllers\InventoryCheckController', 'createInventoryCheck']);
+            $router->get('/', ['App\Controllers\InventoryCheckController', 'getInventoryChecks']);
+        });
+
+        $router->group(array('prefix' => '/v1/inventory_check_details'), function (RouteCollector $router) {
+            $router->get('/{id}/inventory_checks', ['App\Controllers\InventoryCheckDetailController', 'getInventoryChecksByInventoryCheckDetail']);
+            $router->put('/{id}/storage_areas', ['App\Controllers\InventoryCheckDetailController', 'updateStorageAreaByInventoryCheck']);
+            $router->put('/{id}/materials', ['App\Controllers\InventoryCheckDetailController', 'updateMaterialInInventoryCheckDetail']);
+            $router->post('/{id}/materials', ['App\Controllers\InventoryCheckDetailController', 'addMaterialToInventoryCheckDetail']);
+            $router->get('/{id}/materials', ['App\Controllers\InventoryCheckDetailController', 'getMaterialsByInventoryCheckDetail']);
+            $router->delete('/{id}/materials', ['App\Controllers\InventoryCheckDetailController', 'removeMaterialFromInventoryCheckDetail']);
+            $router->put('/{id}/products', ['App\Controllers\InventoryCheckDetailController', 'updateProductInInventoryCheckDetail']);
+            $router->post('/{id}/products', ['App\Controllers\InventoryCheckDetailController', 'addProductToInventoryCheckDetail']);
+            $router->get('/{id}/products', ['App\Controllers\InventoryCheckDetailController', 'getProductsByInventoryCheckDetail']);
+            $router->delete('/{id}/products', ['App\Controllers\InventoryCheckDetailController', 'removeProductFromInventoryCheckDetail']);
+            $router->put('/{id}', ['App\Controllers\InventoryCheckDetailController', 'updateInventoryCheckDetailById']);
+            $router->delete('/{id}', ['App\Controllers\InventoryCheckDetailController', 'deleteInventoryCheckDetail']);
+            $router->get('/{id}', ['App\Controllers\InventoryCheckDetailController', 'getInventoryCheckDetailById']);
+            $router->post('/', ['App\Controllers\InventoryCheckDetailController', 'createInventoryCheckDetail']);
+            $router->get('/', ['App\Controllers\InventoryCheckDetailController', 'getInventoryCheckDetails']);
         });
     });
 });

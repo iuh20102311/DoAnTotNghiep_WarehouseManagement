@@ -2,19 +2,17 @@
 
 namespace App\Models;
 
+use App\Utils\Validator;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Exception;
-use Respect\Validation\Validator as v;
-use Respect\Validation\Exceptions\ValidationException;
 
 class Product extends Model
 {
     use HasFactory;
     protected $table = 'products';
-    protected $fillable = ['sku', 'name', 'packing', 'quantity', 'weight', 'image', 'quantity_available', 'minimum_stock_level', 'description', 'status', 'created_at', 'updated_at', 'deleted'];
+    protected $fillable = ['sku', 'name', 'packing', 'quantity', 'weight', 'image', 'quantity_available', 'minimum_stock_level', 'description', 'usage_time ', 'status', 'created_at', 'updated_at', 'deleted'];
     protected $primaryKey = 'id';
     public $timestamps = true;
 
@@ -79,35 +77,81 @@ class Product extends Model
         return $this->hasMany(ProductCategory::class);
     }
 
-    /**
-     * @throws Exception
-     */
-    public function validate(array $data, bool $isUpdate = false) : string
+    public function validate(array $data, $isUpdate = false)
     {
-        $validators = [
-            'sku' => v::notEmpty()->regex('/^[A-Z\d]+$/')->setName('sku')->setTemplate('Mã sản phẩm không hợp lệ. Mã sản phẩm không được để trống và viết hoa tất cả.'),
-            'name' => v::notEmpty()->regex('/^([\p{L}\p{M}]+\s*)+$/u')->setName('name')->setTemplate('Tên không hợp lệ. Tên phải viết hoa chữ cái đầu tiên của mỗi từ và chỉ chứa chữ cái.'),
-            'packing' => v::notEmpty()->regex('/^(\p{Lu}\p{Ll}+)(?:\s+\p{Lu}\p{Ll}+)*$/u')->setName('packing')->setTemplate('Loại vật chứa không hợp lệ. Loại vật chứa không được để trống và viết hoa chữ cái đầu.'),
-            'price' => v::notEmpty()->numericVal()->positive()->setName('price')->setTemplate('Gía cả không hợp lệ. Gía cả không được trống và phải là số dương.'),
-            'quantity' => v::notEmpty()->numericVal()->positive()->setName('quantity')->setTemplate('Số lượng không hợp lệ. Số lượng không được trống và phải là số dương.'),
-            'weight' => v::notEmpty()->numericVal()->positive()->setName('weight')->setTemplate('Khối lương không hợp lệ. Khối lương không được trống và phải là số dương.'),
-            'image' => v::notEmpty()->setName('image')->setTemplate('Hình ảnh không được rỗng'),
-            'status' => v::notEmpty()->in(['ACTIVE', 'DELETED'])->setName('status')->setTemplate('Trạng thái không hợp lệ. Trạng thái chỉ có thể là ACTIVE hoặc DELETED.'),
+        $validator = new Validator($data, $this->messages());
+
+        $rules = [
+            'sku' => ['required', 'string'],
+            'name' => ['required', 'string'],
+            'packing' => ['required', 'string'],
+            'quantity' => ['required', 'integer', 'min' => 0],
+            'weight' => ['required', 'numeric', 'min' => 0],
+            'image' => ['required', 'string'],
+            'quantity_available' => ['nullable', 'integer', 'min' => 0],
+            'minimum_stock_level' => ['nullable', 'integer', 'min' => 0],
+            'description' => ['nullable', 'string', 'max' => 1000],
+            'usage_time' => ['nullable', 'string'],
+            'status' => ['required', 'in:ACTIVE,DELETED']
         ];
 
-        $error = "";
-        foreach ($validators as $field => $validator) {
-            if ($isUpdate && !array_key_exists($field, $data)) {
-                continue;
-            }
+        if ($isUpdate) {
+            // Chỉ validate các trường có trong request
+            $rules = array_intersect_key($rules, $data);
 
-            try {
-                $validator->assert(isset($data[$field]) ? $data[$field] : null);
-            } catch (ValidationException $exception) {
-                $error = $exception->getMessage();
-                break;
+            // Bỏ qua validate required
+            foreach ($rules as $field => $constraints) {
+                $rules[$field] = array_filter($constraints, fn($c) => $c !== 'required');
             }
         }
-        return $error;
+
+        if (!$validator->validate($rules)) {
+            return $validator->getErrors();
+        }
+
+        return null;
+    }
+
+    protected function messages()
+    {
+        return [
+            'sku' => [
+                'required' => 'Mã sản phẩm là bắt buộc.',
+            ],
+            'name' => [
+                'required' => 'Tên sản phẩm là bắt buộc.',
+            ],
+            'packing' => [
+                'required' => 'Loại vật chứa là bắt buộc.',
+            ],
+            'quantity' => [
+                'required' => 'Số lượng là bắt buộc.',
+                'integer' => 'Số lượng phải là số nguyên.',
+                'min' => 'Số lượng không được âm.'
+            ],
+            'weight' => [
+                'required' => 'Khối lượng là bắt buộc.',
+                'numeric' => 'Khối lượng phải là số.',
+                'min' => 'Khối lượng không được âm.'
+            ],
+            'image' => [
+                'required' => 'Hình ảnh là bắt buộc.'
+            ],
+            'quantity_available' => [
+                'integer' => 'Số lượng khả dụng phải là số nguyên.',
+                'min' => 'Số lượng khả dụng không được âm.'
+            ],
+            'minimum_stock_level' => [
+                'integer' => 'Mức tồn kho tối thiểu phải là số nguyên.',
+                'min' => 'Mức tồn kho tối thiểu không được âm.'
+            ],
+            'description' => [
+                'max' => 'Mô tả không được vượt quá :max ký tự.'
+            ],
+            'status' => [
+                'required' => 'Trạng thái là bắt buộc.',
+                'in' => 'Trạng thái không hợp lệ. Trạng thái chỉ có thể là ACTIVE hoặc DELETED.'
+            ]
+        ];
     }
 }

@@ -14,7 +14,7 @@ class Provider extends Model
 {
     use HasFactory;
     protected $table = 'providers';
-    protected $fillable = ['name', 'address', 'city', 'district', 'ward', 'phone', 'email', 'note', 'status', 'created_at', 'updated_at', 'deleted'];
+    protected $fillable = ['name', 'website', 'address', 'city', 'district', 'ward', 'phone', 'email', 'note', 'status', 'created_at', 'updated_at', 'deleted'];
     protected $primaryKey = 'id';
     public $timestamps = true;
 
