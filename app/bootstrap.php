@@ -120,8 +120,10 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
 
             $router->get('/{id}/product_export_receipt_details', ['App\Controllers\ProductController', 'getProductExportReceiptDetailsByProduct']);
 
+            $router->put('/{id}/product_storage_locations/{locationId}', ['App\Controllers\ProductController', 'updateProductStorageLocationByProduct']);
             $router->get('/{id}/product_storage_locations', ['App\Controllers\ProductController', 'getProductStorageLocationByProduct']);
             $router->post('/{id}/product_storage_locations', ['App\Controllers\ProductController', 'addStorageLocationToProduct']);
+            $router->delete('/{id}/product_storage_locations/{locationId}', ['App\Controllers\ProductController', 'deleteStorageLocationFromProduct']);
 
             $router->get('/{id}/inventory_check_details', ['App\Controllers\ProductController', 'getInventoryCheckDetailsByProduct']);
 
@@ -186,6 +188,8 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
             $router->get('/{id}', ['App\Controllers\CategoryController', 'getCategoryById']);
             $router->post('/', ['App\Controllers\CategoryController', 'createCategory']);
             $router->get('/', ['App\Controllers\CategoryController', 'getCategories']);
+
+            $router->get('/{id}/product_count', ['App\Controllers\CategoryController', 'getCategoryProductCount']);
         });
 
         $router->group(array('prefix' => '/v1/discounts'), function (RouteCollector $router) {
