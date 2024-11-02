@@ -171,13 +171,15 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
         });
 
         $router->group(array('prefix' => '/v1/categories'), function (RouteCollector $router) {
-            $router->post('/{id}/discounts', ['App\Controllers\CategoryController', 'addDiscountToCategory']);
-
+            $router->delete('/{id}/materials', ['App\Controllers\CategoryController', 'deleteMaterialFromCategory']);
             $router->post('/{id}/materials', ['App\Controllers\CategoryController', 'addMaterialToCategory']);
             $router->get('/{id}/materials', ['App\Controllers\CategoryController', 'getMaterialByCategory']);
 
+            $router->delete('/{id}/discounts', ['App\Controllers\CategoryController', 'deleteDiscountFromCategory']);
+            $router->post('/{id}/discounts', ['App\Controllers\CategoryController', 'addDiscountToCategory']);
             $router->get('/{id}/discounts', ['App\Controllers\CategoryController', 'getDiscountByCategory']);
 
+            $router->delete('/{id}/products', ['App\Controllers\CategoryController', 'deleteProductFromCategory']);
             $router->post('/{id}/products', ['App\Controllers\CategoryController', 'addProductToCategory']);
             $router->get('/{id}/products', ['App\Controllers\CategoryController', 'getProductByCategory']);
 

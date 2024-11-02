@@ -7,7 +7,6 @@ use App\Models\Discount;
 use App\Models\Material;
 use App\Models\Product;
 use App\Utils\PaginationTrait;
-use Illuminate\Support\Facades\DB;
 
 
 class CategoryController
@@ -427,7 +426,7 @@ class CategoryController
         }
     }
 
-    public function removeProductFromCategory($id): array
+    public function deleteProductFromCategory($id): array
     {
         try {
             $data = json_decode(file_get_contents('php://input'), true);
@@ -466,7 +465,7 @@ class CategoryController
             ];
 
         } catch (\Exception $e) {
-            error_log("Error in removeProductFromCategory: " . $e->getMessage());
+            error_log("Error in deleteProductFromCategory: " . $e->getMessage());
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
@@ -568,7 +567,7 @@ class CategoryController
         }
     }
 
-    public function removeDiscountFromCategory($id): array
+    public function deleteDiscountFromCategory($id): array
     {
         try {
             $data = json_decode(file_get_contents('php://input'), true);
@@ -607,7 +606,7 @@ class CategoryController
             ];
 
         } catch (\Exception $e) {
-            error_log("Error in removeDiscountFromCategory: " . $e->getMessage());
+            error_log("Error in deleteDiscountFromCategory: " . $e->getMessage());
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
@@ -709,7 +708,7 @@ class CategoryController
         }
     }
 
-    public function removeMaterialFromCategory($id): array
+    public function deleteMaterialFromCategory($id): array
     {
         try {
             $data = json_decode(file_get_contents('php://input'), true);
@@ -748,7 +747,7 @@ class CategoryController
             ];
 
         } catch (\Exception $e) {
-            error_log("Error in removeMaterialFromCategory: " . $e->getMessage());
+            error_log("Error in deleteMaterialFromCategory: " . $e->getMessage());
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
@@ -757,7 +756,7 @@ class CategoryController
         }
     }
 
-    public function getCategoryDiscountsByCategory($id): array
+    public function getCategoryDiscountsByCategory($id): array 
     {
         try {
             $perPage = $_GET['per_page'] ?? 10;
