@@ -15,7 +15,7 @@ class ProductController
     public function countProducts(): array
     {
         try {
-            $total = Product::where('status', 'IN_STOCK')->count();
+            $total = Product::where('status', 'ACTIVE')->count();
             return [
                 'data' => [
                     'total' => $total
@@ -893,7 +893,7 @@ class ProductController
             ];
 
         } catch (\Exception $e) {
-            error_log("Error in updateProductStorageLocation: " . $e->getMessage());
+            error_log("Error in updateProductStorageLocationByProduct: " . $e->getMessage());
             return [
                 'success' => false,
                 'error' => 'Database error occurred',

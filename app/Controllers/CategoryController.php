@@ -7,11 +7,92 @@ use App\Models\Discount;
 use App\Models\Material;
 use App\Models\Product;
 use App\Utils\PaginationTrait;
+use Illuminate\Support\Facades\DB;
+
 
 class CategoryController
 {
     use PaginationTrait;
 
+    public function getCategoryProductCount($id): array
+    {
+        try {
+            $category = Category::query()
+                ->where('categories.deleted', false)
+                ->find($id);
+
+            if (!$category) {
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy danh mục'
+                ];
+            }
+
+            // Tính tổng số lượng khả dụng
+            $availableCount = $category->products()
+                ->where('products.deleted', false)
+                ->sum('products.quantity_available');
+
+            // Đếm số lượng sản phẩm unique (không tính số lượng)
+            $uniqueProducts = $category->products()
+                ->where('products.deleted', false)
+                ->count();
+
+            // Tính số sản phẩm dưới mức tồn kho tối thiểu
+            $belowMinimumStock = $category->products()
+                ->where('products.deleted', false)
+                ->whereRaw('products.quantity_available < products.minimum_stock_level')
+                ->count();
+
+            // Query riêng cho stock by area để tránh pivot columns
+            $stockByArea = Product::query()
+                ->join('product_categories', 'products.id', '=', 'product_categories.product_id')
+                ->join('product_storage_locations', 'products.id', '=', 'product_storage_locations.product_id')
+                ->join('storage_areas', 'product_storage_locations.storage_area_id', '=', 'storage_areas.id')
+                ->where('product_categories.category_id', $id)
+                ->where('products.deleted', false)
+                ->select('storage_areas.name as storage_area')
+                ->selectRaw('SUM(product_storage_locations.quantity) as total_quantity')
+                ->groupBy('storage_areas.name')
+                ->get();
+
+            $outOfStock = $category->products()
+                ->where('products.deleted', false)
+                ->where('products.quantity_available', 0)
+                ->count();
+
+            $inStock = $category->products()
+                ->where('products.deleted', false)
+                ->where('products.quantity_available', '>', 0)
+                ->count();
+
+            return [
+                'success' => true,
+                'data' => [
+                    'category_name' => $category->name,
+                    'category_type' => $category->type,
+                    'available_quantity' => $availableCount,
+                    'unique_products_count' => $uniqueProducts,
+                    'below_minimum_stock' => $belowMinimumStock,
+                    'stock_by_area' => $stockByArea,
+                    'statistics' => [
+                        'out_of_stock' => $outOfStock,
+                        'low_stock' => $belowMinimumStock,
+                        'in_stock' => $inStock
+                    ]
+                ]
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in getCategoryProductCount: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+    
     public function getCategories(): array
     {
         try {
@@ -675,8 +756,6 @@ class CategoryController
             ];
         }
     }
-
-
 
     public function getCategoryDiscountsByCategory($id): array
     {
