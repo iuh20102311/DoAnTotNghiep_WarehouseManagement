@@ -53,7 +53,7 @@ class StorageAreaController
 
             return $this->paginateResults($storage, $perPage, $page)->toArray();
         } catch (\Exception $e) {
-            error_log("Error in getUsers: " . $e->getMessage());
+            error_log("Error in getStorageAreas: " . $e->getMessage());
             return ['error' => 'Database error occurred', 'details' => $e->getMessage()];
         }
     }

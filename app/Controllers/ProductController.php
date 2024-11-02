@@ -40,11 +40,6 @@ class ProductController
                 ->where('deleted', false)
                 ->with([
                     'categories',
-                    'prices',
-                    'storageLocations',
-                    'exportReceiptDetails',
-                    'importReceiptDetails',
-                    'giftSets',
                     'inventoryCheckDetails',
                     'inventoryHistory'
                 ]);
@@ -205,11 +200,6 @@ class ProductController
                 ->where('id', $id)
                 ->with([
                     'categories',
-                    'prices',
-                    'storageLocations',
-                    'exportReceiptDetails',
-                    'importReceiptDetails',
-                    'giftSets',
                     'inventoryCheckDetails',
                     'inventoryHistory'
                 ])
@@ -320,6 +310,13 @@ class ProductController
                 ];
             }
 
+            if ($product->status == 'ACTIVE') {
+                return [
+                    'success' => false,
+                    'error' => 'Không thể xóa sản phẩm đang ở trạng thái active'
+                ];
+            }
+
             $product->deleted = true;
             $product->save();
 
@@ -359,15 +356,11 @@ class ProductController
                 ->with(['products', 'discounts', 'materials'])
                 ->getQuery();
 
-            return [
-                'success' => true,
-                'data' => $this->paginateResults($categoriesQuery, $perPage, $page)->toArray()
-            ];
+            return $this->paginateResults($categoriesQuery, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
             error_log("Error in getCategoryByProduct: " . $e->getMessage());
             return [
-                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -430,7 +423,7 @@ class ProductController
         }
     }
 
-    public function removeCategoryFromProduct($id): array
+    public function deleteCategoryFromProduct($id): array
     {
         try {
             $data = json_decode(file_get_contents('php://input'), true);
@@ -469,7 +462,7 @@ class ProductController
             ];
 
         } catch (\Exception $e) {
-            error_log("Error in removeCategoryFromProduct: " . $e->getMessage());
+            error_log("Error in deleteCategoryFromProduct: " . $e->getMessage());
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
@@ -490,7 +483,6 @@ class ProductController
 
             if (!$product) {
                 return [
-                    'success' => false,
                     'error' => 'Không tìm thấy sản phẩm'
                 ];
             }
@@ -499,15 +491,11 @@ class ProductController
                 ->with(['products', 'categories'])
                 ->getQuery();
 
-            return [
-                'success' => true,
-                'data' => $this->paginateResults($discountsQuery, $perPage, $page)->toArray()
-            ];
+            return $this->paginateResults($discountsQuery, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
             error_log("Error in getDiscountByProduct: " . $e->getMessage());
             return [
-                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -570,7 +558,7 @@ class ProductController
         }
     }
 
-    public function removeDiscountFromProduct($id): array
+    public function deleteDiscountFromProduct($id): array
     {
         try {
             $data = json_decode(file_get_contents('php://input'), true);
@@ -609,7 +597,7 @@ class ProductController
             ];
 
         } catch (\Exception $e) {
-            error_log("Error in removeDiscountFromProduct: " . $e->getMessage());
+            error_log("Error in deleteDiscountFromProduct: " . $e->getMessage());
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
@@ -630,7 +618,6 @@ class ProductController
 
             if (!$product) {
                 return [
-                    'success' => false,
                     'error' => 'Không tìm thấy sản phẩm'
                 ];
             }
@@ -639,15 +626,11 @@ class ProductController
                 ->with(['product', 'order'])
                 ->getQuery();
 
-            return [
-                'success' => true,
-                'data' => $this->paginateResults($orderDetailsQuery, $perPage, $page)->toArray()
-            ];
+            return $this->paginateResults($orderDetailsQuery, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
             error_log("Error in getOrderDetailsByProduct: " . $e->getMessage());
             return [
-                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -675,15 +658,11 @@ class ProductController
                 ->with(['product'])
                 ->getQuery();
 
-            return [
-                'success' => true,
-                'data' => $this->paginateResults($pricesQuery, $perPage, $page)->toArray()
-            ];
+            return $this->paginateResults($pricesQuery, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
             error_log("Error in getPriceByProduct: " . $e->getMessage());
             return [
-                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -695,10 +674,10 @@ class ProductController
         try {
             $data = json_decode(file_get_contents('php://input'), true);
 
-            if (empty($data['price']) || !isset($data['effective_date'])) {
+            if (empty($data['price']) || !isset($data['date_expiry'])) {
                 return [
                     'success' => false,
-                    'error' => 'Price và effective_date là bắt buộc'
+                    'error' => 'Price và date_expiry là bắt buộc'
                 ];
             }
 
@@ -716,7 +695,7 @@ class ProductController
             $productPrice = new ProductPrice([
                 'product_id' => $id,
                 'price' => $data['price'],
-                'effective_date' => $data['effective_date'],
+                'date_expiry' => $data['date_expiry'],
                 'note' => $data['note'] ?? null
             ]);
 
@@ -737,7 +716,7 @@ class ProductController
         }
     }
 
-    public function updateProductPrice($id, $priceId): array
+    public function updateProductPriceByProduct($id, $priceId): array
     {
         try {
             $product = Product::query()
@@ -764,8 +743,8 @@ class ProductController
             if (isset($data['price'])) {
                 $price->price = $data['price'];
             }
-            if (isset($data['effective_date'])) {
-                $price->effective_date = $data['effective_date'];
+            if (isset($data['date_expiry'])) {
+                $price->date_expiry = $data['date_expiry'];
             }
             if (isset($data['note'])) {
                 $price->note = $data['note'];
@@ -800,7 +779,6 @@ class ProductController
 
             if (!$product) {
                 return [
-                    'success' => false,
                     'error' => 'Không tìm thấy sản phẩm'
                 ];
             }
@@ -809,15 +787,11 @@ class ProductController
                 ->with(['product', 'storageArea'])
                 ->getQuery();
 
-            return [
-                'success' => true,
-                'data' => $this->paginateResults($storageLocationsQuery, $perPage, $page)->toArray()
-            ];
+            return $this->paginateResults($storageLocationsQuery, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
             error_log("Error in getProductStorageLocationByProduct: " . $e->getMessage());
             return [
-                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -880,7 +854,7 @@ class ProductController
         }
     }
 
-    public function updateProductStorageLocation($id, $locationId): array
+    public function updateProductStorageLocationByProduct($id, $locationId): array
     {
         try {
             $product = Product::query()
@@ -928,7 +902,7 @@ class ProductController
         }
     }
 
-    public function removeStorageLocationFromProduct($id, $locationId): array
+    public function deleteStorageLocationFromProduct($id, $locationId): array
     {
         try {
             $product = Product::query()
@@ -958,7 +932,7 @@ class ProductController
             ];
 
         } catch (\Exception $e) {
-            error_log("Error in removeStorageLocationFromProduct: " . $e->getMessage());
+            error_log("Error in deleteStorageLocationFromProduct: " . $e->getMessage());
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
@@ -979,7 +953,6 @@ class ProductController
 
             if (!$product) {
                 return [
-                    'success' => false,
                     'error' => 'Không tìm thấy sản phẩm'
                 ];
             }
@@ -988,15 +961,11 @@ class ProductController
                 ->with(['product', 'productImportReceipt', 'storageArea'])
                 ->getQuery();
 
-            return [
-                'success' => true,
-                'data' => $this->paginateResults($importReceiptDetailsQuery, $perPage, $page)->toArray()
-            ];
+            return $this->paginateResults($importReceiptDetailsQuery, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
             error_log("Error in getProductImportReceiptDetailsByProduct: " . $e->getMessage());
             return [
-                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -1015,7 +984,6 @@ class ProductController
 
             if (!$product) {
                 return [
-                    'success' => false,
                     'error' => 'Không tìm thấy sản phẩm'
                 ];
             }
@@ -1024,15 +992,11 @@ class ProductController
                 ->with(['product', 'productExportReceipt', 'storageArea'])
                 ->getQuery();
 
-            return [
-                'success' => true,
-                'data' => $this->paginateResults($exportReceiptDetailsQuery, $perPage, $page)->toArray()
-            ];
+            return $this->paginateResults($exportReceiptDetailsQuery, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
             error_log("Error in getProductExportReceiptDetailsByProduct: " . $e->getMessage());
             return [
-                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -1051,7 +1015,6 @@ class ProductController
 
             if (!$product) {
                 return [
-                    'success' => false,
                     'error' => 'Không tìm thấy sản phẩm'
                 ];
             }
@@ -1060,15 +1023,11 @@ class ProductController
                 ->with(['products', 'prices', 'orders'])
                 ->getQuery();
 
-            return [
-                'success' => true,
-                'data' => $this->paginateResults($giftSetsQuery, $perPage, $page)->toArray()
-            ];
+            return $this->paginateResults($giftSetsQuery, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
             error_log("Error in getGiftSetsByProduct: " . $e->getMessage());
             return [
-                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -1087,7 +1046,6 @@ class ProductController
 
             if (!$product) {
                 return [
-                    'success' => false,
                     'error' => 'Không tìm thấy sản phẩm'
                 ];
             }
@@ -1096,15 +1054,11 @@ class ProductController
                 ->with(['product', 'inventoryCheck'])
                 ->getQuery();
 
-            return [
-                'success' => true,
-                'data' => $this->paginateResults($inventoryCheckDetailsQuery, $perPage, $page)->toArray()
-            ];
+            return $this->paginateResults($inventoryCheckDetailsQuery, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
             error_log("Error in getInventoryCheckDetailsByProduct: " . $e->getMessage());
             return [
-                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -1123,7 +1077,6 @@ class ProductController
 
             if (!$product) {
                 return [
-                    'success' => false,
                     'error' => 'Không tìm thấy sản phẩm'
                 ];
             }
@@ -1132,15 +1085,11 @@ class ProductController
                 ->with(['product', 'creator', 'storageArea'])
                 ->getQuery();
 
-            return [
-                'success' => true,
-                'data' => $this->paginateResults($inventoryHistoryQuery, $perPage, $page)->toArray()
-            ];
+            return $this->paginateResults($inventoryHistoryQuery, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
             error_log("Error in getInventoryHistoryByProduct: " . $e->getMessage());
             return [
-                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -1159,7 +1108,6 @@ class ProductController
 
             if (!$product) {
                 return [
-                    'success' => false,
                     'error' => 'Không tìm thấy sản phẩm'
                 ];
             }
@@ -1168,15 +1116,11 @@ class ProductController
                 ->with(['product', 'discount'])
                 ->getQuery();
 
-            return [
-                'success' => true,
-                'data' => $this->paginateResults($productDiscountsQuery, $perPage, $page)->toArray()
-            ];
+            return $this->paginateResults($productDiscountsQuery, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
             error_log("Error in getProductDiscountsByProduct: " . $e->getMessage());
             return [
-                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -1195,7 +1139,6 @@ class ProductController
 
             if (!$product) {
                 return [
-                    'success' => false,
                     'error' => 'Không tìm thấy sản phẩm'
                 ];
             }
@@ -1204,21 +1147,15 @@ class ProductController
                 ->with(['product', 'category'])
                 ->getQuery();
 
-            return [
-                'success' => true,
-                'data' => $this->paginateResults($productCategoriesQuery, $perPage, $page)->toArray()
-            ];
+            return $this->paginateResults($productCategoriesQuery, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
             error_log("Error in getProductCategoriesByProduct: " . $e->getMessage());
             return [
-                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
         }
     }
-
-
 }
 

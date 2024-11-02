@@ -12,7 +12,7 @@ class Product extends Model
 {
     use HasFactory;
     protected $table = 'products';
-    protected $fillable = ['sku', 'name', 'packing', 'quantity', 'weight', 'image', 'quantity_available', 'minimum_stock_level', 'description', 'usage_time ', 'status', 'created_at', 'updated_at', 'deleted'];
+    protected $fillable = ['sku', 'name', 'packing', 'unit', 'weight', 'origin', 'image', 'quantity_available', 'minimum_stock_level', 'description', 'usage_time ', 'status', 'created_at', 'updated_at', 'deleted'];
     protected $primaryKey = 'id';
     public $timestamps = true;
 
@@ -85,14 +85,15 @@ class Product extends Model
             'sku' => ['required', 'string'],
             'name' => ['required', 'string'],
             'packing' => ['required', 'string'],
-            'quantity' => ['required', 'integer', 'min' => 0],
+            'unit' => ['required', 'string'],
             'weight' => ['required', 'numeric', 'min' => 0],
+            'origin' => ['required', 'string'],
             'image' => ['required', 'string'],
             'quantity_available' => ['nullable', 'integer', 'min' => 0],
             'minimum_stock_level' => ['nullable', 'integer', 'min' => 0],
             'description' => ['nullable', 'string', 'max' => 1000],
             'usage_time' => ['nullable', 'string'],
-            'status' => ['required', 'in:ACTIVE,DELETED']
+            'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE', 'OUT_OF_STOCK']]
         ];
 
         if ($isUpdate) {
@@ -124,15 +125,16 @@ class Product extends Model
             'packing' => [
                 'required' => 'Loại vật chứa là bắt buộc.',
             ],
-            'quantity' => [
-                'required' => 'Số lượng là bắt buộc.',
-                'integer' => 'Số lượng phải là số nguyên.',
-                'min' => 'Số lượng không được âm.'
+            'unit' => [
+                'required' => 'Đơn vị tính là bắt buộc.',
             ],
             'weight' => [
                 'required' => 'Khối lượng là bắt buộc.',
                 'numeric' => 'Khối lượng phải là số.',
                 'min' => 'Khối lượng không được âm.'
+            ],
+            'origin' => [
+                'required' => 'Xuất xứ sản phẩm là bắt buộc.',
             ],
             'image' => [
                 'required' => 'Hình ảnh là bắt buộc.'

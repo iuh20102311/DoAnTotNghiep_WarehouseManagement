@@ -110,25 +110,43 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
         $router->group(array('prefix' => '/v1/products'), function (RouteCollector $router) {
             $router->get('/count', ['App\Controllers\ProductController', 'countProducts']);
 
-            $router->get('/{id}/product_import_receipt_details', ['App\Controllers\ProductController', 'getProductImportReceiptDetailsByProduct']);
-            $router->get('/{id}/product_export_receipt_details', ['App\Controllers\ProductController', 'getProductExportReceiptDetailsByProduct']);
-            $router->get('/{id}/product_storage_locations', ['App\Controllers\ProductController', 'getProductStorageLocationByProduct']);
-            $router->get('/{id}/inventory_check_details', ['App\Controllers\ProductController', 'getInventoryCheckDetailsByProduct']);
-            $router->get('/{id}/product_categories', ['App\Controllers\ProductController', 'getProductCategoriesByProduct']);
-            $router->get('/{id}/inventory_history', ['App\Controllers\ProductController', 'getInventoryHistoryByProduct']);
-            $router->get('/{id}/product_discounts', ['App\Controllers\ProductController', 'getProductDiscountsByProduct']);
-            $router->post('/{id}/categories', ['App\Controllers\ProductController', 'addCategoryToProduct']);
-            $router->get('/{id}/categories', ['App\Controllers\ProductController', 'getCategoryByProduct']);
-            $router->post('/{id}/discounts', ['App\Controllers\ProductController', 'addDiscountToProduct']);
-            $router->get('/{id}/orders', ['App\Controllers\ProductController', 'getOrderDetailsByProduct']);
-            $router->get('/{id}/gift_sets', ['App\Controllers\ProductController', 'getGiftSetsByProduct']);
-            $router->get('/{id}/discounts', ['App\Controllers\ProductController', 'getDiscountByProduct']);
-            $router->get('/{id}/prices', ['App\Controllers\ProductController', 'getPriceByProduct']);
             $router->put('/{id}', ['App\Controllers\ProductController', 'updateProductById']);
             $router->delete('/{id}', ['App\Controllers\ProductController', 'deleteProduct']);
             $router->get('/{id}', ['App\Controllers\ProductController', 'getProductById']);
             $router->post('/', ['App\Controllers\ProductController', 'createProduct']);
             $router->get('/', ['App\Controllers\ProductController', 'getProducts']);
+
+            $router->get('/{id}/product_import_receipt_details', ['App\Controllers\ProductController', 'getProductImportReceiptDetailsByProduct']);
+
+            $router->get('/{id}/product_export_receipt_details', ['App\Controllers\ProductController', 'getProductExportReceiptDetailsByProduct']);
+
+            $router->get('/{id}/product_storage_locations', ['App\Controllers\ProductController', 'getProductStorageLocationByProduct']);
+            $router->post('/{id}/product_storage_locations', ['App\Controllers\ProductController', 'addStorageLocationToProduct']);
+
+            $router->get('/{id}/inventory_check_details', ['App\Controllers\ProductController', 'getInventoryCheckDetailsByProduct']);
+
+            $router->get('/{id}/product_categories', ['App\Controllers\ProductController', 'getProductCategoriesByProduct']);
+            $router->get('/{id}/inventory_history', ['App\Controllers\ProductController', 'getInventoryHistoryByProduct']);
+
+            $router->get('/{id}/product_discounts', ['App\Controllers\ProductController', 'getProductDiscountsByProduct']);
+
+            $router->delete('/{id}/categories', ['App\Controllers\ProductController', 'deleteCategoryFromProduct']);
+            $router->post('/{id}/categories', ['App\Controllers\ProductController', 'addCategoryToProduct']);
+            $router->get('/{id}/categories', ['App\Controllers\ProductController', 'getCategoryByProduct']);
+
+            $router->delete('/{id}/discounts', ['App\Controllers\ProductController', 'deleteDiscountFromProduct']);
+            $router->post('/{id}/discounts', ['App\Controllers\ProductController', 'addDiscountToProduct']);
+
+            $router->get('/{id}/orders', ['App\Controllers\ProductController', 'getOrderDetailsByProduct']);
+
+            $router->get('/{id}/gift_sets', ['App\Controllers\ProductController', 'getGiftSetsByProduct']);
+
+            $router->get('/{id}/discounts', ['App\Controllers\ProductController', 'getDiscountByProduct']);
+
+            $router->put('/{id}/prices/{priceId}', ['App\Controllers\ProductController', 'updateProductPriceByProduct']);
+            $router->post('/{id}/prices', ['App\Controllers\ProductController', 'addPriceToProduct']);
+            $router->get('/{id}/prices', ['App\Controllers\ProductController', 'getPriceByProduct']);
+
         });
 
         $router->group(array('prefix' => '/v1/product_prices'), function (RouteCollector $router) {
@@ -151,15 +169,21 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
         });
 
         $router->group(array('prefix' => '/v1/categories'), function (RouteCollector $router) {
-            $router->get('/{id}', ['App\Controllers\CategoryController', 'getCategoryById']);
             $router->post('/{id}/discounts', ['App\Controllers\CategoryController', 'addDiscountToCategory']);
+
             $router->post('/{id}/materials', ['App\Controllers\CategoryController', 'addMaterialToCategory']);
             $router->get('/{id}/materials', ['App\Controllers\CategoryController', 'getMaterialByCategory']);
+
             $router->get('/{id}/discounts', ['App\Controllers\CategoryController', 'getDiscountByCategory']);
+
             $router->post('/{id}/products', ['App\Controllers\CategoryController', 'addProductToCategory']);
             $router->get('/{id}/products', ['App\Controllers\CategoryController', 'getProductByCategory']);
+
+            $router->get('/{id}/category_discounts', ['App\Controllers\CategoryController', 'getCategoryDiscountsByCategory']);
+
             $router->put('/{id}', ['App\Controllers\CategoryController', 'updateCategoryById']);
             $router->delete('/{id}', ['App\Controllers\CategoryController', 'deleteCategory']);
+            $router->get('/{id}', ['App\Controllers\CategoryController', 'getCategoryById']);
             $router->post('/', ['App\Controllers\CategoryController', 'createCategory']);
             $router->get('/', ['App\Controllers\CategoryController', 'getCategories']);
         });
