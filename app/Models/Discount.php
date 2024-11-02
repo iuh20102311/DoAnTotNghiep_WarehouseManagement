@@ -45,11 +45,13 @@ class Discount extends Model
         $validator = new Validator($data, $this->messages());
 
         $rules = [
-            'coupon_code' => ($isUpdate ? ['required' , 'string', 'min' => 2, 'max' => 15, 'no_special_chars', 'no_emoji', 'no_whitespace'] : ['required' , 'string', 'min' => 2, 'max' => 15, 'no_special_chars', 'no_emoji', 'no_whitespace', 'unique' => [Customer::class, 'email']]),
+            'coupon_code' => ($isUpdate ? ['required' , 'string', 'min' => 2, 'max' => 15, 'no_special_chars', 'no_emoji', 'no_whitespace'] : ['required' , 'string', 'min' => 2, 'max' => 15, 'no_special_chars', 'no_emoji', 'no_whitespace', 'unique' => [Discount::class, 'coupon_code']]),
             'discount_value' => ['required', 'integer', 'no_special_chars', 'no_emoji', 'no_whitespace'],
             'discount_unit' => ['required', 'string', 'no_emoji', 'no_whitespace'],
             'minimum_order_value' => ['required', 'integer', 'no_special_chars', 'no_emoji', 'no_whitespace'],
             'maximum_discount_value' => ['required', 'integer', 'no_special_chars', 'no_emoji', 'no_whitespace'],
+            'valid_until' => ['required', 'date', 'after_or_equal:valid_start'],
+            'valid_start' => ['required', 'date', 'before_or_equal:valid_until']
         ];
 
         if (!$validator->validate($rules)) {
@@ -95,6 +97,16 @@ class Discount extends Model
                 'no_special_chars' => 'Không nhập các ký tự đặc biệt.',
                 'no_emoji' => 'Không được nhập ký tự chứa emoji.',
             ],
+            'valid_until' => [
+                'required' => 'Ngày hết hạn là bắt buộc.',
+                'date' => 'Ngày hết hạn không hợp lệ.',
+                'after_or_equal' => 'Ngày hết hạn phải sau hoặc bằng ngày bắt đầu.'
+            ],
+            'valid_start' => [
+                'required' => 'Ngày bắt đầu là bắt buộc.',
+                'date' => 'Ngày bắt đầu không hợp lệ.',
+                'before_or_equal' => 'Ngày bắt đầu phải trước hoặc bằng ngày hết hạn.'
+            ]
         ];
     }
 }

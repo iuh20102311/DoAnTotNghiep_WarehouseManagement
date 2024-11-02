@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\Profile;
 use App\Utils\PaginationTrait;
 use Exception;
 use Lcobucci\JWT\Encoding\CannotDecodeContent;
@@ -191,7 +192,11 @@ class OrderController
             if (!$profileId) {
                 throw new Exception('Profile ID không tồn tại trong token');
             }
-            error_log("Profile ID from token: " . $profileId);
+
+            $profile = Profile::find($profileId);
+            if (!$profile) {
+                throw new Exception('Profile không tồn tại trong hệ thống');
+            }
 
             // Tạo đơn hàng
             $orderData = [
@@ -203,7 +208,7 @@ class OrderController
                 'district' => $data['district'],
                 'ward' => $data['ward'],
                 'delivery_date' => $data['delivery_date'] ?? date('Y-m-d', strtotime('+3 days')),
-                'status' => 'PROCESSING',
+                'status' => 'PENDING',
                 'total_price' => 0
             ];
 

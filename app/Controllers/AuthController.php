@@ -2,7 +2,9 @@
 
 namespace App\Controllers;
 
+use App\Database;
 use App\DTO\LoginResponseDTO;
+use App\Models\BlacklistToken;
 use App\Models\Role;
 use App\Models\Session;
 use App\Models\User;
@@ -18,31 +20,124 @@ use Lcobucci\JWT\Token\UnsupportedHeaderFound;
 use Lcobucci\JWT\Token\Parser;
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception as PHPMailerException;
+use Illuminate\Database\Capsule\Manager as Capsule;
 
 class AuthController
 {
+//    public function login(): false|string
+//    {
+//        $data = json_decode(file_get_contents('php://input'), true);
+//        if (!isset($data['email']) || !isset($data['password'])) {
+//            return json_encode(['error' => 'Email và mật khẩu là bắt buộc.'], JSON_UNESCAPED_UNICODE);
+//        }
+//
+//        $user = User::where('email', $data['email'])->first();
+//        if (!$user || !password_verify($data['password'], $user->password)) {
+//            return json_encode(['error' => 'Email hoặc password không chính xác.'], JSON_UNESCAPED_UNICODE);
+//        }
+//
+//        $role = Role::where('id', $user->role_id)->first();
+//        $roleName = $role->name;
+//
+//        $profile = Profile::where('user_id', $user->id)->first(); // Lấy profile dựa trên user_id
+//        if (!$profile) {
+//            return json_encode(['error' => 'Không tìm thấy thông tin hồ sơ.'], JSON_UNESCAPED_UNICODE);
+//        }
+//
+//        $response = new LoginResponseDTO(TokenGenerator::generateAccessToken($user->id,$profile->id), TokenGenerator::generateRefreshToken($user->id,$profile->id));
+//        return json_encode($response);
+//    }
+
+
     public function login(): false|string
     {
-        $data = json_decode(file_get_contents('php://input'), true);
-        if (!isset($data['email']) || !isset($data['password'])) {
-            return json_encode(['error' => 'Email và mật khẩu là bắt buộc.'], JSON_UNESCAPED_UNICODE);
+        try {
+            $data = json_decode(file_get_contents('php://input'), true);
+            if (!isset($data['email']) || !isset($data['password'])) {
+                http_response_code(400);
+                return json_encode(['error' => 'Email và mật khẩu là bắt buộc.'], JSON_UNESCAPED_UNICODE);
+            }
+
+            $user = User::where('email', $data['email'])->first();
+            if (!$user || !password_verify($data['password'], $user->password)) {
+                http_response_code(401);
+                return json_encode(['error' => 'Email hoặc password không chính xác.'], JSON_UNESCAPED_UNICODE);
+            }
+
+            $role = Role::find($user->role_id);
+            if (!$role) {
+                http_response_code(400);
+                return json_encode(['error' => 'Không tìm thấy thông tin quyền.'], JSON_UNESCAPED_UNICODE);
+            }
+
+            $profile = Profile::where('user_id', $user->id)->first();
+            if (!$profile) {
+                http_response_code(400);
+                return json_encode(['error' => 'Không tìm thấy thông tin hồ sơ.'], JSON_UNESCAPED_UNICODE);
+            }
+
+            // Tạo access token và refresh token mới
+            $accessToken = TokenGenerator::generateAccessToken($user->id, $profile->id);
+            $refreshToken = TokenGenerator::generateRefreshToken($user->id, $profile->id);
+
+            // Cập nhật hoặc tạo mới session
+            Session::updateOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'token' => $refreshToken,
+                    'expires_at' => date('Y-m-d H:i:s', strtotime('+14 days'))
+                ]
+            );
+
+            // Xóa các token trong blacklist nếu có
+            Capsule::table('blacklist_tokens')
+                ->where('user_id', $user->id)
+                ->delete();
+
+            http_response_code(200);
+            return json_encode(new LoginResponseDTO($accessToken, $refreshToken));
+
+        } catch (Exception $e) {
+            error_log("Login error: " . $e->getMessage());
+            http_response_code(500);
+            return json_encode(['error' => 'Lỗi server: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
         }
+    }
 
-        $user = User::where('email', $data['email'])->first();
-        if (!$user || !password_verify($data['password'], $user->password)) {
-            return json_encode(['error' => 'Email hoặc password không chính xác.'], JSON_UNESCAPED_UNICODE);
+    public function logout()
+    {
+        try {
+            $headers = apache_request_headers();
+            $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
+
+            if (!$token) {
+                http_response_code(401);
+                return json_encode(['error' => 'Token không tồn tại'], JSON_UNESCAPED_UNICODE);
+            }
+
+            // Parse token để lấy thông tin
+            $parser = new Parser(new JoseEncoder());
+            $parsedToken = $parser->parse($token);
+            $userId = $parsedToken->claims()->get('id');
+            $expires = $parsedToken->claims()->get('exp');
+
+            // Thêm token vào blacklist sử dụng Query Builder
+            Capsule::table('blacklist_tokens')->insert([
+                'token' => $token,
+                'user_id' => $userId,
+                'expires_at' => date('Y-m-d H:i:s', $expires->getTimestamp()),
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s')
+            ]);
+
+            http_response_code(200);
+            return json_encode(['message' => 'Đăng xuất thành công'], JSON_UNESCAPED_UNICODE);
+
+        } catch (Exception $e) {
+            error_log($e->getMessage());
+            http_response_code(500);
+            return json_encode(['error' => 'Lỗi server: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
         }
-
-        $role = Role::where('id', $user->role_id)->first();
-        $roleName = $role->name;
-
-        $profile = Profile::where('user_id', $user->id)->first(); // Lấy profile dựa trên user_id
-        if (!$profile) {
-            return json_encode(['error' => 'Không tìm thấy thông tin hồ sơ.'], JSON_UNESCAPED_UNICODE);
-        }
-
-        $response = new LoginResponseDTO(TokenGenerator::generateAccessToken($user->id,$profile->id), TokenGenerator::generateRefreshToken($user->id,$profile->id));
-        return json_encode($response);
     }
 
     private function getSessionToken($userId) {

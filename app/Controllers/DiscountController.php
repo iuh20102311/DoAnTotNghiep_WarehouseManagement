@@ -15,137 +15,470 @@ class DiscountController
 
     public function getDiscounts(): array
     {
-        $perPage = $_GET['per_page'] ?? 10;
-        $page = $_GET['page'] ?? 1;
+        try {
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
 
-        $discount = Discount::query()->where('status', '!=' , 'DELETED')->with(['categories', 'products']);
+            $discount = Discount::query()->where('status', '!=' , 'DELETED')->with(['categories', 'products']);
 
-        if (isset($_GET['status'])) {
-            $status = urldecode($_GET['status']);
-            $discount->where('status', $status);
+            if (isset($_GET['status'])) {
+                $status = urldecode($_GET['status']);
+                $discount->where('status', $status);
+            }
+
+            if (isset($_GET['coupon_code'])) {
+                $coupon_code = urldecode($_GET['coupon_code']);
+                $discount->where('coupon_code', $coupon_code);
+            }
+
+            if (isset($_GET['discount_value'])) {
+                $discount_value = urldecode($_GET['discount_value']);
+                $discount->where('discount_value', $discount_value);
+            }
+
+            return $this->paginateResults($discount, $perPage, $page)->toArray();
+
+        } catch (\Exception $e) {
+            error_log("Error in getDiscounts: " . $e->getMessage());
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
-
-        if (isset($_GET['coupon_code'])) {
-            $coupon_code = urldecode($_GET['coupon_code']);
-            $discount->where('coupon_code', $coupon_code);
-        }
-
-        if (isset($_GET['discount_value'])) {
-            $discount_value = urldecode($_GET['discount_value']);
-            $discount->where('discount_value', $discount_value);
-        }
-
-        return $this->paginateResults($discount, $perPage, $page)->toArray();
     }
 
-    public function getDiscountById($id) : string
+    public function getDiscountById($id) : array
     {
-        $discount = Discount::query()->where('id',$id)
-            ->with(['categories', 'products'])
-            ->first();
+        try {
+            $discount = Discount::query()->where('id',$id)
+                ->with(['categories', 'products'])
+                ->first();
 
-        if (!$discount) {
-            return json_encode(['error' => 'Không tìm thấy']);
+            if (!$discount) {
+                return [
+                    'error' => 'Không tìm thấy mã giảm giá'
+                ];
+            }
+
+            return $discount->toArray();
+
+        } catch (\Exception $e) {
+            error_log("Error in getDiscountById: " . $e->getMessage());
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
+    }
 
-        return json_encode($discount->toArray());
+    public function createDiscount(): array
+    {
+        try {
+            $data = json_decode(file_get_contents('php://input'), true);
+            $discount = new Discount();
+
+            $errors = $discount->validate($data);
+
+            if ($errors) {
+                return [
+                    'success' => false,
+                    'errors' => $errors
+                ];
+            }
+
+            $discount->fill($data);
+            $discount->save();
+
+            return $discount->toArray();
+
+        } catch (\Exception $e) {
+            error_log("Error in createDiscount: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function updateDiscountById($id): array
+    {
+        try {
+            $discount = Discount::find($id);
+
+            if (!$discount) {
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy mã giảm giá'
+                ];
+            }
+
+            $data = json_decode(file_get_contents('php://input'), true);
+            $errors = $discount->validate($data, true);
+
+            if ($errors) {
+                return [
+                    'success' => false,
+                    'errors' => $errors
+                ];
+            }
+
+            $discount->fill($data);
+            $discount->save();
+
+            return $discount->toArray()
+                ;
+        } catch (\Exception $e) {
+            error_log("Error in updateDiscountById: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function deleteDiscount($id): array
+    {
+        try {
+            $discount = Discount::find($id);
+
+            if (!$discount) {
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy mã giảm giá'
+                ];
+            }
+
+            if ($discount->status == 'ACTIVE') {
+                return [
+                    'success' => false,
+                    'error' => 'Không thể xóa mã giảm giá đang ở trạng thái Active'
+                ];
+            }
+
+            $discount->deleted = true;
+            $discount->save();
+
+            return [
+                'success' => true,
+                'message' => 'Xóa mã giảm giá thành công'
+            ];
+        } catch (\Exception $e) {
+            error_log("Error in deleteDiscountById: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
     }
 
     public function getProductByDiscount($id): array
     {
-        $perPage = $_GET['per_page'] ?? 10;
-        $page = $_GET['page'] ?? 1;
+        try {
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
 
-        $discount = Discount::query()->where('id', $id)->firstOrFail();
-        $productsQuery = $discount->products()->with(['discounts'])->getQuery();
+            $discount = Discount::query()->where('id', $id)->firstOrFail();
+            $productsQuery = $discount->products()->with(['discounts'])->getQuery();
 
-        return $this->paginateResults($productsQuery, $perPage, $page)->toArray();
+            return $this->paginateResults($productsQuery, $perPage, $page)->toArray();
+        } catch (\Exception $e) {
+            error_log("Error in getProductByDiscount: " . $e->getMessage());
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
     }
 
-    public function addProductToDiscount($id): string
+    public function addProductToDiscount($id): array
     {
-        $discount = Discount::query()->where('id',$id)->first();
-        $data = json_decode(file_get_contents('php://input'),true);
-        $product = Product::query()->where('id',$data['product_id'])->first();
-        $discount->products()->attach($product);
-        return 'Thêm thành công';
+        try {
+            $discount = Discount::query()->where('id',$id)->first();
+            $data = json_decode(file_get_contents('php://input'),true);
+
+            if (empty($data['product_id'])) {
+                return [
+                    'success' => false,
+                    'error' => 'Product ID là bắt buộc'
+                ];
+            }
+
+            $product = Product::query()->where('id',$data['product_id'])->first();
+            if (!$product) {
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy sản phẩm'
+                ];
+            }
+
+            $exists = $discount->products()->where('product_id', $product->id)->exists();
+            if ($exists) {
+                return [
+                    'success' => false,
+                    'error' => 'Sản phẩm đã được áp dụng mã giảm giá này'
+                ];
+            }
+
+            $discount->products()->attach($product);
+
+            return [
+                'success' => true,
+                'message' => 'Thêm sản phẩm vào mã giảm giá thành công'
+            ];
+        } catch (\Exception $e) {
+            error_log("Error in addProductToDiscount: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function updateProductInDiscount($discountId, $productId): array
+    {
+        try {
+            $discount = Discount::find($discountId);
+            if (!$discount) {
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy mã giảm giá'
+                ];
+            }
+
+            $product = Product::find($productId);
+            if (!$product) {
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy sản phẩm'
+                ];
+            }
+
+            $data = json_decode(file_get_contents('php://input'), true);
+
+            $exists = $discount->products()->where('product_id', $product->id)->exists();
+            if (!$exists) {
+                return [
+                    'success' => false,
+                    'error' => 'Sản phẩm chưa được áp dụng mã giảm giá này'
+                ];
+            }
+
+            $discount->products()->updateExistingPivot($product->id, $data);
+
+            return [
+                'success' => true,
+                'message' => 'Cập nhật mối quan hệ giữa sản phẩm và mã giảm giá thành công',
+                'data' => $discount->fresh()->load(['products'])->toArray()
+            ];
+        } catch (\Exception $e) {
+            error_log("Error in updateProductDiscount: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
     }
 
     public function getCategoryByDiscount($id): array
     {
-        $perPage = $_GET['per_page'] ?? 10;
-        $page = $_GET['page'] ?? 1;
+        try {
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
 
-        $discount = Discount::query()->where('id', $id)->firstOrFail();
-        $categoriesQuery = $discount->categories()->with(['discounts'])->getQuery();
+            $discount = Discount::query()->where('id', $id)->firstOrFail();
+            $categoriesQuery = $discount->categories()->with(['discounts'])->getQuery();
 
-        return $this->paginateResults($categoriesQuery, $perPage, $page)->toArray();
+            return $this->paginateResults($categoriesQuery, $perPage, $page)->toArray();
+        } catch (\Exception $e) {
+            error_log("Error in getCategoryByDiscount: " . $e->getMessage());
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
     }
 
-    public function addCategoryToDiscount($id): string
+    public function removeProductFromDiscount($discountId, $productId): array
     {
-        $discount = Discount::query()->where('id',$id)->first();
-        $data = json_decode(file_get_contents('php://input'),true);
-        $category = Category::query()->where('id',$data['category_id'])->first();
-        $discount->categories()->attach($category);
-        return 'Thêm thành công';
+        try {
+            $discount = Discount::find($discountId);
+            if (!$discount) {
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy mã giảm giá'
+                ];
+            }
+
+            $product = Product::find($productId);
+            if (!$product) {
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy sản phẩm'
+                ];
+            }
+
+            $exists = $discount->products()->where('product_id', $product->id)->exists();
+            if (!$exists) {
+                return [
+                    'success' => false,
+                    'error' => 'Sản phẩm chưa được áp dụng mã giảm giá này'
+                ];
+            }
+
+            $discount->products()->detach($product->id);
+
+            return [
+                'success' => true,
+                'message' => 'Xóa sản phẩm khỏi mã giảm giá thành công',
+                'data' => $discount->fresh()->load(['products'])->toArray()
+            ];
+        } catch (\Exception $e) {
+            error_log("Error in removeProductFromDiscount: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
     }
 
-    public function createDiscount(): Model | string
+    public function addCategoryToDiscount($id): array
     {
-        $data = json_decode(file_get_contents('php://input'), true);
-        $discount = new Discount();
+        try {
+            $discount = Discount::query()->where('id',$id)->first();
+            $data = json_decode(file_get_contents('php://input'),true);
 
-        $errors = $discount->validate($data);
+            if (empty($data['category_id'])) {
+                return [
+                    'success' => false,
+                    'error' => 'Category ID là bắt buộc'
+                ];
+            }
 
-        if ($errors) {
-            http_response_code(422);
-            return json_encode(["errors" => $errors]);
+            $category = Category::query()->where('id',$data['category_id'])->first();
+            if (!$category) {
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy danh mục'
+                ];
+            }
+
+            $exists = $discount->categories()->where('category_id', $category->id)->exists();
+            if ($exists) {
+                return [
+                    'success' => false,
+                    'error' => 'Danh mục đã được áp dụng mã giảm giá này'
+                ];
+            }
+
+            $discount->categories()->attach($category);
+
+            return [
+                'success' => true,
+                'message' => 'Thêm danh mục vào mã giảm giá thành công'
+            ];
+        } catch (\Exception $e) {
+            error_log("Error in addCategoryToDiscount: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
-
-        $discount->fill($data);
-        $discount->save();
-
-        http_response_code(201);
-        return json_encode($discount);
     }
 
-    public function updateDiscountById($id): bool | int | string
+    public function updateCategoryByDiscount($discountId, $categoryId): array
     {
-        $discount = Discount::find($id);
+        try {
+            $discount = Discount::find($discountId);
+            if (!$discount) {
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy mã giảm giá'
+                ];
+            }
 
-        if (!$discount) {
-            http_response_code(404);
-            return json_encode(["error" => "Discount not found"]);
+            $category = Category::find($categoryId);
+            if (!$category) {
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy danh mục'
+                ];
+            }
+
+            $data = json_decode(file_get_contents('php://input'), true);
+
+            $exists = $discount->categories()->where('category_id', $category->id)->exists();
+            if (!$exists) {
+                return [
+                    'success' => false,
+                    'error' => 'Danh mục chưa được áp dụng mã giảm giá này'
+                ];
+            }
+
+            $discount->categories()->updateExistingPivot($category->id, $data);
+
+            return [
+                'success' => true,
+                'message' => 'Cập nhật mối quan hệ giữa danh mục và mã giảm giá thành công',
+                'data' => $discount->fresh()->load(['categories'])->toArray()
+            ];
+        } catch (\Exception $e) {
+            error_log("Error in updateCategoryDiscount: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
-
-        $data = json_decode(file_get_contents('php://input'), true);
-        $errors = $discount->validate($data, true);
-
-        if ($errors) {
-            http_response_code(422);
-            return json_encode(["errors" => $errors]);
-        }
-
-        $discount->fill($data);
-        $discount->save();
-
-        http_response_code(200);
-        return json_encode($discount);
     }
 
-    public function deleteDiscount($id): string
+    public function removeCategoryFromDiscount($discountId, $categoryId): array
     {
-        $discount = Discount::find($id);
+        try {
+            $discount = Discount::find($discountId);
+            if (!$discount) {
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy mã giảm giá'
+                ];
+            }
 
-        if ($discount) {
-            $discount->status = 'DELETED';
-            $discount->save();
-            return "Xóa thành công";
-        }
-        else {
-            http_response_code(404);
-            return "Không tìm thấy";
+            $category = Category::find($categoryId);
+            if (!$category) {
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy danh mục'
+                ];
+            }
+
+            $exists = $discount->categories()->where('category_id', $category->id)->exists();
+            if (!$exists) {
+                return [
+                    'success' => false,
+                    'error' => 'Danh mục chưa được áp dụng mã giảm giá này'
+                ];
+            }
+
+            $discount->categories()->detach($category->id);
+
+            return [
+                'success' => true,
+                'message' => 'Xóa danh mục khỏi mã giảm giá thành công',
+                'data' => $discount->fresh()->load(['categories'])->toArray()
+            ];
+        } catch (\Exception $e) {
+            error_log("Error in removeCategoryFromDiscount: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
     }
 }

@@ -313,7 +313,7 @@ class ProductController
             if ($product->status == 'ACTIVE') {
                 return [
                     'success' => false,
-                    'error' => 'Không thể xóa sản phẩm đang ở trạng thái active'
+                    'error' => 'Không thể xóa sản phẩm đang ở trạng thái Active'
                 ];
             }
 
