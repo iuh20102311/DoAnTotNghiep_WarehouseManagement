@@ -129,6 +129,130 @@ class CategoryController
         }
     }
 
+    public function createCategory(): array
+    {
+        try {
+            $data = json_decode(file_get_contents('php://input'), true);
+            $category = new Category();
+            $errors = $category->validate($data);
+
+            if ($errors) {
+                return [
+                    'success' => false,
+                    'error' => 'Validation failed',
+                    'details' => $errors
+                ];
+            }
+
+            $category->fill($data);
+            $category->save();
+
+            return [
+                'success' => true,
+                'data' => $category->fresh()->load([
+                    'products',
+                    'materials',
+                    'discounts'
+                ])->toArray()
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in createCategory: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function updateCategoryById($id): array
+    {
+        try {
+            $category = Category::query()
+                ->where('deleted', false)
+                ->find($id);
+
+            if (!$category) {
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy danh mục'
+                ];
+            }
+
+            $data = json_decode(file_get_contents('php://input'), true);
+            $errors = $category->validate($data, true);
+
+            if ($errors) {
+                return [
+                    'success' => false,
+                    'error' => 'Validation failed',
+                    'details' => $errors
+                ];
+            }
+
+            $category->fill($data);
+            $category->save();
+
+            return [
+                'success' => true,
+                'data' => $category->fresh()->load([
+                    'products',
+                    'materials',
+                    'discounts'
+                ])->toArray()
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in updateCategoryById: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function deleteCategory($id): array
+    {
+        try {
+            $category = Category::query()
+                ->where('deleted', false)
+                ->find($id);
+
+            if (!$category) {
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy danh mục'
+                ];
+            }
+
+            if ($category->status == 'ACTIVE') {
+                return [
+                    'success' => false,
+                    'error' => 'Không thể xóa sản phẩm đang ở trạng thái active'
+                ];
+            }
+
+            // Soft delete
+            $category->deleted = true;
+            $category->save();
+
+            return [
+                'success' => true,
+                'message' => 'Xóa danh mục thành công'
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in deleteCategory: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
     public function getProductByCategory($id): array
     {
         try {
@@ -552,122 +676,7 @@ class CategoryController
         }
     }
 
-    public function createCategory(): array
-    {
-        try {
-            $data = json_decode(file_get_contents('php://input'), true);
-            $category = new Category();
-            $errors = $category->validate($data);
 
-            if ($errors) {
-                return [
-                    'success' => false,
-                    'error' => 'Validation failed',
-                    'details' => $errors
-                ];
-            }
-
-            $category->fill($data);
-            $category->save();
-
-            return [
-                'success' => true,
-                'data' => $category->fresh()->load([
-                    'products',
-                    'materials',
-                    'discounts'
-                ])->toArray()
-            ];
-
-        } catch (\Exception $e) {
-            error_log("Error in createCategory: " . $e->getMessage());
-            return [
-                'success' => false,
-                'error' => 'Database error occurred',
-                'details' => $e->getMessage()
-            ];
-        }
-    }
-
-    public function updateCategoryById($id): array
-    {
-        try {
-            $category = Category::query()
-                ->where('deleted', false)
-                ->find($id);
-
-            if (!$category) {
-                return [
-                    'success' => false,
-                    'error' => 'Không tìm thấy danh mục'
-                ];
-            }
-
-            $data = json_decode(file_get_contents('php://input'), true);
-            $errors = $category->validate($data, true);
-
-            if ($errors) {
-                return [
-                    'success' => false,
-                    'error' => 'Validation failed',
-                    'details' => $errors
-                ];
-            }
-
-            $category->fill($data);
-            $category->save();
-
-            return [
-                'success' => true,
-                'data' => $category->fresh()->load([
-                    'products',
-                    'materials',
-                    'discounts'
-                ])->toArray()
-            ];
-
-        } catch (\Exception $e) {
-            error_log("Error in updateCategoryById: " . $e->getMessage());
-            return [
-                'success' => false,
-                'error' => 'Database error occurred',
-                'details' => $e->getMessage()
-            ];
-        }
-    }
-
-    public function deleteCategory($id): array
-    {
-        try {
-            $category = Category::query()
-                ->where('deleted', false)
-                ->find($id);
-
-            if (!$category) {
-                return [
-                    'success' => false,
-                    'error' => 'Không tìm thấy danh mục'
-                ];
-            }
-
-            // Soft delete
-            $category->deleted = true;
-            $category->save();
-
-            return [
-                'success' => true,
-                'message' => 'Xóa danh mục thành công'
-            ];
-
-        } catch (\Exception $e) {
-            error_log("Error in deleteCategory: " . $e->getMessage());
-            return [
-                'success' => false,
-                'error' => 'Database error occurred',
-                'details' => $e->getMessage()
-            ];
-        }
-    }
 
     public function getCategoryDiscountsByCategory($id): array
     {
