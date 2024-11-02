@@ -208,6 +208,66 @@ class Validator
         return true;
     }
 
+    public function validateNumeric($field, $value)
+    {
+        // Kiểm tra xem giá trị có phải là số (integer hoặc float) hay string chứa số
+        if (!is_numeric($value)) {
+            $this->addError($field, 'numeric');
+            return false;
+        }
+        return true;
+    }
+
+    public function validatePositive($field, $value)
+    {
+        if (!is_numeric($value) || $value <= 0) {
+            $this->addError($field, 'positive');
+            return false;
+        }
+        return true;
+    }
+
+    public function validateNegative($field, $value)
+    {
+        if (!is_numeric($value) || $value >= 0) {
+            $this->addError($field, 'negative');
+            return false;
+        }
+        return true;
+    }
+
+    public function validateDecimal($field, $value, $parameter)
+    {
+        // Parameter là số chữ số thập phân mong muốn
+        if (!is_numeric($value)) {
+            $this->addError($field, 'numeric');
+            return false;
+        }
+
+        // Chuyển về string để đếm số chữ số thập phân
+        $decimal = explode('.', (string)$value);
+        if (isset($decimal[1]) && strlen($decimal[1]) > $parameter) {
+            $this->addError($field, 'decimal', ['decimal' => $parameter]);
+            return false;
+        }
+        return true;
+    }
+
+    public function validateBetween($field, $value, $parameter)
+    {
+        if (!is_numeric($value)) {
+            $this->addError($field, 'numeric');
+            return false;
+        }
+
+        list($min, $max) = explode(',', $parameter);
+        if ($value < $min || $value > $max) {
+            $this->addError($field, 'between', ['min' => $min, 'max' => $max]);
+            return false;
+        }
+        return true;
+    }
+
     public function validateDatetime($field, $value, $format = 'Y-m-d H:i:s')
     {
         if (empty($value)) {
@@ -323,6 +383,11 @@ class Validator
             'invalid_date' => ':field không phải là ngày hợp lệ.',
             'exists' => ':field không tồn tại trong hệ thống.',
             'xor' => 'Chỉ được chọn một trong hai trường :field hoặc :other.',
+            'numeric' => ':field phải là một số.',
+            'positive' => ':field phải là số dương.',
+            'negative' => ':field phải là số âm.',
+            'decimal' => ':field chỉ được có tối đa :decimal chữ số thập phân.',
+            'between' => ':field phải nằm trong khoảng từ :min đến :max.',
         ];
         return str_replace(':field', $field, $messages[$rule] ?? ':field không hợp lệ.');
     }

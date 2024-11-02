@@ -423,7 +423,7 @@ class ProductController
         }
     }
 
-    public function removeCategoryFromProduct($id): array
+    public function deleteCategoryFromProduct($id): array
     {
         try {
             $data = json_decode(file_get_contents('php://input'), true);
@@ -462,7 +462,7 @@ class ProductController
             ];
 
         } catch (\Exception $e) {
-            error_log("Error in removeCategoryFromProduct: " . $e->getMessage());
+            error_log("Error in deleteCategoryFromProduct: " . $e->getMessage());
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
@@ -558,7 +558,7 @@ class ProductController
         }
     }
 
-    public function removeDiscountFromProduct($id): array
+    public function deleteDiscountFromProduct($id): array
     {
         try {
             $data = json_decode(file_get_contents('php://input'), true);
@@ -597,7 +597,7 @@ class ProductController
             ];
 
         } catch (\Exception $e) {
-            error_log("Error in removeDiscountFromProduct: " . $e->getMessage());
+            error_log("Error in deleteDiscountFromProduct: " . $e->getMessage());
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
@@ -674,10 +674,10 @@ class ProductController
         try {
             $data = json_decode(file_get_contents('php://input'), true);
 
-            if (empty($data['price']) || !isset($data['effective_date'])) {
+            if (empty($data['price']) || !isset($data['date_expiry'])) {
                 return [
                     'success' => false,
-                    'error' => 'Price và effective_date là bắt buộc'
+                    'error' => 'Price và date_expiry là bắt buộc'
                 ];
             }
 
@@ -695,7 +695,7 @@ class ProductController
             $productPrice = new ProductPrice([
                 'product_id' => $id,
                 'price' => $data['price'],
-                'effective_date' => $data['effective_date'],
+                'date_expiry' => $data['date_expiry'],
                 'note' => $data['note'] ?? null
             ]);
 
@@ -743,8 +743,8 @@ class ProductController
             if (isset($data['price'])) {
                 $price->price = $data['price'];
             }
-            if (isset($data['effective_date'])) {
-                $price->effective_date = $data['effective_date'];
+            if (isset($data['date_expiry'])) {
+                $price->date_expiry = $data['date_expiry'];
             }
             if (isset($data['note'])) {
                 $price->note = $data['note'];
@@ -902,7 +902,7 @@ class ProductController
         }
     }
 
-    public function removeStorageLocationFromProduct($id, $locationId): array
+    public function deleteStorageLocationFromProduct($id, $locationId): array
     {
         try {
             $product = Product::query()
@@ -932,7 +932,7 @@ class ProductController
             ];
 
         } catch (\Exception $e) {
-            error_log("Error in removeStorageLocationFromProduct: " . $e->getMessage());
+            error_log("Error in deleteStorageLocationFromProduct: " . $e->getMessage());
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
