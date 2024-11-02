@@ -3,6 +3,7 @@
 namespace App;
 
 use Illuminate\Database\Capsule\Manager as Capsule;
+use PDO;
 
 class Database
 {

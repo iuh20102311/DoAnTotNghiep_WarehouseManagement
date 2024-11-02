@@ -12,6 +12,7 @@ use Lcobucci\JWT\Token\Plain;
 use Lcobucci\JWT\Token\UnsupportedHeaderFound;
 use Phroute\Phroute\RouteCollector;
 use App\Utils\UrlEncryption;
+use Illuminate\Database\Capsule\Manager as Capsule;
 
 header("Content-Type: application/json; charset=UTF-8");
 header('Access-Control-Allow-Origin: *');
@@ -56,12 +57,40 @@ if ($decryptedPath === false) {
 $_SERVER['REQUEST_URI'] = '/' . $decryptedPath;
 
 // Setup Phroute router
-$router = new RouteCollector();
+//$router = new RouteCollector();
+//
+//$router->filter('auth', function () {
+//    if (!isset($_SERVER['HTTP_AUTHORIZATION'])) {
+//        http_response_code(401);
+//        error_log("Không có giá trị Token");
+//        return false;
+//    }
+//
+//    $parser = new Parser(new JoseEncoder());
+//    try {
+//        $authorizationHeader = $_SERVER['HTTP_AUTHORIZATION'];
+//        if (str_starts_with($authorizationHeader, 'Bearer ')) {
+//            $token = $parser->parse(substr($authorizationHeader, 7));
+//            assert($token instanceof Plain);
+//            $now = new DateTimeImmutable();
+//            if ($token->isExpired($now)) {
+//                error_log("Token is expired");
+//                http_response_code(401);
+//                return false;
+//            }
+//        }
+//    } catch (CannotDecodeContent|InvalidTokenStructure|UnsupportedHeaderFound $e) {
+//        error_log($e->getMessage());
+//        http_response_code(401);
+//        return false;
+//    }
+//});
 
 $router->filter('auth', function () {
     if (!isset($_SERVER['HTTP_AUTHORIZATION'])) {
         http_response_code(401);
         error_log("Không có giá trị Token");
+        echo json_encode(['error' => 'Vui lòng đăng nhập để tiếp tục'], JSON_UNESCAPED_UNICODE);
         return false;
     }
 
@@ -69,18 +98,49 @@ $router->filter('auth', function () {
     try {
         $authorizationHeader = $_SERVER['HTTP_AUTHORIZATION'];
         if (str_starts_with($authorizationHeader, 'Bearer ')) {
-            $token = $parser->parse(substr($authorizationHeader, 7));
-            assert($token instanceof Plain);
+            $token = substr($authorizationHeader, 7);
+
+            // Kiểm tra token có trong blacklist không
+            $blacklisted = Capsule::table('blacklist_tokens')
+                ->where('token', $token)
+                ->exists();
+
+            if ($blacklisted) {
+                error_log("Token đã bị vô hiệu hóa");
+                http_response_code(401);
+                echo json_encode(['error' => 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại'], JSON_UNESCAPED_UNICODE);
+                return false;
+            }
+
+            $parsedToken = $parser->parse($token);
+            assert($parsedToken instanceof Plain);
             $now = new DateTimeImmutable();
-            if ($token->isExpired($now)) {
+            if ($parsedToken->isExpired($now)) {
                 error_log("Token is expired");
                 http_response_code(401);
+                echo json_encode(['error' => 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại'], JSON_UNESCAPED_UNICODE);
+                return false;
+            }
+
+            // Kiểm tra user tồn tại
+            $claims = $parsedToken->claims();
+            $userId = $claims->get('id');
+
+            $userExists = Capsule::table('users')
+                ->where('id', $userId)
+                ->exists();
+
+            if (!$userExists) {
+                error_log("User không tồn tại trong database");
+                http_response_code(401);
+                echo json_encode(['error' => 'Tài khoản không tồn tại, vui lòng đăng nhập lại'], JSON_UNESCAPED_UNICODE);
                 return false;
             }
         }
     } catch (CannotDecodeContent|InvalidTokenStructure|UnsupportedHeaderFound $e) {
         error_log($e->getMessage());
         http_response_code(401);
+        echo json_encode(['error' => 'Phiên đăng nhập không hợp lệ, vui lòng đăng nhập lại'], JSON_UNESCAPED_UNICODE);
         return false;
     }
 });
@@ -89,11 +149,13 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
     $router->group(array('prefix' => '/v1/auth'), function (RouteCollector $router) {
         $router->post('/change_password', ['App\Controllers\AuthController', 'changePassword']);
         $router->post('/forgot_password', ['App\Controllers\AuthController', 'forgotPassword']);
-        $router->get('/reset_password', ['App\Controllers\AuthController', 'checkToken']);
         $router->post('/reset_password', ['App\Controllers\AuthController', 'resetPassword']);
         $router->post('/refreshtoken', ['App\Controllers\AuthController', 'refreshToken']);
+        $router->get('/reset_password', ['App\Controllers\AuthController', 'checkToken']);
+        $router->post('/logout', ['App\Controllers\AuthController', 'logout']);
         $router->post('/register', ['App\Controllers\AuthController', 'register']);
         $router->post('/login', ['App\Controllers\AuthController', 'login']);
+
     });
 
     $router->group(array('before' => 'auth'), function (RouteCollector $router) {

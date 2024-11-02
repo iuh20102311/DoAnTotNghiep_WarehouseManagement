@@ -14,149 +14,257 @@ class CustomerController
 
     public function getCustomers(): array
     {
-        $perPage = $_GET['per_page'] ?? 10;
-        $page = $_GET['page'] ?? 1;
+        try {
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
 
-        $customer = Customer::with('groupCustomer')
-            ->where('status', '!=', 'DELETED')
-            ->where('deleted', false)->with(['groupCustomer', 'orders']);
+            $customer = Customer::with('groupCustomer')
+                ->where('status', '!=', 'DELETED')
+                ->where('deleted', false)
+                ->with(['groupCustomer', 'orders']);
 
-        if (isset($_GET['status'])) {
-            $status = urldecode($_GET['status']);
-            $customer->where('status', $status);
+            if (isset($_GET['status'])) {
+                $status = urldecode($_GET['status']);
+                $customer->where('status', $status);
+            }
+
+            if (isset($_GET['name'])) {
+                $name = urldecode($_GET['name']);
+                $customer->where('name', 'like', $name . '%');
+            }
+
+            if (isset($_GET['gender'])) {
+                $gender = urldecode($_GET['gender']);
+                $customer->where('gender', $gender);
+            }
+
+            if (isset($_GET['email'])) {
+                $email = urldecode($_GET['email']);
+                $customer->where('email', 'like', $email . '%');
+            }
+
+            if (isset($_GET['phone'])) {
+                $phone = urldecode($_GET['phone']);
+                $length = strlen($phone);
+                $customer->whereRaw('SUBSTRING(phone, 1, ?) = ?', [$length, $phone]);
+            }
+
+            if (isset($_GET['address'])) {
+                $address = urldecode($_GET['address']);
+                $customer->where('address', 'like', '%' . $address . '%');
+            }
+
+            if (isset($_GET['city'])) {
+                $city = urldecode($_GET['city']);
+                $customer->where('city', 'like', '%' . $city . '%');
+            }
+
+            if (isset($_GET['district'])) {
+                $district = urldecode($_GET['district']);
+                $customer->where('district', 'like', '%' . $district . '%');
+            }
+
+            if (isset($_GET['ward'])) {
+                $ward = urldecode($_GET['ward']);
+                $customer->where('ward', 'like', '%' . $ward . '%');
+            }
+
+            return $this->paginateResults($customer, $perPage, $page)->toArray();
+        } catch (\Exception $e) {
+            error_log("Error in getCustomers: " . $e->getMessage());
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
-
-        if (isset($_GET['name'])) {
-            $name = urldecode($_GET['name']);
-            $customer->where('name', 'like', $name . '%');
-        }
-
-        if (isset($_GET['gender'])) {
-            $gender = urldecode($_GET['gender']);
-            $customer->where('gender', $gender);
-        }
-
-        if (isset($_GET['email'])) {
-            $email = urldecode($_GET['email']);
-            $customer->where('email', 'like', $email . '%');
-        }
-
-        if (isset($_GET['phone'])) {
-            $phone = urldecode($_GET['phone']);
-            $length = strlen($phone);
-            $customer->whereRaw('SUBSTRING(phone, 1, ?) = ?', [$length, $phone]);
-        }
-
-        if (isset($_GET['address'])) {
-            $address = urldecode($_GET['address']);
-            $customer->where('address', 'like', '%' . $address . '%');
-        }
-
-        if (isset($_GET['city'])) {
-            $city = urldecode($_GET['city']);
-            $customer->where('city', 'like', '%' . $city . '%');
-        }
-
-        if (isset($_GET['district'])) {
-            $district = urldecode($_GET['district']);
-            $customer->where('district', 'like', '%' . $district . '%');
-        }
-
-        if (isset($_GET['ward'])) {
-            $ward = urldecode($_GET['ward']);
-            $customer->where('ward', 'like', '%' . $ward . '%');
-        }
-
-        return $this->paginateResults($customer, $perPage, $page)->toArray();
     }
 
-    public function getCustomerById($id): string
+    public function getCustomerById($id): array
     {
-        $customer = Customer::query()->where('id', $id)->with(['groupCustomer', 'orders'])
-            ->first();
+        try {
+            $customer = Customer::query()->where('id', $id)->with(['groupCustomer', 'orders'])
+                ->first();
 
-        if (!$customer) {
-            return json_encode(['error' => 'Không tìm thấy']);
+            if (!$customer) {
+                return [
+                    'error' => 'Không tìm thấy khách hàng'
+                ];
+            }
+
+            return $customer->toArray();
+        } catch (\Exception $e) {
+            error_log("Error in getCustomerById: " . $e->getMessage());
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
-
-        return json_encode($customer->toArray());
     }
 
     public function getOrderByCustomer($id): array
     {
-        $perPage = $_GET['per_page'] ?? 10;
-        $page = $_GET['page'] ?? 1;
+        try {
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
 
-        $customer = Customer::query()->where('id', $id)->firstOrFail();
-        $ordersQuery = $customer->orders()->with(['customer','creator'])->getQuery();
+            $customer = Customer::query()->where('id', $id)->firstOrFail();
+            $ordersQuery = $customer->orders()->with(['customer','creator'])->getQuery();
 
-        return $this->paginateResults($ordersQuery, $perPage, $page)->toArray();
+            return $this->paginateResults($ordersQuery, $perPage, $page)->toArray();
+        } catch (\Exception $e) {
+            error_log("Error in getOrderByCustomer: " . $e->getMessage());
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
     }
 
     public function getGroupCustomerByCustomer($id): array
     {
-        $perPage = $_GET['per_page'] ?? 10;
-        $page = $_GET['page'] ?? 1;
+        try {
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
 
-        $customer = Customer::query()->where('id', $id)->firstOrFail();
-        $groupCustomersQuery = $customer->groupCustomer()->with(['customers'])->getQuery();
+            $customer = Customer::query()->where('id', $id)->firstOrFail();
+            $groupCustomersQuery = $customer->groupCustomer()->with(['customers'])->getQuery();
 
-        return $this->paginateResults($groupCustomersQuery, $perPage, $page)->toArray();
+            return $this->paginateResults($groupCustomersQuery, $perPage, $page)->toArray();
+        } catch (\Exception $e) {
+            error_log("Error in getGroupCustomerByCustomer: " . $e->getMessage());
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
     }
 
-    public function createCustomer()
+    public function createCustomer(): array
     {
-        $data = json_decode(file_get_contents('php://input'), true);
-        $customer = new Customer();
-        $errors = $customer->validate($data);
+        try {
+            $data = json_decode(file_get_contents('php://input'), true);
 
-        if ($errors) {
-            http_response_code(422);
-            return json_encode(["errors" => $errors]);
-        }
+            $groupCustomer = (new GroupCustomer())->find($data['group_customer_id']);
+            if (!$groupCustomer) {
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy nhóm khách hàng'
+                ];
+            }
 
-        $customer->fill($data);
-        $customer->save();
+            $customer = new Customer();
+            $errors = $customer->validate($data);
 
-        http_response_code(201);
-        return json_encode($customer);
-    }
+            if ($errors) {
+                return [
+                    'success' => false,
+                    'errors' => 'Validation failed',
+                    'details' => $errors
+                ];
+            }
 
-    public function updateCustomerById($id): bool|int|string
-    {
-        $customer = Customer::find($id);
-
-        if (!$customer) {
-            http_response_code(404);
-            return json_encode(["error" => "Customer not found"]);
-        }
-
-        $data = json_decode(file_get_contents('php://input'), true);
-        $errors = $customer->validate($data, true);
-
-        if ($errors) {
-            http_response_code(422);
-            return json_encode(["errors" => $errors]);
-        }
-
-        $customer->fill($data);
-        $customer->save();
-
-        http_response_code(200);
-        return json_encode($customer);
-    }
-
-    public function deleteCustomer($id)
-    {
-        $customer = Customer::find($id);
-
-        if ($customer) {
-            $customer->status = 'DELETED';
+            $customer->fill($data);
             $customer->save();
-            return "Xóa thành công";
-        } else {
-            http_response_code(404);
-            return "Không tìm thấy";
+
+            return [
+                'success' => true,
+                'data' => $customer->toArray()
+            ];
+        } catch (\Exception $e) {
+            error_log("Error in createCustomer: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function updateCustomerById($id): array
+    {
+        try {
+            $customer = (new Customer())->find($id);
+
+            if (!$customer) {
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy khách hàng'
+                ];
+            }
+
+            $data = json_decode(file_get_contents('php://input'), true);
+
+            // Nếu có cập nhật group_customer_id thì kiểm tra storage area tồn tại
+            if (!empty($data['group_customer_id'])) {
+                $groupCustomer = (new GroupCustomer())->find($data['group_customer_id']);
+                if (!$groupCustomer) {
+                    return [
+                        'success' => false,
+                        'error' => 'Không tìm thấy khu vực kho'
+                    ];
+                }
+            }
+
+            $errors = $customer->validate($data, true);
+
+            if ($errors) {
+                return [
+                    'success' => false,
+                    'error' => 'Validation failed',
+                    'details' => $errors
+                ];
+            }
+
+            $customer->fill($data);
+            $customer->save();
+
+            return [
+                'success' => true,
+                'data' => $customer->toArray()
+            ];
+        } catch (\Exception $e) {
+            error_log("Error in updateCustomerById: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function deleteCustomer($id): array
+    {
+        try {
+            $customer = Customer::find($id);
+
+            if (!$customer) {
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy khách hàng'
+                ];
+            }
+
+            if ($customer->status == 'ACTIVE') {
+                return [
+                    'success' => false,
+                    'error' => 'Không thể xóa khách hàng đang ở trạng thái Active'
+                ];
+            }
+
+            $customer->deleted = true;
+            $customer->save();
+
+            return [
+                'success' => true,
+                'message' => 'Xóa thành công'
+            ];
+        } catch (\Exception $e) {
+            error_log("Error in deleteCustomer: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
     }
 }
