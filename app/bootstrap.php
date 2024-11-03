@@ -152,10 +152,10 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
         $router->post('/reset_password', ['App\Controllers\AuthController', 'resetPassword']);
         $router->post('/refreshtoken', ['App\Controllers\AuthController', 'refreshToken']);
         $router->get('/reset_password', ['App\Controllers\AuthController', 'checkToken']);
-        $router->post('/logout', ['App\Controllers\AuthController', 'logout']);
+        $router->get('/profile', ['App\Controllers\AuthController', 'getProfile']);
         $router->post('/register', ['App\Controllers\AuthController', 'register']);
+        $router->post('/logout', ['App\Controllers\AuthController', 'logout']);
         $router->post('/login', ['App\Controllers\AuthController', 'login']);
-
     });
 
     $router->group(array('before' => 'auth'), function (RouteCollector $router) {
