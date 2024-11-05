@@ -66,7 +66,6 @@ class CategoryController
                 ->count();
 
             return [
-                'success' => true,
                 'data' => [
                     'category_name' => $category->name,
                     'category_type' => $category->type,
@@ -85,7 +84,6 @@ class CategoryController
         } catch (\Exception $e) {
             error_log("Error in getCategoryProductCount: " . $e->getMessage());
             return [
-                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -123,7 +121,6 @@ class CategoryController
                 $category->where('description', 'like', '%' . $description . '%');
             }
 
-            // Date range filters
             if (isset($_GET['created_from'])) {
                 $createdFrom = urldecode($_GET['created_from']);
                 $category->where('created_at', '>=', $createdFrom);
@@ -175,7 +172,6 @@ class CategoryController
         } catch (\Exception $e) {
             error_log("Error in getCategories: " . $e->getMessage());
             return [
-                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -192,7 +188,6 @@ class CategoryController
 
             if (!$category) {
                 return [
-                    'success' => false,
                     'error' => 'Không tìm thấy danh mục'
                 ];
             }
@@ -202,7 +197,6 @@ class CategoryController
         } catch (\Exception $e) {
             error_log("Error in getCategoryById: " . $e->getMessage());
             return [
-                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -340,12 +334,12 @@ class CategoryController
             $page = $_GET['page'] ?? 1;
 
             $category = Category::query()
+                ->where('status', '!=', 'INACTIVE')
                 ->where('deleted', false)
                 ->find($id);
 
             if (!$category) {
                 return [
-                    'success' => false,
                     'error' => 'Không tìm thấy danh mục'
                 ];
             }
@@ -354,15 +348,11 @@ class CategoryController
                 ->with(['categories', 'prices', 'storageLocations'])
                 ->getQuery();
 
-            return [
-                'success' => true,
-                'data' => $this->paginateResults($productsQuery, $perPage, $page)->toArray()
-            ];
+            return $this->paginateResults($productsQuery, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
             error_log("Error in getProductByCategory: " . $e->getMessage());
             return [
-                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -486,7 +476,6 @@ class CategoryController
 
             if (!$category) {
                 return [
-                    'success' => false,
                     'error' => 'Không tìm thấy danh mục'
                 ];
             }
@@ -495,15 +484,11 @@ class CategoryController
                 ->with(['categories', 'products'])
                 ->getQuery();
 
-            return [
-                'success' => true,
-                'data' => $this->paginateResults($discountsQuery, $perPage, $page)->toArray()
-            ];
+            return $this->paginateResults($discountsQuery, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
             error_log("Error in getDiscountByCategory: " . $e->getMessage());
             return [
-                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -627,24 +612,20 @@ class CategoryController
 
             if (!$category) {
                 return [
-                    'success' => false,
                     'error' => 'Không tìm thấy danh mục'
                 ];
             }
 
             $materialsQuery = $category->materials()
+                ->where('materials.deleted', false)
                 ->with(['categories', 'providers'])
                 ->getQuery();
 
-            return [
-                'success' => true,
-                'data' => $this->paginateResults($materialsQuery, $perPage, $page)->toArray()
-            ];
+            return $this->paginateResults($materialsQuery, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
             error_log("Error in getMaterialByCategory: " . $e->getMessage());
             return [
-                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -768,7 +749,6 @@ class CategoryController
 
             if (!$category) {
                 return [
-                    'success' => false,
                     'error' => 'Không tìm thấy danh mục'
                 ];
             }
@@ -777,15 +757,11 @@ class CategoryController
                 ->with(['category', 'discount'])
                 ->getQuery();
 
-            return [
-                'success' => true,
-                'data' => $this->paginateResults($categoryDiscountsQuery, $perPage, $page)->toArray()
-            ];
+            return $this->paginateResults($categoryDiscountsQuery, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
             error_log("Error in getCategoryDiscountsByCategory: " . $e->getMessage());
             return [
-                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];

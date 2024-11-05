@@ -12,39 +12,52 @@ class GiftSetController
 {
     use PaginationTrait;
 
-    public function getGiftSets($perPage = 10, $page = 1, array $searchParams = []): array
+    public function getGiftSets(): array
     {
         try {
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
+            
              $giftSet = GiftSet::query()
                 ->where('deleted', false)
                 ->with(['products', 'prices','orders']);
 
-            if (!empty($searchParams['name'])) {
-                $giftSet->where('name', 'LIKE', '%' . $searchParams['name'] . '%');
+             
+            if (isset($_GET['status'])) {
+                $status = urldecode($_GET['status']);
+                $giftSet->where('status', $status);
             }
 
-            if (!empty($searchParams['description'])) {
-                $giftSet->where('description', 'LIKE', '%' . $searchParams['description'] . '%');
+            if (isset($_GET['name'])) {
+                $name = urldecode($_GET['name']);
+                $giftSet->where('name', $name);
             }
 
-            if (!empty($searchParams['status'])) {
-                $giftSet->where('status', $searchParams['status']);
+            if (isset($_GET['description'])) {
+                $description = urldecode($_GET['gender']);
+                $giftSet->where('gender', $description);
             }
 
-            if (!empty($searchParams['created_from'])) {
-                $giftSet->where('created_at', '>=', $searchParams['created_from']);
-            }
-            if (!empty($searchParams['created_to'])) {
-                $giftSet->where('created_at', '<=', $searchParams['created_to']);
+            if (isset($_GET['created_from'])) {
+                $createdFrom = urldecode($_GET['created_from']);
+                $giftSet->where('created_at', '>=', $createdFrom);
             }
 
-            if (!empty($searchParams['updated_from'])) {
-                $giftSet->where('updated_at', '>=', $searchParams['updated_from']);
-            }
-            if (!empty($searchParams['updated_to'])) {
-                $giftSet->where('updated_at', '<=', $searchParams['updated_to']);
+            if (isset($_GET['created_to'])) {
+                $createdTo = urldecode($_GET['created_to']);
+                $giftSet->where('created_at', '<=', $createdTo);
             }
 
+            if (isset($_GET['updated_from'])) {
+                $updatedFrom = urldecode($_GET['updated_from']);
+                $giftSet->where('updated_at', '>=', $updatedFrom);
+            }
+
+            if (isset($_GET['updated_to'])) {
+                $updatedTo = urldecode($_GET['updated_to']);
+                $giftSet->where('updated_at', '<=', $updatedTo);
+            }
+            
             return $this->paginateResults($giftSet, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
@@ -181,7 +194,9 @@ class GiftSetController
             $perPage = $_GET['per_page'] ?? 10;
             $page = $_GET['page'] ?? 1;
 
-            $giftSet = GiftSet::query()->where('id', $id)->first();
+            $giftSet = GiftSet::query()->where('id', $id)
+                ->where('deleted', false)
+                ->first();
 
             if (!$giftSet) {
                 return [
@@ -191,6 +206,7 @@ class GiftSetController
             }
 
             $productsQuery = $giftSet->products()
+                ->where('products.deleted', false)
                 ->with(['categories','discounts','prices','storageLocations','orderDetails'])
                 ->getQuery();
 
@@ -344,7 +360,9 @@ class GiftSetController
             $perPage = $_GET['per_page'] ?? 10;
             $page = $_GET['page'] ?? 1;
 
-            $giftSet = GiftSet::query()->where('id', $id)->first();
+            $giftSet = GiftSet::query()->where('id', $id)
+                ->where('deleted', false)
+                ->first();
 
             if (!$giftSet) {
                 return [
@@ -354,6 +372,7 @@ class GiftSetController
             }
 
             $ordersQuery = $giftSet->orders()
+                ->where('orders.deleted', false)
                 ->with(['customer','creator','orderDetails'])
                 ->getQuery();
 
@@ -510,7 +529,7 @@ class GiftSetController
             $perPage = $_GET['per_page'] ?? 10;
             $page = $_GET['page'] ?? 1;
 
-            $giftSet = (new GiftSet())->find($id);
+            $giftSet = (new GiftSet())->where('deleted', false)->find($id);
 
             if (!$giftSet) {
                 return [

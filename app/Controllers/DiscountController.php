@@ -19,21 +19,37 @@ class DiscountController
             $perPage = $_GET['per_page'] ?? 10;
             $page = $_GET['page'] ?? 1;
 
-            $discount = Discount::query()->where('status', '!=' , 'DELETED')->with(['categories', 'products']);
+            $discount = Discount::query()
+                ->where('status', '!=', 'INACTIVE')
+                ->where('deleted', false)
+                ->with(['categories', 'products']);
 
-            if (isset($_GET['status'])) {
-                $status = urldecode($_GET['status']);
-                $discount->where('status', $status);
+            $columns = [
+                'coupon_code',
+                'discount_value',
+                'discount_unit',
+                'minimum_order_value',
+                'maximum_discount_value',
+                'status',
+                'note'
+            ];
+
+            foreach ($columns as $column) {
+                if (isset($_GET[$column])) {
+                    $value = urldecode($_GET[$column]);
+                    $discount->where($column, $value);
+                }
             }
 
-            if (isset($_GET['coupon_code'])) {
-                $coupon_code = urldecode($_GET['coupon_code']);
-                $discount->where('coupon_code', $coupon_code);
-            }
+            $dateColumns = ['valid_until', 'valid_start', 'created_at', 'updated_at'];
 
-            if (isset($_GET['discount_value'])) {
-                $discount_value = urldecode($_GET['discount_value']);
-                $discount->where('discount_value', $discount_value);
+            foreach ($dateColumns as $column) {
+                if (isset($_GET[$column . '_from'])) {
+                    $discount->where($column, '>=', urldecode($_GET[$column . '_from']));
+                }
+                if (isset($_GET[$column . '_to'])) {
+                    $discount->where($column, '<=', urldecode($_GET[$column . '_to']));
+                }
             }
 
             return $this->paginateResults($discount, $perPage, $page)->toArray();
@@ -51,6 +67,7 @@ class DiscountController
     {
         try {
             $discount = Discount::query()->where('id',$id)
+                ->where('deleted', false)
                 ->with(['categories', 'products'])
                 ->first();
 
@@ -181,7 +198,10 @@ class DiscountController
             $page = $_GET['page'] ?? 1;
 
             $discount = Discount::query()->where('id', $id)->firstOrFail();
-            $productsQuery = $discount->products()->with(['discounts'])->getQuery();
+            $productsQuery = $discount->products()
+                ->where('products.deleted', false)
+                ->with(['discounts'])
+                ->getQuery();
 
             return $this->paginateResults($productsQuery, $perPage, $page)->toArray();
         } catch (\Exception $e) {
@@ -196,7 +216,11 @@ class DiscountController
     public function addProductToDiscount($id): array
     {
         try {
-            $discount = Discount::query()->where('id',$id)->first();
+            $discount = Discount::query()
+                ->where('deleted', false)
+                ->where('id',$id)
+                ->first();
+
             $data = json_decode(file_get_contents('php://input'),true);
 
             if (empty($data['product_id'])) {
@@ -206,7 +230,11 @@ class DiscountController
                 ];
             }
 
-            $product = Product::query()->where('id',$data['product_id'])->first();
+            $product = Product::query()
+                ->where('products.deleted', false)
+                ->where('id',$data['product_id'])
+                ->first();
+
             if (!$product) {
                 return [
                     'success' => false,
@@ -214,7 +242,10 @@ class DiscountController
                 ];
             }
 
-            $exists = $discount->products()->where('product_id', $product->id)->exists();
+            $exists = $discount->products()
+                ->where('deleted', false)
+                ->where('product_id', $product->id)
+                ->exists();
             if ($exists) {
                 return [
                     'success' => false,
@@ -238,75 +269,10 @@ class DiscountController
         }
     }
 
-    public function updateProductInDiscount($discountId, $productId): array
+    public function removeProductFromDiscount($id, $productId): array
     {
         try {
-            $discount = Discount::find($discountId);
-            if (!$discount) {
-                return [
-                    'success' => false,
-                    'error' => 'Không tìm thấy mã giảm giá'
-                ];
-            }
-
-            $product = Product::find($productId);
-            if (!$product) {
-                return [
-                    'success' => false,
-                    'error' => 'Không tìm thấy sản phẩm'
-                ];
-            }
-
-            $data = json_decode(file_get_contents('php://input'), true);
-
-            $exists = $discount->products()->where('product_id', $product->id)->exists();
-            if (!$exists) {
-                return [
-                    'success' => false,
-                    'error' => 'Sản phẩm chưa được áp dụng mã giảm giá này'
-                ];
-            }
-
-            $discount->products()->updateExistingPivot($product->id, $data);
-
-            return [
-                'success' => true,
-                'message' => 'Cập nhật mối quan hệ giữa sản phẩm và mã giảm giá thành công',
-                'data' => $discount->fresh()->load(['products'])->toArray()
-            ];
-        } catch (\Exception $e) {
-            error_log("Error in updateProductDiscount: " . $e->getMessage());
-            return [
-                'success' => false,
-                'error' => 'Database error occurred',
-                'details' => $e->getMessage()
-            ];
-        }
-    }
-
-    public function getCategoryByDiscount($id): array
-    {
-        try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
-
-            $discount = Discount::query()->where('id', $id)->firstOrFail();
-            $categoriesQuery = $discount->categories()->with(['discounts'])->getQuery();
-
-            return $this->paginateResults($categoriesQuery, $perPage, $page)->toArray();
-        } catch (\Exception $e) {
-            error_log("Error in getCategoryByDiscount: " . $e->getMessage());
-            return [
-                'error' => 'Database error occurred',
-                'details' => $e->getMessage()
-            ];
-        }
-    }
-
-    public function removeProductFromDiscount($discountId, $productId): array
-    {
-        try {
-            $discount = Discount::find($discountId);
+            $discount = Discount::find($id);
             if (!$discount) {
                 return [
                     'success' => false,
@@ -341,6 +307,28 @@ class DiscountController
             error_log("Error in removeProductFromDiscount: " . $e->getMessage());
             return [
                 'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function getCategoryByDiscount($id): array
+    {
+        try {
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
+
+            $discount = Discount::query()->where('id', $id)->firstOrFail();
+            $categoriesQuery = $discount->categories()
+                ->where('categories.deleted', false)
+                ->with(['discounts'])
+                ->getQuery();
+
+            return $this->paginateResults($categoriesQuery, $perPage, $page)->toArray();
+        } catch (\Exception $e) {
+            error_log("Error in getCategoryByDiscount: " . $e->getMessage());
+            return [
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -392,56 +380,10 @@ class DiscountController
         }
     }
 
-    public function updateCategoryByDiscount($discountId, $categoryId): array
+    public function removeCategoryFromDiscount($id, $categoryId): array
     {
         try {
-            $discount = Discount::find($discountId);
-            if (!$discount) {
-                return [
-                    'success' => false,
-                    'error' => 'Không tìm thấy mã giảm giá'
-                ];
-            }
-
-            $category = Category::find($categoryId);
-            if (!$category) {
-                return [
-                    'success' => false,
-                    'error' => 'Không tìm thấy danh mục'
-                ];
-            }
-
-            $data = json_decode(file_get_contents('php://input'), true);
-
-            $exists = $discount->categories()->where('category_id', $category->id)->exists();
-            if (!$exists) {
-                return [
-                    'success' => false,
-                    'error' => 'Danh mục chưa được áp dụng mã giảm giá này'
-                ];
-            }
-
-            $discount->categories()->updateExistingPivot($category->id, $data);
-
-            return [
-                'success' => true,
-                'message' => 'Cập nhật mối quan hệ giữa danh mục và mã giảm giá thành công',
-                'data' => $discount->fresh()->load(['categories'])->toArray()
-            ];
-        } catch (\Exception $e) {
-            error_log("Error in updateCategoryDiscount: " . $e->getMessage());
-            return [
-                'success' => false,
-                'error' => 'Database error occurred',
-                'details' => $e->getMessage()
-            ];
-        }
-    }
-
-    public function removeCategoryFromDiscount($discountId, $categoryId): array
-    {
-        try {
-            $discount = Discount::find($discountId);
+            $discount = Discount::find($id);
             if (!$discount) {
                 return [
                     'success' => false,

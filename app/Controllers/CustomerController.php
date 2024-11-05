@@ -19,7 +19,6 @@ class CustomerController
             $page = $_GET['page'] ?? 1;
 
             $customer = Customer::with('groupCustomer')
-                ->where('status', '!=', 'DELETED')
                 ->where('deleted', false)
                 ->with(['groupCustomer', 'orders']);
 
@@ -69,6 +68,26 @@ class CustomerController
                 $customer->where('ward', 'like', '%' . $ward . '%');
             }
 
+            if (isset($_GET['created_from'])) {
+                $createdFrom = urldecode($_GET['created_from']);
+                $customer->where('created_at', '>=', $createdFrom);
+            }
+
+            if (isset($_GET['created_to'])) {
+                $createdTo = urldecode($_GET['created_to']);
+                $customer->where('created_at', '<=', $createdTo);
+            }
+
+            if (isset($_GET['updated_from'])) {
+                $updatedFrom = urldecode($_GET['updated_from']);
+                $customer->where('updated_at', '>=', $updatedFrom);
+            }
+
+            if (isset($_GET['updated_to'])) {
+                $updatedTo = urldecode($_GET['updated_to']);
+                $customer->where('updated_at', '<=', $updatedTo);
+            }
+
             return $this->paginateResults($customer, $perPage, $page)->toArray();
         } catch (\Exception $e) {
             error_log("Error in getCustomers: " . $e->getMessage());
@@ -82,7 +101,10 @@ class CustomerController
     public function getCustomerById($id): array
     {
         try {
-            $customer = Customer::query()->where('id', $id)->with(['groupCustomer', 'orders'])
+            $customer = Customer::query()
+                ->where('id', $id)
+                ->where('deleted', false)
+                ->with(['groupCustomer', 'orders'])
                 ->first();
 
             if (!$customer) {
@@ -108,7 +130,10 @@ class CustomerController
             $page = $_GET['page'] ?? 1;
 
             $customer = Customer::query()->where('id', $id)->firstOrFail();
-            $ordersQuery = $customer->orders()->with(['customer','creator'])->getQuery();
+            $ordersQuery = $customer->orders()
+                ->where('orders.deleted', false)
+                ->with(['customer','creator'])
+                ->getQuery();
 
             return $this->paginateResults($ordersQuery, $perPage, $page)->toArray();
         } catch (\Exception $e) {
@@ -127,12 +152,56 @@ class CustomerController
             $page = $_GET['page'] ?? 1;
 
             $customer = Customer::query()->where('id', $id)->firstOrFail();
-            $groupCustomersQuery = $customer->groupCustomer()->with(['customers'])->getQuery();
+            $groupCustomersQuery = $customer->groupCustomer()
+                ->where('group_customers.deleted', false)
+                ->with(['customers'])
+                ->getQuery();
 
             return $this->paginateResults($groupCustomersQuery, $perPage, $page)->toArray();
         } catch (\Exception $e) {
             error_log("Error in getGroupCustomerByCustomer: " . $e->getMessage());
             return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function addGroupCustomerForCustomer($id): array
+    {
+        try {
+            $customer = Customer::where('deleted', false)->find($id);
+
+            if (!$customer) {
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy khách hàng'
+                ];
+            }
+
+            $data = json_decode(file_get_contents('php://input'), true);
+
+            $groupCustomerId = $data['group_customer_id'];
+            $groupCustomer = GroupCustomer::find($groupCustomerId);
+
+            if (!$groupCustomer) {
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy nhóm khách hàng'
+                ];
+            }
+
+            $customer->group_customer_id = $groupCustomerId;
+            $customer->save();
+
+            return [
+                'success' => true,
+                'message' => 'Thêm nhóm khách hàng cho khách hàng thành công'
+            ];
+        } catch (\Exception $e) {
+            error_log("Error in addGroupCustomerForCustomer: " . $e->getMessage());
+            return [
+                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];

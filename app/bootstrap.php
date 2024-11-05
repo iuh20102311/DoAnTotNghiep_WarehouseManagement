@@ -257,10 +257,14 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
         });
 
         $router->group(array('prefix' => '/v1/discounts'), function (RouteCollector $router) {
+            $router->delete('/{id}/categories/{categoryId}', ['App\Controllers\DiscountController', 'removeCategoryFromDiscount']);
             $router->post('/{id}/categories', ['App\Controllers\DiscountController', 'addCategoryToDiscount']);
             $router->get('/{id}/categories', ['App\Controllers\DiscountController', 'getCategoryByDiscount']);
+
+            $router->delete('/{id}/products/{productId}', ['App\Controllers\DiscountController', 'removeProductFromDiscount']);
             $router->post('/{id}/products', ['App\Controllers\DiscountController', 'addProductToDiscount']);
             $router->get('/{id}/products', ['App\Controllers\DiscountController', 'getProductByDiscount']);
+
             $router->put('/{id}', ['App\Controllers\DiscountController', 'updateDiscountById']);
             $router->delete('/{id}', ['App\Controllers\DiscountController', 'deleteDiscount']);
             $router->get('/{id}', ['App\Controllers\DiscountController', 'getDiscountById']);
@@ -417,6 +421,7 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
         });
 
         $router->group(array('prefix' => '/v1/customers'), function (RouteCollector $router) {
+            $router->post('/{id}/group_customers', ['App\Controllers\CustomerController', 'addGroupCustomerForCustomer']);
             $router->get('/{id}/group_customers', ['App\Controllers\CustomerController', 'getGroupCustomerByCustomer']);
             $router->get('/{id}/orders', ['App\Controllers\CustomerController', 'getOrderByCustomer']);
             $router->put('/{id}', ['App\Controllers\CustomerController', 'updateCustomerById']);
@@ -461,8 +466,10 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
         $router->group(array('prefix' => '/v1/inventory_checks'), function (RouteCollector $router) {
             $router->get('/{id}/storage_areas', ['App\Controllers\InventoryCheckController', 'getStorageAreaByInventoryCheck']);
             $router->put('/{id}/storage_areas', ['App\Controllers\InventoryCheckController', 'updateStorageAreaByInventoryCheck']);
+
             $router->put('/{id}/users', ['App\Controllers\InventoryCheckController', 'updateUserByInventoryCheck']);
             $router->get('/{id}/users', ['App\Controllers\InventoryCheckController', 'getUserByInventoryCheck']);
+
             $router->put('/{id}', ['App\Controllers\InventoryCheckController', 'updateInventoryCheckById']);
             $router->delete('/{id}', ['App\Controllers\InventoryCheckController', 'deleteInventoryCheck']);
             $router->get('/{id}', ['App\Controllers\InventoryCheckController', 'getInventoryCheckById']);

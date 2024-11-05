@@ -11,37 +11,56 @@ class InventoryCheckDetailController
 {
     use PaginationTrait;
 
-    public function getInventoryCheckDetails($perPage = 10, $page = 1, array $searchParams = []): array
+    public function getInventoryCheckDetails(): array
     {
         try {
-            $query = InventoryCheckDetail::query()
+            $perPage = isset($_GET['per_page']) ? (int)$_GET['per_page'] : 10;
+            $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+            
+            $inventoryCheckDetail = InventoryCheckDetail::query()
                 ->where('deleted', false)
                 ->with(['inventoryCheck', 'product', 'material']);
 
-            if (!empty($searchParams['inventory_check_id'])) {
-                $query->where('inventory_check_id', $searchParams['inventory_check_id']);
+            if (isset($_GET['inventory_check_id'])) {
+                $inventoryCheckId = urldecode($_GET['inventory_check_id']);
+                $inventoryCheckDetail->where('inventory_check_id', $inventoryCheckId);
             }
 
-            if (!empty($searchParams['type'])) {
-                if ($searchParams['type'] === 'product') {
-                    $query->whereNotNull('product_id')->whereNull('material_id');
-                } else if ($searchParams['type'] === 'material') {
-                    $query->whereNotNull('material_id')->whereNull('product_id');
+            if (isset($_GET['type'])) {
+                $type = urldecode($_GET['type']);
+                if ($type === 'product') {
+                    $inventoryCheckDetail->whereNotNull('product_id')->whereNull('material_id');
+                } else if ($type === 'material') {
+                    $inventoryCheckDetail->whereNotNull('material_id')->whereNull('product_id');
                 }
             }
 
-            if (!empty($searchParams['created_from'])) {
-                $query->where('created_at', '>=', $searchParams['created_from']);
-            }
-            if (!empty($searchParams['created_to'])) {
-                $query->where('created_at', '<=', $searchParams['created_to']);
+            if (isset($_GET['created_from'])) {
+                $createdFrom = urldecode($_GET['created_from']);
+                $inventoryCheckDetail->where('created_at', '>=', $createdFrom);
             }
 
-            return $this->paginateResults($query, $perPage, $page)->toArray();
+            if (isset($_GET['created_to'])) {
+                $createdTo = urldecode($_GET['created_to']);
+                $inventoryCheckDetail->where('created_at', '<=', $createdTo);
+            }
+
+            if (isset($_GET['updated_from'])) {
+                $updatedFrom = urldecode($_GET['updated_from']);
+                $inventoryCheckDetail->where('updated_at', '>=', $updatedFrom);
+            }
+
+            if (isset($_GET['updated_to'])) {
+                $updatedTo = urldecode($_GET['updated_to']);
+                $inventoryCheckDetail->where('updated_at', '<=', $updatedTo);
+            }
+
+            return $this->paginateResults($inventoryCheckDetail, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
-            error_log("Error in: " . $e->getMessage());
+            error_log("Error in getInventoryCheckDetails: " . $e->getMessage());
             return [
+                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
