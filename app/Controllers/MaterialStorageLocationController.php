@@ -4,133 +4,316 @@ namespace App\Controllers;
 
 use App\Models\MaterialStorageLocation;
 use App\Utils\PaginationTrait;
-use Illuminate\Database\Eloquent\Model;
 
 class MaterialStorageLocationController
 {
     use PaginationTrait;
 
-    public function getMaterialStorageLocations() : array
+    public function getMaterialStorageLocations(): array
     {
-        $perPage = $_GET['per_page'] ?? 10;
-        $page = $_GET['page'] ?? 1;
+        try {
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
 
-        $materialStorageLocation = MaterialStorageLocation::query()->where('deleted', false)
-            ->with(['material', 'provider', 'storageArea']);
+            $materialStorageLocation = MaterialStorageLocation::query()
+                ->where('deleted', false)
+                ->with(['material', 'provider', 'storageArea']);
 
-        if (isset($_GET['quantity'])) {
-            $quantity = urldecode($_GET['quantity']);
-            $materialStorageLocation->where('quantity', $quantity);
+            if (isset($_GET['material_id'])) {
+                $materialId = urldecode($_GET['material_id']);
+                $materialStorageLocation->where('material_id', $materialId);
+            }
+
+            if (isset($_GET['provider_id'])) {
+                $providerId = urldecode($_GET['provider_id']);
+                $materialStorageLocation->where('provider_id', $providerId);
+            }
+
+            if (isset($_GET['storage_area_id'])) {
+                $storageAreaId = urldecode($_GET['storage_area_id']);
+                $materialStorageLocation->where('storage_area_id', $storageAreaId);
+            }
+
+            if (isset($_GET['quantity'])) {
+                $quantity = urldecode($_GET['quantity']);
+                $materialStorageLocation->where('quantity', $quantity);
+            }
+
+            if (isset($_GET['quantity_min'])) {
+                $quantityMin = urldecode($_GET['quantity_min']);
+                $materialStorageLocation->where('quantity', '>=', $quantityMin);
+            }
+
+            if (isset($_GET['quantity_max'])) {
+                $quantityMax = urldecode($_GET['quantity_max']);
+                $materialStorageLocation->where('quantity', '<=', $quantityMax);
+            }
+
+            if (isset($_GET['created_from'])) {
+                $createdFrom = urldecode($_GET['created_from']);
+                $materialStorageLocation->where('created_at', '>=', $createdFrom);
+            }
+
+            if (isset($_GET['created_to'])) {
+                $createdTo = urldecode($_GET['created_to']);
+                $materialStorageLocation->where('created_at', '<=', $createdTo);
+            }
+
+            if (isset($_GET['updated_from'])) {
+                $updatedFrom = urldecode($_GET['updated_from']);
+                $materialStorageLocation->where('updated_at', '>=', $updatedFrom);
+            }
+
+            if (isset($_GET['updated_to'])) {
+                $updatedTo = urldecode($_GET['updated_to']);
+                $materialStorageLocation->where('updated_at', '<=', $updatedTo);
+            }
+
+            return $this->paginateResults($materialStorageLocation, $perPage, $page)->toArray();
+
+        } catch (\Exception $e) {
+            error_log("Error in getMaterialStorageLocations: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
-
-        return $this->paginateResults($materialStorageLocation, $perPage, $page)->toArray();
     }
 
-    public function getMaterialStorageLocationById($id) : false|string
+    public function getMaterialStorageLocationById($id): array
     {
-        $materialStorageLocation = MaterialStorageLocation::query()->where('id', $id)
-            ->with(['material', 'provider', 'storageArea'])
-            ->first();
+        try {
+            $materialStorageLocation = MaterialStorageLocation::query()
+                ->where('id', $id)
+                ->where('deleted', false)
+                ->with(['material', 'provider', 'storageArea'])
+                ->first();
 
-        if (!$materialStorageLocation) {
-            return json_encode(['error' => 'Không tìm thấy']);
+            if (!$materialStorageLocation) {
+                http_response_code(404);
+                return [
+                    'error' => 'Không tìm thấy vị trí lưu trữ vật liệu'
+                ];
+            }
+
+            return $materialStorageLocation->toArray();
+
+        } catch (\Exception $e) {
+            error_log("Error in getMaterialStorageLocationById: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
-
-        return json_encode($materialStorageLocation->toArray());
     }
 
-    public function getMaterialByMaterialStorageLocation($id)
+    public function getMaterialByMaterialStorageLocation($id): array
     {
-        $perPage = $_GET['per_page'] ?? 10;
-        $page = $_GET['page'] ?? 1;
+        try {
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
 
-        $materialStorageLocation = MaterialStorageLocation::query()->where('id', $id)->firstOrFail();
-        $materialsDetailsQuery = $materialStorageLocation->material()
-            ->with(['categories', 'providers', 'storageLocations','exportReceiptDetails','importReceiptDetails','inventoryCheckDetails','inventoryHistory'])
-            ->getQuery();
+            $materialStorageLocation = MaterialStorageLocation::where('deleted', false)->find($id);
 
-        return $this->paginateResults($materialsDetailsQuery, $perPage, $page)->toArray();
-    }
+            if (!$materialStorageLocation) {
+                http_response_code(404);
+                return [
+                    'error' => 'Không tìm thấy vị trí lưu trữ vật liệu'
+                ];
+            }
 
-    public function getProvidersByMaterialStorageLocation($id)
-    {
-        $perPage = $_GET['per_page'] ?? 10;
-        $page = $_GET['page'] ?? 1;
+            $materialsDetailsQuery = $materialStorageLocation->material()
+                ->with(['categories', 'providers', 'storageLocations', 'exportReceiptDetails', 'importReceiptDetails', 'inventoryCheckDetails', 'inventoryHistory'])
+                ->getQuery();
 
-        $materialStorageLocation = MaterialStorageLocation::query()->where('id', $id)->firstOrFail();
-        $providersDetailsQuery = $materialStorageLocation->provider()
-            ->with(['materials', 'materialImportReceipts'])
-            ->getQuery();
+            $result = $this->paginateResults($materialsDetailsQuery, $perPage, $page);
+            return $result->toArray();
 
-        return $this->paginateResults($providersDetailsQuery, $perPage, $page)->toArray();
-    }
-
-    public function getStorageAreaByMaterialStorageLocation($id)
-    {
-        $perPage = $_GET['per_page'] ?? 10;
-        $page = $_GET['page'] ?? 1;
-
-        $materialStorageLocation = MaterialStorageLocation::query()->where('id', $id)->firstOrFail();
-        $materialsDetailsQuery = $materialStorageLocation->storageArea()
-            ->with(['productStorageLocations', 'materialStorageLocations', 'inventoryChecks','inventoryHistory'])
-            ->getQuery();
-
-        return $this->paginateResults($materialsDetailsQuery, $perPage, $page)->toArray();
-    }
-
-    public function createMaterialStorageLocation(): Model | string
-    {
-        $data = json_decode(file_get_contents('php://input'), true);
-        $materialStorageLocation = new MaterialStorageLocation();
-        $error = $materialStorageLocation->validate($data);
-        if ($error != "") {
-            http_response_code(404);
-            error_log($error);
-            return json_encode(["error" => $error]);
+        } catch (\Exception $e) {
+            error_log("Error in getMaterialByMaterialStorageLocation: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
-        $materialStorageLocation->fill($data);
-        $materialStorageLocation->save();
-        return $materialStorageLocation;
     }
 
-    public function updateMaterialStorageLocationById($id): bool | int | string
+    public function getProvidersByMaterialStorageLocation($id): array
     {
-        $materialStorageLocation = MaterialStorageLocation::find($id);
+        try {
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
 
-        if (!$materialStorageLocation) {
-            http_response_code(404);
-            return json_encode(["error" => "Material Storage Location not found"]);
+            $materialStorageLocation = MaterialStorageLocation::where('deleted', false)->find($id);
+
+            if (!$materialStorageLocation) {
+                http_response_code(404);
+                return [
+                    'error' => 'Không tìm thấy vị trí lưu trữ vật liệu'
+                ];
+            }
+
+            $providersDetailsQuery = $materialStorageLocation->provider()
+                ->with(['materials', 'materialImportReceipts'])
+                ->getQuery();
+
+            $result = $this->paginateResults($providersDetailsQuery, $perPage, $page);
+            return $result->toArray();
+
+        } catch (\Exception $e) {
+            error_log("Error in getProvidersByMaterialStorageLocation: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
-
-        $data = json_decode(file_get_contents('php://input'), true);
-        $error = $materialStorageLocation->validate($data, true);
-
-        if ($error != "") {
-            http_response_code(404);
-            error_log($error);
-            return json_encode(["error" => $error]);
-        }
-
-        $materialStorageLocation->fill($data);
-        $materialStorageLocation->save();
-
-        return $materialStorageLocation;
     }
 
-    public function deleteMaterialStorageLocation($id)
+    public function getStorageAreaByMaterialStorageLocation($id): array
     {
-        $materialStorageLocation = MaterialStorageLocation::find($id);
+        try {
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
 
-        if ($materialStorageLocation) {
-            $materialStorageLocation->status = 'DISABLE';
+            $materialStorageLocation = MaterialStorageLocation::where('deleted', false)->find($id);
+
+            if (!$materialStorageLocation) {
+                http_response_code(404);
+                return [
+                    'error' => 'Không tìm thấy vị trí lưu trữ vật liệu'
+                ];
+            }
+
+            $materialsDetailsQuery = $materialStorageLocation->storageArea()
+                ->with(['productStorageLocations', 'materialStorageLocations', 'inventoryChecks', 'inventoryHistory'])
+                ->getQuery();
+
+            $result = $this->paginateResults($materialsDetailsQuery, $perPage, $page);
+            return $result->toArray();
+
+        } catch (\Exception $e) {
+            error_log("Error in getStorageAreaByMaterialStorageLocation: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function createMaterialStorageLocation(): array
+    {
+        try {
+            $data = json_decode(file_get_contents('php://input'), true);
+
+            $materialStorageLocation = new MaterialStorageLocation();
+            $errors = $materialStorageLocation->validate($data);
+
+            if ($errors) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'Validation failed',
+                    'details' => $errors
+                ];
+            }
+
+            $materialStorageLocation->fill($data);
             $materialStorageLocation->save();
-            return "Xóa thành công";
+
+            return [
+                'success' => true,
+                'data' => $materialStorageLocation->toArray()
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in createMaterialStorageLocation: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
-        else {
-            http_response_code(404);
-            return "Không tìm thấy";
+    }
+
+    public function updateMaterialStorageLocationById($id): array
+    {
+        try {
+            $materialStorageLocation = MaterialStorageLocation::where('deleted', false)->find($id);
+
+            if (!$materialStorageLocation) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy vị trí lưu trữ vật liệu'
+                ];
+            }
+
+            $data = json_decode(file_get_contents('php://input'), true);
+            $errors = $materialStorageLocation->validate($data, true);
+
+            if ($errors) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'Validation failed',
+                    'details' => $errors
+                ];
+            }
+
+            $materialStorageLocation->fill($data);
+            $materialStorageLocation->save();
+
+            return [
+                'success' => true,
+                'data' => $materialStorageLocation->toArray()
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in updateMaterialStorageLocationById: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function deleteMaterialStorageLocation($id): array
+    {
+        try {
+            $materialStorageLocation = MaterialStorageLocation::where('deleted', false)->find($id);
+
+            if (!$materialStorageLocation) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy vị trí lưu trữ vật liệu'
+                ];
+            }
+
+            $materialStorageLocation->deleted = true;
+            $materialStorageLocation->save();
+
+            return [
+                'success' => true,
+                'message' => 'Xóa vị trí lưu trữ vật liệu thành công'
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in deleteMaterialStorageLocation: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
     }
 }
-
- 

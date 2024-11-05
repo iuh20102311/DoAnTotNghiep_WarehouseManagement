@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Utils\Validator;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -25,29 +26,57 @@ class Role extends Model
         return $this->hasMany(User::class);
     }
 
-    /**
-     * @throws Exception
-     */
-    public function validate(array $data, bool $isUpdate = false) : string
+    public function validate(array $data, $isUpdate = false)
     {
-        $validators = [
-            'name' => v::notEmpty()->regex('/^([\p{L}\p{M}]+\s*)+$/u')->setName('name')->setTemplate('Tên không hợp lệ. Tên phải viết hoa chữ cái đầu tiên của mỗi từ và chỉ chứa chữ cái.'),
-            'status' => v::in(['ACTIVE', 'DELETED'])->setName('status')->setTemplate('Trạng thái không hợp lệ. Trạng thái chỉ có thể là ACTIVE hoặc DELETED.'),
+        $validator = new Validator($data, $this->messages());
+
+        $rules = [
+            'name' => ['required', 'max' => 100],
+            'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE', 'DELETED']]
         ];
 
-        $error = "";
-        foreach ($validators as $field => $validator) {
-            if ($isUpdate && !array_key_exists($field, $data)) {
-                continue;
-            }
+        if ($isUpdate) {
+            // Chỉ validate các trường có trong request
+            $rules = array_intersect_key($rules, $data);
 
-            try {
-                $validator->assert(isset($data[$field]) ? $data[$field] : null);
-            } catch (ValidationException $exception) {
-                $error = $exception->getMessage();
-                break;
+            // Bỏ qua validate required
+            foreach ($rules as $field => $constraints) {
+                $rules[$field] = array_filter($constraints, fn($c) => $c !== 'required');
             }
         }
-        return $error;
+
+        if (!$validator->validate($rules)) {
+            return $validator->getErrors();
+        }
+
+        // Validate unique name
+        if (isset($data['name'])) {
+            $query = self::where('name', $data['name'])
+                ->where('deleted', false);
+
+            if ($isUpdate) {
+                $query->where('id', '!=', $this->id);
+            }
+
+            if ($query->exists()) {
+                return ['name' => ['Tên vai trò đã tồn tại']];
+            }
+        }
+
+        return null;
+    }
+
+    protected function messages()
+    {
+        return [
+            'name' => [
+                'required' => 'Tên vai trò là bắt buộc.',
+                'max' => 'Tên vai trò không được vượt quá :max ký tự.'
+            ],
+            'status' => [
+                'required' => 'Trạng thái là bắt buộc.',
+                'enum' => 'Trạng thái phải là ACTIVE, INACTIVE hoặc DELETED.'
+            ]
+        ];
     }
 }

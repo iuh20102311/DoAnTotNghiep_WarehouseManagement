@@ -2,13 +2,10 @@
 
 namespace App\Models;
 
-
+use App\Utils\Validator;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Exception;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Respect\Validation\Validator as v;
-use Respect\Validation\Exceptions\ValidationException;
 
 class Profile extends Model
 {
@@ -28,33 +25,90 @@ class Profile extends Model
         return $this->hasMany(Order::class, 'created_by');
     }
 
-    /**
-     * @throws Exception
-     */
-    public function validate(array $data, bool $isUpdate = false) : string
+    public function validate(array $data, $isUpdate = false)
     {
-        $validators = [
-            'user_id' => v::notEmpty()->setName('user_id')->setTemplate('Người dùng không được rỗng'),
-            'first_name' => v::notEmpty()->regex('/^(\p{Lu}\p{Ll}+)(?:\s+\p{Lu}\p{Ll}+)*$/u')->setName('first_name')->setTemplate('Tên lót không hợp lệ. Tên lót không được để trống và viết hoa chữ cái đầu.'),
-            'last_name' => v::notEmpty()->regex('/^(\p{Lu}\p{Ll}+)(?:\s+\p{Lu}\p{Ll}+)*$/u')->setName('last_name')->setTemplate('Tên không hợp lệ. Tên không được để trống và viết hoa chữ cái đầu.'),
-            'phone' => v::digit()->length(10, 10)->startsWith('0')->setName('phone')->setTemplate('Số điện thoại không được rỗng, phải có 10 chữ số, bắt đầu bằng số 0 và chỉ chứa các chữ số.'),
-            'gender' => v::notEmpty()->intVal()->between(0, 1)->setName('gender')->setTemplate('Giới tính không được rỗng và chỉ được nhập 0 hoặc 1.'),
-            'avatar' => v::notEmpty()->setName('email')->setTemplate('Email không được rỗng'),
+        $validator = new Validator($data, $this->messages());
+
+        $rules = [
+            'user_id' => ['required', 'integer'],
+            'first_name' => ['required', 'max' => 50],
+            'last_name' => ['required', 'max' => 50],
+            'phone' => ['required', 'max' => 15],
+            'birthday' => ['required', 'date' => 'Y-m-d'],
+            'avatar' => ['max' => 255],
+            'gender' => ['integer', 'enum' => ['0', '1']],
+            'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE']]
         ];
 
-        $error = "";
-        foreach ($validators as $field => $validator) {
-            if ($isUpdate && !array_key_exists($field, $data)) {
-                continue;
-            }
+        if ($isUpdate) {
+            // Chỉ validate các trường có trong request
+            $rules = array_intersect_key($rules, $data);
 
-            try {
-                $validator->assert(isset($data[$field]) ? $data[$field] : null);
-            } catch (ValidationException $exception) {
-                $error = $exception->getMessage();
-                break;
+            // Bỏ qua validate required
+            foreach ($rules as $field => $constraints) {
+                $rules[$field] = array_filter($constraints, fn($c) => $c !== 'required');
             }
         }
-        return $error;
+
+        if (!$validator->validate($rules)) {
+            return $validator->getErrors();
+        }
+
+        // Validate foreign key existence
+        if (isset($data['user_id']) && !User::where('deleted', false)->find($data['user_id'])) {
+            return ['user_id' => ['Người dùng không tồn tại']];
+        }
+
+        // Validate unique phone if provided
+        if (isset($data['phone'])) {
+            $query = self::where('phone', $data['phone'])
+                ->where('deleted', false);
+
+            if ($isUpdate) {
+                $query->where('id', '!=', $this->id);
+            }
+
+            if ($query->exists()) {
+                return ['phone' => ['Số điện thoại đã được sử dụng']];
+            }
+        }
+
+        return null;
+    }
+
+    protected function messages()
+    {
+        return [
+            'user_id' => [
+                'required' => 'ID người dùng là bắt buộc.',
+                'integer' => 'ID người dùng phải là số nguyên.'
+            ],
+            'first_name' => [
+                'required' => 'Tên là bắt buộc.',
+                'max' => 'Tên không được vượt quá :max ký tự.'
+            ],
+            'last_name' => [
+                'required' => 'Họ là bắt buộc.',
+                'max' => 'Họ không được vượt quá :max ký tự.'
+            ],
+            'phone' => [
+                'required' => 'Số điện thoại là bắt buộc.',
+                'max' => 'Số điện thoại không được vượt quá :max ký tự.',
+            ],
+            'birthday' => [
+                'required' => 'Ngày sinh là bắt buộc.',
+                'date' => 'Ngày sinh không hợp lệ.'
+            ],
+            'avatar' => [
+                'max' => 'Đường dẫn ảnh đại diện không được vượt quá :max ký tự.'
+            ],
+            'gender' => [
+                'enum' => 'Giới tính phải là 0, 1'
+            ],
+            'status' => [
+                'required' => 'Trạng thái là bắt buộc.',
+                'enum' => 'Trạng thái phải là ACTIVE hoặc INACTIVE.'
+            ]
+        ];
     }
 }
