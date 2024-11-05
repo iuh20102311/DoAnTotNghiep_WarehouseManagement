@@ -11,9 +11,12 @@ class InventoryCheckController
 {
     use PaginationTrait;
 
-    public function getInventoryChecks($perPage = 10, $page = 1, array $searchParams = []): array
+    public function getInventoryChecks(): array
     {
         try {
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
+
             $inventoryCheck = (new InventoryCheck())->query()
                 ->where('deleted', false)
                 ->with([
@@ -26,27 +29,49 @@ class InventoryCheckController
                     },
                     'details']);
 
-            // Search theo storage_area_id
-            if (!empty($searchParams['storage_area_id'])) {
-                $inventoryCheck->where('storage_area_id', $searchParams['storage_area_id']);
+            if (isset($_GET['storage_area_id'])) {
+                $storageAreaId = urldecode($_GET['storage_area_id']);
+                $inventoryCheck->where('storage_area_id', $storageAreaId);
             }
 
-            // Search theo status
-            if (!empty($searchParams['status'])) {
-                $inventoryCheck->where('status', $searchParams['status']);
+            if (isset($_GET['status'])) {
+                $status = urldecode($_GET['status']);
+                $inventoryCheck->where('status', $status);
             }
 
-            // Search theo creator
-            if (!empty($searchParams['created_by'])) {
-                $inventoryCheck->where('created_by', $searchParams['created_by']);
+            if (isset($_GET['created_by'])) {
+                $createdBy = urldecode($_GET['created_by']);
+                $inventoryCheck->where('created_by', $createdBy);
             }
 
-            // Search theo khoảng thời gian kiểm kê
-            if (!empty($searchParams['check_date_from'])) {
-                $inventoryCheck->where('check_date', '>=', $searchParams['check_date_from']);
+            if (isset($_GET['check_date_from'])) {
+                $checkDateFrom = urldecode($_GET['check_date_from']);
+                $inventoryCheck->where('check_date', '>=', $checkDateFrom);
             }
-            if (!empty($searchParams['check_date_to'])) {
-                $inventoryCheck->where('check_date', '<=', $searchParams['check_date_to']);
+
+            if (isset($_GET['check_date_to'])) {
+                $checkDateTo = urldecode($_GET['check_date_to']);
+                $inventoryCheck->where('check_date', '<=', $checkDateTo);
+            }
+
+            if (isset($_GET['created_from'])) {
+                $createdFrom = urldecode($_GET['created_from']);
+                $inventoryCheck->where('created_at', '>=', $createdFrom);
+            }
+
+            if (isset($_GET['created_to'])) {
+                $createdTo = urldecode($_GET['created_to']);
+                $inventoryCheck->where('created_at', '<=', $createdTo);
+            }
+
+            if (isset($_GET['updated_from'])) {
+                $updatedFrom = urldecode($_GET['updated_from']);
+                $inventoryCheck->where('updated_at', '>=', $updatedFrom);
+            }
+
+            if (isset($_GET['updated_to'])) {
+                $updatedTo = urldecode($_GET['updated_to']);
+                $inventoryCheck->where('updated_at', '<=', $updatedTo);
             }
 
             $result = $this->paginateResults($inventoryCheck, $perPage, $page)->toArray();
@@ -115,7 +140,7 @@ class InventoryCheckController
             $data = json_decode(file_get_contents('php://input'), true);
 
             // Kiểm tra storage area tồn tại
-            $storageArea = (new StorageArea())->find($data['storage_area_id']);
+            $storageArea = (new StorageArea())->where('deleted',false)->find($data['storage_area_id']);
             if (!$storageArea) {
                 return [
                     'success' => false,
@@ -124,7 +149,7 @@ class InventoryCheckController
             }
 
             // Kiểm tra user tồn tại
-            $user = (new User())->find($data['created_by']);
+            $user = (new User())->where('deleted',false)->find($data['created_by']);
             if (!$user) {
                 return [
                     'success' => false,
@@ -164,7 +189,7 @@ class InventoryCheckController
     public function updateInventoryCheckById($id): array
     {
         try {
-            $inventoryCheck = (new InventoryCheck())->find($id);
+            $inventoryCheck = (new InventoryCheck())->where('deleted',false)->find($id);
 
             if (!$inventoryCheck) {
                 return [
@@ -177,7 +202,7 @@ class InventoryCheckController
 
             // Nếu có cập nhật storage_area_id thì kiểm tra storage area tồn tại
             if (!empty($data['storage_area_id'])) {
-                $storageArea = (new StorageArea())->find($data['storage_area_id']);
+                $storageArea = (new StorageArea())->where('deleted',false)->find($data['storage_area_id']);
                 if (!$storageArea) {
                     return [
                         'success' => false,
@@ -188,7 +213,7 @@ class InventoryCheckController
 
             // Nếu có cập nhật created_by thì kiểm tra user tồn tại
             if (!empty($data['created_by'])) {
-                $user = (new User())->find($data['created_by']);
+                $user = (new User())->where('deleted',false)->find($data['created_by']);
                 if (!$user) {
                     return [
                         'success' => false,
@@ -228,7 +253,7 @@ class InventoryCheckController
     public function deleteInventoryCheck($id): array
     {
         try {
-            $inventoryCheck = (new InventoryCheck())->find($id);
+            $inventoryCheck = (new InventoryCheck())->where('deleted',false)->find($id);
 
             if (!$inventoryCheck) {
                 return [
@@ -257,7 +282,7 @@ class InventoryCheckController
     public function getStorageAreaByInventoryCheck($id): array
     {
         try {
-            $inventoryCheck = (new InventoryCheck())->find($id);
+            $inventoryCheck = (new InventoryCheck())->where('deleted',false)->find($id);
 
             if (!$inventoryCheck) {
                 return [
@@ -292,7 +317,7 @@ class InventoryCheckController
     public function updateStorageAreaByInventoryCheck($id): array
     {
         try {
-            $inventoryCheck = (new InventoryCheck())->find($id);
+            $inventoryCheck = (new InventoryCheck())->where('deleted',false)->find($id);
 
             if (!$inventoryCheck) {
                 return [
@@ -304,7 +329,7 @@ class InventoryCheckController
             $data = json_decode(file_get_contents('php://input'), true);
 
             // Kiểm tra storage area mới tồn tại
-            $storageArea = (new StorageArea())->find($data['storage_area_id']);
+            $storageArea = (new StorageArea())->where('deleted',false)->find($data['storage_area_id']);
             if (!$storageArea) {
                 return [
                     'success' => false,
@@ -333,7 +358,7 @@ class InventoryCheckController
     public function getUserByInventoryCheck($id): array
     {
         try {
-            $inventoryCheck = (new InventoryCheck())->find($id);
+            $inventoryCheck = (new InventoryCheck())->where('deleted',false)->find($id);
 
             if (!$inventoryCheck) {
                 return [
@@ -368,7 +393,7 @@ class InventoryCheckController
     public function updateUserByInventoryCheck($id): array
     {
         try {
-            $inventoryCheck = (new InventoryCheck())->find($id);
+            $inventoryCheck = (new InventoryCheck())->where('deleted',false)->find($id);
 
             if (!$inventoryCheck) {
                 return [

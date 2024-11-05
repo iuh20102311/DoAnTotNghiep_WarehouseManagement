@@ -14,27 +14,60 @@ class GroupCustomerController
 
     public function getGroupCustomers(): array
     {
-        $perPage = $_GET['per_page'] ?? 10;
-        $page = $_GET['page'] ?? 1;
+        try {
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
 
-        $groupcustomer = GroupCustomer::query()->where('status', '!=', 'DISABLE')->with(['customers']);
+            $groupcustomer = GroupCustomer::query()
+                ->where('deleted', false)
+                ->with(['customers']);
 
-        if (isset($_GET['status'])) {
-            $status = urldecode($_GET['status']);
-            $groupcustomer->where('status', $status);
+            if (isset($_GET['status'])) {
+                $status = urldecode($_GET['status']);
+                $groupcustomer->where('status', $status);
+            }
+
+            if (isset($_GET['name'])) {
+                $name = urldecode($_GET['name']);
+                $groupcustomer->where('name', 'like', '%' . $name . '%');
+            }
+
+            if (isset($_GET['created_from'])) {
+                $createdFrom = urldecode($_GET['created_from']);
+                $groupcustomer->where('created_at', '>=', $createdFrom);
+            }
+
+            if (isset($_GET['created_to'])) {
+                $createdTo = urldecode($_GET['created_to']);
+                $groupcustomer->where('created_at', '<=', $createdTo);
+            }
+
+            if (isset($_GET['updated_from'])) {
+                $updatedFrom = urldecode($_GET['updated_from']);
+                $groupcustomer->where('updated_at', '>=', $updatedFrom);
+            }
+
+            if (isset($_GET['updated_to'])) {
+                $updatedTo = urldecode($_GET['updated_to']);
+                $groupcustomer->where('updated_at', '<=', $updatedTo);
+            }
+
+            return $this->paginateResults($groupcustomer, $perPage, $page)->toArray();
+
+        } catch (\Exception $e) {
+            error_log("Error in: " . $e->getMessage());
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
-
-        if (isset($_GET['name'])) {
-            $name = urldecode($_GET['name']);
-            $groupcustomer->where('name', 'like', '%' . $name . '%');
-        }
-
-        return $this->paginateResults($groupcustomer, $perPage, $page)->toArray();
     }
 
     public function getGroupCustomerById($id): string
     {
-        $groupcustomer = GroupCustomer::query()->where('id', $id)
+        $groupcustomer = GroupCustomer::query()
+            ->where('deleted',false)
+            ->where('id', $id)
             ->with(['customers'])
             ->first();
 
@@ -50,8 +83,10 @@ class GroupCustomerController
         $perPage = $_GET['per_page'] ?? 10;
         $page = $_GET['page'] ?? 1;
 
-        $groupcustomer = GroupCustomer::findOrFail($id);
+        $groupcustomer = GroupCustomer::where('deleted',false)->findOrFail($id);
+
         $customersQuery = $groupcustomer->customers()
+            ->where('deleted',false)
             ->with('groupCustomer')
             ->getQuery();
 

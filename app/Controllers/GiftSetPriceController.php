@@ -10,37 +10,54 @@ class GiftSetPriceController
 {
     use PaginationTrait;
 
-    public function getGiftSetPrices($perPage = 10, $page = 1, array $searchParams = []): array
+    public function getGiftSetPrices(): array
     {
         try {
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
+
             $giftSetPrice = (new GiftSetPrice())->query()
                 ->where('deleted', false)
                 ->with(['giftSet']);
 
-            // Search theo gift_set_id
-            if (!empty($searchParams['gift_set_id'])) {
-                $giftSetPrice->where('gift_set_id', $searchParams['gift_set_id']);
+            if (isset($_GET['gift_set_id'])) {
+                $giftSetId = urldecode($_GET['gift_set_id']);
+                $giftSetPrice->where('gift_set_id', $giftSetId);
             }
 
-            // Search theo khoảng giá
-            if (!empty($searchParams['price_from'])) {
-                $giftSetPrice->where('price', '>=', $searchParams['price_from']);
-            }
-            if (!empty($searchParams['price_to'])) {
-                $giftSetPrice->where('price', '<=', $searchParams['price_to']);
+            if (isset($_GET['status'])) {
+                $status = urldecode($_GET['status']);
+                $giftSetPrice->where('status', $status);
             }
 
-            // Search theo status
-            if (!empty($searchParams['status'])) {
-                $giftSetPrice->where('status', $searchParams['status']);
+            if (isset($_GET['price_from'])) {
+                $priceFrom = urldecode($_GET['price_from']);
+                $giftSetPrice->where('price', '>=', $priceFrom);
             }
 
-            // Search theo khoảng thời gian hết hạn
-            if (!empty($searchParams['expiry_from'])) {
-                $giftSetPrice->where('date_expiry', '>=', $searchParams['expiry_from']);
+            if (isset($_GET['price_to'])) {
+                $priceTo = urldecode($_GET['price_to']);
+                $giftSetPrice->where('price', '>=', $priceTo);
             }
-            if (!empty($searchParams['expiry_to'])) {
-                $giftSetPrice->where('date_expiry', '<=', $searchParams['expiry_to']);
+
+            if (isset($_GET['created_from'])) {
+                $createdFrom = urldecode($_GET['created_from']);
+                $giftSetPrice->where('created_at', '>=', $createdFrom);
+            }
+
+            if (isset($_GET['created_to'])) {
+                $createdTo = urldecode($_GET['created_to']);
+                $giftSetPrice->where('created_at', '<=', $createdTo);
+            }
+
+            if (isset($_GET['updated_from'])) {
+                $updatedFrom = urldecode($_GET['updated_from']);
+                $giftSetPrice->where('updated_at', '>=', $updatedFrom);
+            }
+
+            if (isset($_GET['updated_to'])) {
+                $updatedTo = urldecode($_GET['updated_to']);
+                $giftSetPrice->where('updated_at', '<=', $updatedTo);
             }
 
             return $this->paginateResults($giftSetPrice, $perPage, $page)->toArray();
@@ -85,7 +102,8 @@ class GiftSetPriceController
             $data = json_decode(file_get_contents('php://input'), true);
 
             // Kiểm tra gift set tồn tại
-            $giftSet = (new GiftSet())->find($data['gift_set_id']);
+            $giftSet = (new GiftSet())->where('deleted',false)->find($data['gift_set_id']);
+
             if (!$giftSet) {
                 return [
                     'success' => false,
@@ -125,7 +143,7 @@ class GiftSetPriceController
     public function updateGiftSetPrice($id): array
     {
         try {
-            $giftSetPrice = (new GiftSetPrice())->find($id);
+            $giftSetPrice = (new GiftSetPrice())->where('deleted',false)->find($id);
 
             if (!$giftSetPrice) {
                 return [
@@ -137,7 +155,7 @@ class GiftSetPriceController
 
             // Nếu có cập nhật gift_set_id thì kiểm tra gift set tồn tại
             if (!empty($data['gift_set_id'])) {
-                $giftSet = (new GiftSet())->find($data['gift_set_id']);
+                $giftSet = (new GiftSet())->where('deleted',false)->find($data['gift_set_id']);
                 if (!$giftSet) {
                     return [
                         'success' => false,
@@ -208,7 +226,7 @@ class GiftSetPriceController
             $perPage = $_GET['per_page'] ?? 10;
             $page = $_GET['page'] ?? 1;
 
-            $giftSet = (new GiftSet())->find($id);
+            $giftSet = (new GiftSet())->where('deleted',false)->find($id);
 
             if (!$giftSet) {
                 return [
@@ -241,7 +259,7 @@ class GiftSetPriceController
     public function addPriceToGiftSet($id): array
     {
         try {
-            $giftSet = (new GiftSet())->find($id);
+            $giftSet = (new GiftSet())->where('deleted',false)->find($id);
 
             if (!$giftSet) {
                 return [
@@ -288,7 +306,7 @@ class GiftSetPriceController
     public function removePriceFromGiftSet($id, $priceId): array
     {
         try {
-            $giftSet = (new GiftSet())->find($id);
+            $giftSet = (new GiftSet())->where('deleted',false)->find($id);
 
             if (!$giftSet) {
                 return [
@@ -331,7 +349,7 @@ class GiftSetPriceController
     public function updateGiftSetPriceByGiftSet($id, $priceId): array
     {
         try {
-            $giftSet = (new GiftSet())->find($id);
+            $giftSet = (new GiftSet())->where('deleted',false)->find($id);
 
             if (!$giftSet) {
                 return [
@@ -341,6 +359,7 @@ class GiftSetPriceController
             }
 
             $giftSetPrice = (new GiftSetPrice())
+                ->where('deleted',false)
                 ->where('gift_set_id', $id)
                 ->where('id', $priceId)
                 ->first();

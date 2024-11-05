@@ -46,6 +46,16 @@ class Customer extends Model
             'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE', 'SUSPENDED']]
         ];
 
+        if ($isUpdate) {
+            // Chỉ validate các trường có trong request
+            $rules = array_intersect_key($rules, $data);
+
+            // Bỏ qua validate required
+            foreach ($rules as $field => $constraints) {
+                $rules[$field] = array_filter($constraints, fn($c) => $c !== 'required');
+            }
+        }
+
         if (!$validator->validate($rules)) {
             return $validator->getErrors();
         }
