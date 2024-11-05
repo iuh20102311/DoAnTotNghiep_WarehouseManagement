@@ -350,6 +350,42 @@ class Validator
         return true;
     }
 
+    public function validateUrl($field, $value, $parameter = null)
+    {
+        // Bỏ qua validate nếu giá trị rỗng (sẽ được xử lý bởi rule required)
+        if (empty($value)) {
+            return true;
+        }
+
+        // Kiểm tra URL có protocol hợp lệ không
+        $validProtocols = ['http', 'https', 'ftp'];
+
+        // Nếu có parameter được truyền vào, sử dụng nó làm danh sách protocol
+        if ($parameter) {
+            $validProtocols = explode(',', $parameter);
+        }
+
+        // Parse URL để kiểm tra các thành phần
+        $urlParts = parse_url($value);
+
+        // Kiểm tra xem URL có đúng format và có protocol hợp lệ không
+        if (!$urlParts ||
+            !isset($urlParts['scheme']) ||
+            !isset($urlParts['host']) ||
+            !in_array(strtolower($urlParts['scheme']), $validProtocols) ||
+            !filter_var($value, FILTER_VALIDATE_URL)
+        ) {
+            if ($parameter) {
+                $this->addError($field, 'url_with_protocols', ['protocols' => implode(', ', $validProtocols)]);
+            } else {
+                $this->addError($field, 'url');
+            }
+            return false;
+        }
+
+        return true;
+    }
+
     protected function addError($field, $rule, $parameters = [])
     {
         $message = $this->messages[$field][$rule] ?? $this->getDefaultMessage($field, $rule);
@@ -388,6 +424,8 @@ class Validator
             'negative' => ':field phải là số âm.',
             'decimal' => ':field chỉ được có tối đa :decimal chữ số thập phân.',
             'between' => ':field phải nằm trong khoảng từ :min đến :max.',
+            'url' => ':field phải là URL hợp lệ.',
+            'url_with_protocols' => ':field phải là URL hợp lệ và sử dụng một trong các giao thức sau: :protocols.',
         ];
         return str_replace(':field', $field, $messages[$rule] ?? ':field không hợp lệ.');
     }

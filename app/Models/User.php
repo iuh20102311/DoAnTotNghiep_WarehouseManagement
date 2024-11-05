@@ -2,17 +2,10 @@
 
 namespace App\Models;
 
+use App\Utils\Validator;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
-use Exception;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Validation\Validator;
-use Illuminate\Translation\ArrayLoader;
-use Illuminate\Translation\Translator;
-use Illuminate\Validation\Factory;
 
 class User extends Model
 {
@@ -90,54 +83,94 @@ class User extends Model
     }
 
 
-    /**
-     * @throws Exception
-     */
-    public function validate(array $data, bool $isUpdate = false): string
+    public function validate(array $data, $isUpdate = false)
     {
+        $validator = new Validator($data, $this->messages());
+
         $rules = [
             'role_id' => ['required', 'integer'],
-            'email' => ['required', 'email'],
-            'password' => ['required', 'min:8'],
-        ];
-
-        $messages = [
-            'role_id.required' => 'ID vai trò không được để trống.',
-            'role_id.integer' => 'ID vai trò phải là một số nguyên.',
-            'email.required' => 'Email không được để trống.',
-            'email.email' => 'Email không hợp lệ.',
-            'password.required' => 'Mật khẩu không được để trống.',
-            'password.min' => 'Mật khẩu phải có ít nhất 8 ký tự.',
+            'email' => ['required', 'max' => 255, 'email'],
+            'password' => ['required', 'min' => 6, 'max' => 255],
+            'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE', 'DELETED', 'UNVERIFIED']],
         ];
 
         if ($isUpdate) {
-            $rules = array_intersect_key($rules, $data);
+            foreach ($rules as $field => $constraints) {
+                $rules[$field] = array_filter($constraints, fn($c) => $c !== 'required');
+            }
         }
 
-        $translator = new Translator(new ArrayLoader(), 'en');
-        $factory = new Factory($translator);
-        $validator = $factory->make($data, $rules, $messages);
-
-        if ($validator->fails()) {
-            return $validator->errors()->first();
+        if (!$validator->validate($rules)) {
+            return $validator->getErrors();
         }
 
-        // Manually check for role existence
+        // Validate role existence
         if (isset($data['role_id'])) {
-            $role = Role::find($data['role_id']);
+            $role = Role::where('deleted', false)->find($data['role_id']);
             if (!$role) {
-                return 'ID vai trò không tồn tại.';
+                return ['role_id' => ['Vai trò không tồn tại']];
             }
         }
 
-        // Manually check for email uniqueness
+        // Validate unique email
         if (isset($data['email'])) {
-            $existingUser = self::where('email', $data['email'])->first();
-            if ($existingUser && (!$isUpdate || $existingUser->id != $this->id)) {
-                return 'Email đã tồn tại.';
+            $query = self::where('email', $data['email'])
+                ->where('deleted', false);
+
+            if ($isUpdate) {
+                $query->where('id', '!=', $this->id);
+            }
+
+            if ($query->exists()) {
+                return ['email' => ['Email đã được sử dụng']];
             }
         }
 
-        return '';
+        // Validate password format if provided
+        if (isset($data['password']) && !preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{6,}$/', $data['password'])) {
+            return ['password' => ['Mật khẩu phải có ít nhất 6 ký tự, bao gồm chữ hoa, chữ thường và số']];
+        }
+
+        // Validate token expiry must be in future if token is provided
+        if (isset($data['reset_password_token']) && isset($data['token_expiry'])) {
+            if (strtotime($data['token_expiry']) < time()) {
+                return ['token_expiry' => ['Thời gian hết hạn token phải lớn hơn thời gian hiện tại']];
+            }
+        }
+
+        return null;
+    }
+
+    protected function messages()
+    {
+        return [
+            'role_id' => [
+                'required' => 'Vai trò người dùng là bắt buộc.',
+                'integer' => 'Vai trò người dùng phải là số nguyên.'
+            ],
+            'email' => [
+                'required' => 'Email là bắt buộc.',
+                'max' => 'Email không được vượt quá :max ký tự.',
+                'email' => 'Email không hợp lệ.'
+            ],
+            'password' => [
+                'required' => 'Mật khẩu là bắt buộc.',
+                'min' => 'Mật khẩu phải có ít nhất :min ký tự.',
+                'max' => 'Mật khẩu không được vượt quá :max ký tự.'
+            ],
+            'status' => [
+                'required' => 'Trạng thái là bắt buộc.',
+                'enum' => 'Trạng thái phải là ACTIVE, INACTIVE, DELETED hoặc UNVERIFIED.'
+            ],
+            'reset_password_token' => [
+                'max' => 'Token không được vượt quá :max ký tự.'
+            ],
+            'token_expiry' => [
+                'date' => 'Thời gian hết hạn token không hợp lệ.'
+            ],
+            'email_verified_at' => [
+                'date' => 'Thời gian xác thực email không hợp lệ.'
+            ]
+        ];
     }
 }

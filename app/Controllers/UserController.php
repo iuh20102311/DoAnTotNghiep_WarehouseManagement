@@ -21,12 +21,19 @@ class UserController
 
     public function getUsers(): array
     {
-        $perPage = $_GET['per_page'] ?? 10;
-        $page = $_GET['page'] ?? 1;
-
         try {
-            $query = User::query()->where('deleted', false)
-                ->with(['orders','role','profile','createdInventoryChecks','inventoryHistory']);
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
+
+            $query = User::query()
+                ->where('deleted', false)
+                ->with([
+                    'orders',
+                    'role',
+                    'profile',
+                    'createdInventoryChecks',
+                    'inventoryHistory'
+                ]);
 
             if (isset($_GET['email'])) {
                 $email = urldecode($_GET['email']);
@@ -35,173 +42,368 @@ class UserController
 
             if (isset($_GET['status'])) {
                 $status = urldecode($_GET['status']);
-                $query->where('status', 'like', '%' . $status . '%');
+                $query->where('status', $status);
+            }
+
+            if (isset($_GET['role_id'])) {
+                $roleId = urldecode($_GET['role_id']);
+                $query->where('role_id', $roleId);
+            }
+
+            if (isset($_GET['created_from'])) {
+                $createdFrom = urldecode($_GET['created_from']);
+                $query->where('created_at', '>=', $createdFrom);
+            }
+
+            if (isset($_GET['created_to'])) {
+                $createdTo = urldecode($_GET['created_to']);
+                $query->where('created_at', '<=', $createdTo);
+            }
+
+            if (isset($_GET['verified'])) {
+                $verified = filter_var(urldecode($_GET['verified']), FILTER_VALIDATE_BOOLEAN);
+                if ($verified) {
+                    $query->whereNotNull('email_verified_at');
+                } else {
+                    $query->whereNull('email_verified_at');
+                }
             }
 
             return $this->paginateResults($query, $perPage, $page)->toArray();
+
         } catch (\Exception $e) {
             error_log("Error in getUsers: " . $e->getMessage());
-            return ['error' => 'Database error occurred', 'details' => $e->getMessage()];
+            http_response_code(500);
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
     }
 
-    public function getUserById($id): false|string
+    public function getUserById($id): array
     {
-        $user = User::query()->where('id', $id)
-            ->with(['orders','role','profile','createdInventoryChecks','inventoryHistory'])
-            ->first();
-
-        if (!$user) {
-            return json_encode(['error' => 'Không tìm thấy']);
-        }
-
-        return json_encode($user->toArray());
-    }
-
-    public function getRolesByUser($id) : array
-    {
-        $perPage = $_GET['per_page'] ?? 10;
-        $page = $_GET['page'] ?? 1;
-
-        $user = User::query()->where('id', $id)->firstOrFail();
-        $rolesQuery = $user->role()
-            ->with(['users'])
-            ->getQuery();
-
-        return $this->paginateResults($rolesQuery, $perPage, $page)->toArray();
-    }
-
-    public function getOrdersByUser($id) : array
-    {
-        $perPage = $_GET['per_page'] ?? 10;
-        $page = $_GET['page'] ?? 1;
-
-        $user = User::query()->where('id', $id)->firstOrFail();
-        $ordersQuery = $user->orders()
-            ->with(['users'])
-            ->getQuery();
-
-        return $this->paginateResults($ordersQuery, $perPage, $page)->toArray();
-    }
-
-    public function getProfileByUser($id) : array
-    {
-        $perPage = $_GET['per_page'] ?? 10;
-        $page = $_GET['page'] ?? 1;
-
-        $user = User::query()->where('id', $id)->firstOrFail();
-        $profilesQuery = $user->profile()
-            ->with(['user','createdOrders'])
-            ->getQuery();
-
-        return $this->paginateResults($profilesQuery, $perPage, $page)->toArray();
-    }
-
-    public function getInventoryHistoryByUser($id) : array
-    {
-        $perPage = $_GET['per_page'] ?? 10;
-        $page = $_GET['page'] ?? 1;
-
-        $user = User::query()->where('id', $id)->firstOrFail();
-        $inventoryHistoryQuery = $user->inventoryHistory()
-            ->with(['storageArea','product','material'])
-            ->getQuery();
-
-        return $this->paginateResults($inventoryHistoryQuery, $perPage, $page)->toArray();
-    }
-
-    public function updateUserById(int $id): Model | string
-    {
-        $user = User::find($id);
-
-        if (!$user) {
-            http_response_code(404);
-            return json_encode(["error" => "User not found"]);
-        }
-
-        $data = json_decode(file_get_contents('php://input'), true);
-        unset($user->password);
-        $error = $user->validate($data, true);
-
-        if ($error != "") {
-            http_response_code(404);
-            error_log($error);
-            return json_encode(["error" => $error]);
-        }
-
-        foreach ($data as $key => $value) {
-            $user->$key = $value;
-        }
-        $user->save();
-        return $user;
-    }
-
-    public function deleteUser($id)
-    {
-        $headers = apache_request_headers();
-        $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
-
-        if (!$token) {
-            http_response_code(400);
-            echo json_encode(['error' => 'Token không tồn tại'], JSON_UNESCAPED_UNICODE);
-            return;
-        }
-
-        // Kiểm tra cấu trúc chuỗi JWT
-        $tokenParts = explode('.', $token);
-        if (count($tokenParts) !== 3) {
-            http_response_code(400);
-            echo json_encode(['error' => 'Token không hợp lệ'], JSON_UNESCAPED_UNICODE);
-            return;
-        }
-
         try {
+            $user = User::query()
+                ->where('id', $id)
+                ->where('deleted', false)
+                ->with(['orders', 'role', 'profile', 'createdInventoryChecks', 'inventoryHistory'])
+                ->first();
+
+            if (!$user) {
+                http_response_code(404);
+                return [
+                    'error' => 'Không tìm thấy người dùng'
+                ];
+            }
+
+            return $user->toArray();
+
+        } catch (\Exception $e) {
+            error_log("Error in getUserById: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function getRolesByUser($id): array
+    {
+        try {
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
+
+            $user = User::where('deleted', false)->find($id);
+
+            if (!$user) {
+                http_response_code(404);
+                return [
+                    'error' => 'Không tìm thấy người dùng'
+                ];
+            }
+
+            $query = $user->role()
+                ->where('deleted', false)
+                ->with(['users'])
+                ->getQuery();
+
+            return $this->paginateResults($query, $perPage, $page)->toArray();
+
+        } catch (\Exception $e) {
+            error_log("Error in getRolesByUser: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function getOrdersByUser($id): array
+    {
+        try {
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
+
+            $user = User::where('deleted', false)->find($id);
+
+            if (!$user) {
+                http_response_code(404);
+                return [
+                    'error' => 'Không tìm thấy người dùng'
+                ];
+            }
+
+            $query = $user->orders()
+                ->where('deleted', false)
+                ->with(['orderDetails', 'customer', 'creator'])
+                ->getQuery();
+
+            if (isset($_GET['created_from'])) {
+                $createdFrom = urldecode($_GET['created_from']);
+                $query->where('created_at', '>=', $createdFrom);
+            }
+
+            if (isset($_GET['created_to'])) {
+                $createdTo = urldecode($_GET['created_to']);
+                $query->where('created_at', '<=', $createdTo);
+            }
+
+            return $this->paginateResults($query, $perPage, $page)->toArray();
+
+        } catch (\Exception $e) {
+            error_log("Error in getOrdersByUser: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function getProfileByUser($id): array
+    {
+        try {
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
+
+            $user = User::where('deleted', false)->find($id);
+
+            if (!$user) {
+                http_response_code(404);
+                return [
+                    'error' => 'Không tìm thấy người dùng'
+                ];
+            }
+
+            $query = $user->profile()
+                ->where('deleted', false)
+                ->with(['user', 'createdOrders'])
+                ->getQuery();
+
+            return $this->paginateResults($query, $perPage, $page)->toArray();
+
+        } catch (\Exception $e) {
+            error_log("Error in getProfileByUser: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function getInventoryHistoryByUser($id): array
+    {
+        try {
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
+
+            $user = User::where('deleted', false)->find($id);
+
+            if (!$user) {
+                http_response_code(404);
+                return [
+                    'error' => 'Không tìm thấy người dùng'
+                ];
+            }
+
+            $query = $user->inventoryHistory()
+                ->with(['storageArea', 'product', 'material'])
+                ->getQuery();
+
+            if (isset($_GET['created_from'])) {
+                $createdFrom = urldecode($_GET['created_from']);
+                $query->where('created_at', '>=', $createdFrom);
+            }
+
+            if (isset($_GET['created_to'])) {
+                $createdTo = urldecode($_GET['created_to']);
+                $query->where('created_at', '<=', $createdTo);
+            }
+
+            return $this->paginateResults($query, $perPage, $page)->toArray();
+
+        } catch (\Exception $e) {
+            error_log("Error in getInventoryHistoryByUser: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function updateUserById($id): array
+    {
+        try {
+            $user = User::where('deleted', false)->find($id);
+
+            if (!$user) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy người dùng'
+                ];
+            }
+
+            $data = json_decode(file_get_contents('php://input'), true);
+
+            // Không cho phép cập nhật password qua API này
+            if (isset($data['password'])) {
+                unset($data['password']);
+            }
+
+            $errors = $user->validate($data, true);
+
+            if ($errors) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'Validation failed',
+                    'details' => $errors
+                ];
+            }
+
+            $user->fill($data);
+            $user->save();
+
+            return [
+                'success' => true,
+                'data' => $user->toArray()
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in updateUserById: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function deleteUser($id): array
+    {
+        try {
+            $headers = apache_request_headers();
+            $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
+
+            if (!$token) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'Token không tồn tại'
+                ];
+            }
+
+            // Kiểm tra cấu trúc chuỗi JWT
+            $tokenParts = explode('.', $token);
+            if (count($tokenParts) !== 3) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'Token không hợp lệ'
+                ];
+            }
+
             $parser = new Parser(new JoseEncoder());
             $parsedToken = $parser->parse($token);
 
-            $userId = $parsedToken->claims()->get('id');
+            $currentUserId = $parsedToken->claims()->get('id');
 
-            if (!$userId) {
+            if (!$currentUserId) {
                 http_response_code(400);
-                echo json_encode(['error' => 'Token không hợp lệ'], JSON_UNESCAPED_UNICODE);
-                return;
+                return [
+                    'success' => false,
+                    'error' => 'Token không hợp lệ'
+                ];
             }
 
-            $currentUser = User::find($userId);
+            // Kiểm tra người dùng hiện tại
+            $currentUser = User::where('deleted', false)->find($currentUserId);
             if (!$currentUser) {
                 http_response_code(404);
-                echo json_encode(['error' => 'Người dùng không tồn tại'], JSON_UNESCAPED_UNICODE);
-                return;
+                return [
+                    'success' => false,
+                    'error' => 'Người dùng không tồn tại'
+                ];
             }
 
-            $role = Role::find($currentUser->role_id);
-            error_log($role);
-            if ($role && $role->name === 'SUPER_ADMIN') {
-                $userToDelete = User::find($id);
-                if (!$userToDelete) {
-                    http_response_code(404);
-                    echo json_encode(['error' => 'User not found'], JSON_UNESCAPED_UNICODE);
-                    return;
-                }
-
-                $userToDelete->status = 'DELETED';
-                $userToDelete->save();
-
-                if ($userToDelete->profile) {
-                    $userToDelete->profile->status = 'DELETED';
-                    $userToDelete->profile->save();
-                }
-
-                http_response_code(200);
-                echo json_encode(['message' => 'User and profile deleted successfully'], JSON_UNESCAPED_UNICODE);
-            } else {
+            // Kiểm tra quyền SUPER_ADMIN
+            $role = Role::where('deleted', false)->find($currentUser->role_id);
+            if (!$role || $role->name !== 'SUPER_ADMIN') {
                 http_response_code(403);
-                echo json_encode(['error' => 'Permission denied'], JSON_UNESCAPED_UNICODE);
+                return [
+                    'success' => false,
+                    'error' => 'Không có quyền thực hiện thao tác này'
+                ];
             }
 
-        } catch (Exception $e) {
+            // Kiểm tra user cần xóa
+            $userToDelete = User::where('deleted', false)->find($id);
+            if (!$userToDelete) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy người dùng cần xóa'
+                ];
+            }
+
+            // Không cho phép xóa chính mình
+            if ($currentUserId == $id) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'Không thể tự xóa tài khoản của mình'
+                ];
+            }
+
+            // Thực hiện xóa mềm user và profile
+            $userToDelete->deleted = true;
+            $userToDelete->save();
+
+            if ($userToDelete->profile) {
+                $userToDelete->profile->deleted = true;
+                $userToDelete->profile->save();
+            }
+
+            return [
+                'success' => true,
+                'message' => 'Xóa người dùng thành công'
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in deleteUser: " . $e->getMessage());
             http_response_code(500);
-            echo json_encode(['error' => 'Failed to delete user and profile: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
+            return [
+                'success' => false,
+                'error' => 'Lỗi khi xóa người dùng',
+                'details' => $e->getMessage()
+            ];
         }
     }
 }

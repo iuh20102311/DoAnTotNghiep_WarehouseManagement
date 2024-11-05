@@ -2,20 +2,18 @@
 
 namespace App\Models;
 
+use App\Utils\Validator;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Exception;
-use Respect\Validation\Validator as v;
-use Respect\Validation\Exceptions\ValidationException;
 
 class Material extends Model
 {
     use HasFactory;
 
     protected $table = 'materials';
-    protected $fillable = ['name', 'unit', 'weight', 'origin', 'quantity_available', 'quantity' ,'minimum_stock_level', 'maximum_stock_level', 'status', 'created_at', 'updated_at', 'note', 'deleted'];
+    protected $fillable = ['name', 'unit', 'weight', 'origin', 'packing', 'quantity_available' ,'minimum_stock_level', 'maximum_stock_level', 'status', 'created_at', 'updated_at', 'note', 'deleted'];
     protected $primaryKey = 'id';
     public $timestamps = true;
 
@@ -60,33 +58,93 @@ class Material extends Model
         return $this->hasMany(MaterialCategory::class);
     }
 
-    /**
-     * @throws Exception
-     */
-    public function validate(array $data, bool $isUpdate = false) : string
+    public function validate(array $data, $isUpdate = false)
     {
-        $validators = [
-            'name' => v::notEmpty()->regex('/^([\p{L}\p{M}]+\s*)+$/u')->setName('name')->setTemplate('Tên không hợp lệ. Tên phải viết hoa chữ cái đầu tiên của mỗi từ và chỉ chứa chữ cái.'),
-            'unit' => v::notEmpty()->regex('/^\p{Lu}\p{Ll}*$/u')->setName('unit')->setTemplate('Đơn vị không hợp lệ. Đơn vị không được để trống và viết hoa chữ cái đầu'),
-            'origin' => v::notEmpty()->regex('/^(\p{Lu}\p{Ll}+)(?:\s+\p{Lu}\p{Ll}+)*$/u')->setName('origin')->setTemplate('Xuất xứ không hợp lệ. Xuất xứ không được để trống và viết hoa chữ cái đầu.'),
-            'status' => v::notEmpty()->in(['IN_STOCK','OUT_OF_STOCK','TEMPORARILY_SUSP', 'DELETED'])->setName('status')->setTemplate('Trạng thái không hợp lệ. Trạng thái chỉ có thể là ACTIVE hoặc DELETED.'),
-            'weight' => v::notEmpty()->numericVal()->positive()->setName('weight')->setTemplate('Khối lượng không hợp lệ. Khối lượng không được để trống và phải là số không âm.'),
-            'quantity' => v::notEmpty()->numericVal()->positive()->setName('quantity')->setTemplate('Số lượng không hợp lệ. Số lượng không được trống và phải là số dương.'),
+        $validator = new Validator($data, $this->messages());
+
+        $rules = [
+            'name' => ['required', 'max' => 255],
+            'unit' => ['required', 'max' => 50],
+            'weight' => ['required', 'numeric', 'min' => 0],
+            'origin' => ['required', 'max' => 255],
+            'packing' => ['required', 'max' => 255],
+            'quantity_available' => ['required', 'integer', 'min' => 0],
+            'minimum_stock_level' => ['required', 'integer', 'min' => 0],
+            'maximum_stock_level' => ['required', 'integer', 'min' => 0],
+            'status' => ['required', 'enum' => ['ACTIVE','INACTIVE','OUT_OF_STOCK']],
+            'note' => ['max' => 1000]
         ];
 
-        $error = "";
-        foreach ($validators as $field => $validator) {
-            if ($isUpdate && !array_key_exists($field, $data)) {
-                continue;
-            }
+        if ($isUpdate) {
+            // Chỉ validate các trường có trong request
+            $rules = array_intersect_key($rules, $data);
 
-            try {
-                $validator->assert(isset($data[$field]) ? $data[$field] : null);
-            } catch (ValidationException $exception) {
-                $error = $exception->getMessage();
-                break;
+            // Bỏ qua validate required
+            foreach ($rules as $field => $constraints) {
+                $rules[$field] = array_filter($constraints, fn($c) => $c !== 'required');
             }
         }
-        return $error;
+
+        if (!$validator->validate($rules)) {
+            return $validator->getErrors();
+        }
+
+        // Additional custom validation
+        if (isset($data['minimum_stock_level']) && isset($data['maximum_stock_level'])) {
+            if ($data['minimum_stock_level'] > $data['maximum_stock_level']) {
+                return ['minimum_stock_level' => ['Mức tồn kho tối thiểu không thể lớn hơn mức tồn kho tối đa']];
+            }
+        }
+
+        return null;
+    }
+
+    protected function messages()
+    {
+        return [
+            'name' => [
+                'required' => 'Tên vật liệu là bắt buộc.',
+                'max' => 'Tên vật liệu không được vượt quá :max ký tự.'
+            ],
+            'unit' => [
+                'required' => 'Đơn vị tính là bắt buộc.',
+                'max' => 'Đơn vị tính không được vượt quá :max ký tự.'
+            ],
+            'weight' => [
+                'required' => 'Khối lượng là bắt buộc.',
+                'numeric' => 'Khối lượng phải là số.',
+                'min' => 'Khối lượng không được nhỏ hơn :min.'
+            ],
+            'origin' => [
+                'required' => 'Xuất xứ là bắt buộc.',
+                'max' => 'Xuất xứ không được vượt quá :max ký tự.'
+            ],
+            'packing' => [
+                'required' => 'Loại chứa là bắt buộc.',
+                'max' => 'Loại chứa không được vượt quá :max ký tự.'
+            ],
+            'quantity_available' => [
+                'required' => 'Số lượng khả dụng là bắt buộc.',
+                'integer' => 'Số lượng khả dụng phải là số nguyên.',
+                'min' => 'Số lượng khả dụng không được nhỏ hơn :min.'
+            ],
+            'minimum_stock_level' => [
+                'required' => 'Mức tồn kho tối thiểu là bắt buộc.',
+                'integer' => 'Mức tồn kho tối thiểu phải là số nguyên.',
+                'min' => 'Mức tồn kho tối thiểu không được nhỏ hơn :min.'
+            ],
+            'maximum_stock_level' => [
+                'required' => 'Mức tồn kho tối đa là bắt buộc.',
+                'integer' => 'Mức tồn kho tối đa phải là số nguyên.',
+                'min' => 'Mức tồn kho tối đa không được nhỏ hơn :min.'
+            ],
+            'status' => [
+                'required' => 'Trạng thái là bắt buộc.',
+                'enum' => 'Trạng thái phải là ACTIVE,INACTIVE hoặc OUT_OF_STOCK.'
+            ],
+            'note' => [
+                'max' => 'Ghi chú không được vượt quá :max ký tự.'
+            ]
+        ];
     }
 }

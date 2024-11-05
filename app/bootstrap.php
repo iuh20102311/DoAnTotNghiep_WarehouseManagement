@@ -57,35 +57,6 @@ if ($decryptedPath === false) {
 $_SERVER['REQUEST_URI'] = '/' . $decryptedPath;
 
 // Setup Phroute router
-//$router = new RouteCollector();
-//
-//$router->filter('auth', function () {
-//    if (!isset($_SERVER['HTTP_AUTHORIZATION'])) {
-//        http_response_code(401);
-//        error_log("Không có giá trị Token");
-//        return false;
-//    }
-//
-//    $parser = new Parser(new JoseEncoder());
-//    try {
-//        $authorizationHeader = $_SERVER['HTTP_AUTHORIZATION'];
-//        if (str_starts_with($authorizationHeader, 'Bearer ')) {
-//            $token = $parser->parse(substr($authorizationHeader, 7));
-//            assert($token instanceof Plain);
-//            $now = new DateTimeImmutable();
-//            if ($token->isExpired($now)) {
-//                error_log("Token is expired");
-//                http_response_code(401);
-//                return false;
-//            }
-//        }
-//    } catch (CannotDecodeContent|InvalidTokenStructure|UnsupportedHeaderFound $e) {
-//        error_log($e->getMessage());
-//        http_response_code(401);
-//        return false;
-//    }
-//});
-
 $router->filter('auth', function () {
     if (!isset($_SERVER['HTTP_AUTHORIZATION'])) {
         http_response_code(401);
@@ -280,10 +251,17 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
             $router->get('/{id}/export_receipt_details', ['App\Controllers\MaterialController', 'getExportReceiptDetailsByMaterial']);
             $router->get('/{id}/import_receipt_details', ['App\Controllers\MaterialController', 'getImportReceiptDetailsByMaterial']);
             $router->get('/{id}/inventory_history', ['App\Controllers\MaterialController', 'getInventoryHistoryByMaterial']);
+
+            $router->delete('/{id}/categories', ['App\Controllers\MaterialController', 'removeCategoryFromMaterial']);
+            $router->put('/{id}/categories', ['App\Controllers\MaterialController', 'updateCategoryInMaterial']);
             $router->post('/{id}/categories', ['App\Controllers\MaterialController', 'addCategoryToMaterial']);
-            $router->post('/{id}/providers', ['App\Controllers\MaterialController', 'addProviderToMaterial']);
             $router->get('/{id}/categories', ['App\Controllers\MaterialController', 'getCategoryByMaterial']);
+
+            $router->delete('/{id}/providers', ['App\Controllers\MaterialController', 'updateProviderInMaterial']);
+            $router->put('/{id}/providers', ['App\Controllers\MaterialController', 'updateProviderInMaterial']);
+            $router->post('/{id}/providers', ['App\Controllers\MaterialController', 'addProviderToMaterial']);
             $router->get('/{id}/providers', ['App\Controllers\MaterialController', 'getProviderByMaterial']);
+
             $router->put('/{id}', ['App\Controllers\MaterialController', 'updateMaterialById']);
             $router->delete('/{id}', ['App\Controllers\MaterialController', 'deleteMaterial']);
             $router->get('/{id}', ['App\Controllers\MaterialController', 'getMaterialById']);
@@ -304,8 +282,12 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
 
         $router->group(array('prefix' => '/v1/providers'), function (RouteCollector $router) {
             $router->get('/{id}/material_import_receipts', ['App\Controllers\ProviderController', 'getMaterialImportReceiptsByProvider']);
+
+            $router->delete('/{id}/materials', ['App\Controllers\ProviderController', 'removeMaterialFromProvider']);
+            $router->put('/{id}/materials', ['App\Controllers\ProviderController', 'updateMaterialInProvider']);
             $router->post('/{id}/materials', ['App\Controllers\ProviderController', 'addMaterialToProvider']);
             $router->get('/{id}/materials', ['App\Controllers\ProviderController', 'getMaterialByProvider']);
+
             $router->put('/{id}', ['App\Controllers\ProviderController', 'updateProviderById']);
             $router->delete('/{id}', ['App\Controllers\ProviderController', 'deleteProvider']);
             $router->get('/{id}', ['App\Controllers\ProviderController', 'getProviderById']);
@@ -366,8 +348,9 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
             $router->get('/{id}/inventory_history', ['App\Controllers\StorageAreaController', 'getInventoryHistoryByStorageArea']);
             $router->post('/{id}/inventory_checks', ['App\Controllers\StorageAreaController', 'addInventoryCheckToStorageArea']);
             $router->get('/{id}/inventory_checks', ['App\Controllers\StorageAreaController', 'getInventoryChecksByStorageArea']);
+
+            $router->delete('/{id}', ['App\Controllers\StorageAreaController', 'deleteStorageArea']);
             $router->put('/{id}', ['App\Controllers\StorageAreaController', 'updateStorageAreaById']);
-            $router->delete('/{id}', ['App\Controllers\StorageAreaController', 'deleteStorage']);
             $router->get('/{id}', ['App\Controllers\StorageAreaController', 'getStorageAreaById']);
             $router->post('/', ['App\Controllers\StorageAreaController', 'createStorageArea']);
             $router->get('/', ['App\Controllers\StorageAreaController', 'getStorageAreas']);

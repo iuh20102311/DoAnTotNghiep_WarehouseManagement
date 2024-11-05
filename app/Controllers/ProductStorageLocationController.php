@@ -2,10 +2,8 @@
 
 namespace App\Controllers;
 
-use App\Models\ProductInventory;
 use App\Models\ProductStorageLocation;
 use App\Utils\PaginationTrait;
-use Illuminate\Database\Eloquent\Model;
 
 class ProductStorageLocationController
 {
@@ -13,109 +11,270 @@ class ProductStorageLocationController
 
     public function getProductStorageLocations(): array
     {
-        $perPage = $_GET['per_page'] ?? 10;
-        $page = $_GET['page'] ?? 1;
+        try {
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
 
-        $productStorageLocation = ProductStorageLocation::query()
-            ->where('deleted', false)
-            ->with(['product', 'storageArea']);
+            $productStorageLocation = ProductStorageLocation::query()
+                ->where('deleted', false)
+                ->with(['product', 'storageArea']);
 
-        if (isset($_GET['quantity'])) {
-            $quantity = urldecode($_GET['quantity']);
-            $productStorageLocation->where('quantity', $quantity);
+            if (isset($_GET['product_id'])) {
+                $productId = urldecode($_GET['product_id']);
+                $productStorageLocation->where('product_id', $productId);
+            }
+
+            if (isset($_GET['storage_area_id'])) {
+                $storageAreaId = urldecode($_GET['storage_area_id']);
+                $productStorageLocation->where('storage_area_id', $storageAreaId);
+            }
+
+            if (isset($_GET['quantity'])) {
+                $quantity = urldecode($_GET['quantity']);
+                $productStorageLocation->where('quantity', $quantity);
+            }
+
+            if (isset($_GET['quantity_min'])) {
+                $quantityMin = urldecode($_GET['quantity_min']);
+                $productStorageLocation->where('quantity', '>=', $quantityMin);
+            }
+
+            if (isset($_GET['quantity_max'])) {
+                $quantityMax = urldecode($_GET['quantity_max']);
+                $productStorageLocation->where('quantity', '<=', $quantityMax);
+            }
+
+            if (isset($_GET['created_from'])) {
+                $createdFrom = urldecode($_GET['created_from']);
+                $productStorageLocation->where('created_at', '>=', $createdFrom);
+            }
+
+            if (isset($_GET['created_to'])) {
+                $createdTo = urldecode($_GET['created_to']);
+                $productStorageLocation->where('created_at', '<=', $createdTo);
+            }
+
+            if (isset($_GET['updated_from'])) {
+                $updatedFrom = urldecode($_GET['updated_from']);
+                $productStorageLocation->where('updated_at', '>=', $updatedFrom);
+            }
+
+            if (isset($_GET['updated_to'])) {
+                $updatedTo = urldecode($_GET['updated_to']);
+                $productStorageLocation->where('updated_at', '<=', $updatedTo);
+            }
+
+            return $this->paginateResults($productStorageLocation, $perPage, $page)->toArray();
+
+        } catch (\Exception $e) {
+            error_log("Error in getProductStorageLocations: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
-
-        return $this->paginateResults($productStorageLocation, $perPage, $page)->toArray();
     }
 
-    public function getProductStorageLocationById($id): false|string
+    public function getProductStorageLocationById($id): array
     {
-        $productStorageLocation = ProductStorageLocation::query()->where('id', $id)
-            ->with(['product', 'storageArea'])
-            ->first();
+        try {
+            $productStorageLocation = ProductStorageLocation::query()
+                ->where('id', $id)
+                ->where('deleted', false)
+                ->with(['product', 'storageArea'])
+                ->first();
 
-        if (!$productStorageLocation) {
-            return json_encode(['error' => 'Không tìm thấy']);
+            if (!$productStorageLocation) {
+                http_response_code(404);
+                return [
+                    'error' => 'Không tìm thấy vị trí lưu trữ sản phẩm'
+                ];
+            }
+
+            return $productStorageLocation->toArray();
+
+        } catch (\Exception $e) {
+            error_log("Error in getProductStorageLocationById: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
-
-        return json_encode($productStorageLocation->toArray());
     }
 
     public function getProductsByProductStorageLocation($id): array
     {
-        $perPage = $_GET['per_page'] ?? 10;
-        $page = $_GET['page'] ?? 1;
+        try {
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
 
-        $productStorageLocation = ProductStorageLocation::query()->where('id', $id)->firstOrFail();
-        $productsQuery = $productStorageLocation->product()->getQuery();
+            $productStorageLocation = ProductStorageLocation::where('deleted', false)->find($id);
 
-        return $this->paginateResults($productsQuery, $perPage, $page)->toArray();
+            if (!$productStorageLocation) {
+                http_response_code(404);
+                return [
+                    'error' => 'Không tìm thấy vị trí lưu trữ sản phẩm'
+                ];
+            }
+
+            $productsQuery = $productStorageLocation->product()
+                ->with(['categories','prices'])
+                ->getQuery();
+
+            return $this->paginateResults($productsQuery, $perPage, $page)->toArray();
+
+        } catch (\Exception $e) {
+            error_log("Error in getProductsByProductStorageLocation: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
     }
 
     public function getStorageAreasByProductStorageLocation($id): array
     {
-        $perPage = $_GET['per_page'] ?? 10;
-        $page = $_GET['page'] ?? 1;
+        try {
+            $perPage = $_GET['per_page'] ?? 10;
+            $page = $_GET['page'] ?? 1;
 
-        $productStorageLocation = ProductStorageLocation::query()->where('id', $id)->firstOrFail();
-        $storageAreasQuery = $productStorageLocation->storageArea()
-            ->with(['productStorageLocations', 'materialStorageLocations', 'inventoryChecks', 'inventoryHistory'])
-            ->getQuery();
+            $productStorageLocation = ProductStorageLocation::where('deleted', false)->find($id);
 
-        return $this->paginateResults($storageAreasQuery, $perPage, $page)->toArray();
+            if (!$productStorageLocation) {
+                http_response_code(404);
+                return [
+                    'error' => 'Không tìm thấy vị trí lưu trữ sản phẩm'
+                ];
+            }
+
+            $storageAreasQuery = $productStorageLocation->storageArea()
+                ->with(['productStorageLocations', 'materialStorageLocations', 'inventoryChecks', 'inventoryHistory'])
+                ->getQuery();
+
+            return $this->paginateResults($storageAreasQuery, $perPage, $page)->toArray();
+
+        } catch (\Exception $e) {
+            error_log("Error in getStorageAreasByProductStorageLocation: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
     }
 
-    public function createProductStorageLocation(): Model|string
+    public function createProductStorageLocation(): array
     {
-        $data = json_decode(file_get_contents('php://input'), true);
-        $productStorageLocation = new ProductInventory();
-        $error = $productStorageLocation->validate($data);
-        if ($error != "") {
-            http_response_code(404);
-            error_log($error);
-            return json_encode(["error" => $error]);
-        }
-        $productStorageLocation->fill($data);
-        $productStorageLocation->save();
-        return $productStorageLocation;
-    }
+        try {
+            $data = json_decode(file_get_contents('php://input'), true);
 
-    public function updateProductStorageLocationById($id): bool|int|string
-    {
-        $productStorageLocation = ProductInventory::find($id);
+            $productStorageLocation = new ProductStorageLocation();
+            $errors = $productStorageLocation->validate($data);
 
-        if (!$productStorageLocation) {
-            http_response_code(404);
-            return json_encode(["error" => "Provider not found"]);
-        }
+            if ($errors) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'Validation failed',
+                    'details' => $errors
+                ];
+            }
 
-        $data = json_decode(file_get_contents('php://input'), true);
-        $error = $productStorageLocation->validate($data, true);
-
-        if ($error != "") {
-            http_response_code(404);
-            error_log($error);
-            return json_encode(["error" => $error]);
-        }
-
-        $productStorageLocation->fill($data);
-        $productStorageLocation->save();
-
-        return $productStorageLocation;
-    }
-
-    public function deleteProductStorageLocation($id)
-    {
-        $productStorageLocation = ProductInventory::find($id);
-
-        if ($productStorageLocation) {
-            $productStorageLocation->status = 'DISABLE';
+            $productStorageLocation->fill($data);
             $productStorageLocation->save();
-            return "Xóa thành công";
-        } else {
-            http_response_code(404);
-            return "Không tìm thấy";
+
+            return [
+                'success' => true,
+                'data' => $productStorageLocation->toArray()
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in createProductStorageLocation: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function updateProductStorageLocationById($id): array
+    {
+        try {
+            $productStorageLocation = ProductStorageLocation::where('deleted', false)->find($id);
+
+            if (!$productStorageLocation) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy vị trí lưu trữ sản phẩm'
+                ];
+            }
+
+            $data = json_decode(file_get_contents('php://input'), true);
+            $errors = $productStorageLocation->validate($data, true);
+
+            if ($errors) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'Validation failed',
+                    'details' => $errors
+                ];
+            }
+
+            $productStorageLocation->fill($data);
+            $productStorageLocation->save();
+
+            return [
+                'success' => true,
+                'data' => $productStorageLocation->toArray()
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in updateProductStorageLocationById: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function deleteProductStorageLocation($id): array
+    {
+        try {
+            $productStorageLocation = ProductStorageLocation::where('deleted', false)->find($id);
+
+            if (!$productStorageLocation) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy vị trí lưu trữ sản phẩm'
+                ];
+            }
+
+            $productStorageLocation->deleted = true;
+            $productStorageLocation->save();
+
+            return [
+                'success' => true,
+                'message' => 'Xóa vị trí lưu trữ sản phẩm thành công'
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in deleteProductStorageLocation: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
     }
 }
-
