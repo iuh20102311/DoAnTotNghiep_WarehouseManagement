@@ -45,17 +45,12 @@ class StorageAreaController
                 $storage->where('created_at', '<=', $createdTo);
             }
 
-            $result = $this->paginateResults($storage, $perPage, $page);
-            return [
-                'success' => true,
-                'data' => $result->toArray()
-            ];
+            return $this->paginateResults($storage, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
             error_log("Error in getStorageAreas: " . $e->getMessage());
             http_response_code(500);
             return [
-                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -74,21 +69,16 @@ class StorageAreaController
             if (!$storage) {
                 http_response_code(404);
                 return [
-                    'success' => false,
                     'error' => 'Không tìm thấy khu vực kho'
                 ];
             }
 
-            return [
-                'success' => true,
-                'data' => $storage->toArray()
-            ];
+            return $storage->toArray();
 
         } catch (\Exception $e) {
             error_log("Error in getStorageAreaById: " . $e->getMessage());
             http_response_code(500);
             return [
-                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];

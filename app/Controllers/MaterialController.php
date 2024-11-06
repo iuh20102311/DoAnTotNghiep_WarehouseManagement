@@ -162,6 +162,9 @@ class MaterialController
         try {
             $data = json_decode(file_get_contents('php://input'), true);
 
+            // Loại bỏ quantity_available nếu có trong request
+            unset($data['quantity_available']);
+
             $material = new Material();
             $errors = $material->validate($data);
 
@@ -207,6 +210,10 @@ class MaterialController
             }
 
             $data = json_decode(file_get_contents('php://input'), true);
+
+            // Loại bỏ quantity_available nếu có trong request
+            unset($data['quantity_available']);
+
             $errors = $material->validate($data, true);
 
             if ($errors) {

@@ -6,16 +6,30 @@ use App\Utils\Validator;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Exception;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Respect\Validation\Validator as v;
-use Respect\Validation\Exceptions\ValidationException;
 
 class Provider extends Model
 {
     use HasFactory;
     protected $table = 'providers';
-    protected $fillable = ['name', 'website', 'address', 'city', 'district', 'ward', 'phone', 'email', 'note', 'status', 'created_at', 'updated_at', 'deleted'];
+    protected $fillable = [
+        'name',
+        'website',
+        'address',
+        'city',
+        'district',
+        'ward',
+        'representative_name',
+        'representative_phone',
+        'representative_email',
+        'phone',
+        'email',
+        'note',
+        'status',
+        'created_at',
+        'updated_at',
+        'deleted'
+    ];
     protected $primaryKey = 'id';
     public $timestamps = true;
 
@@ -34,14 +48,17 @@ class Provider extends Model
         $validator = new Validator($data, $this->messages());
 
         $rules = [
-            'name' => ['required', 'max' => 255],
+            'name' => ['required', 'unique' => [Provider::class, 'name'], 'max' => 255],
             'website' => ['required', 'url'],
             'address' => ['required', 'max' => 255],
             'city' => ['required', 'max' => 100],
             'district' => ['required', 'max' => 100],
             'ward' => ['required', 'max' => 100],
-            'phone' => ['required', 'max' => 15],
-            'email' => ['required', 'max' => 255, 'email'],
+            'representative_name' => ['required', 'max' => 255],
+            'representative_phone' => ['required', 'max' => 15, 'unique' => [Provider::class, 'representative_phone']],
+            'representative_email' => ['required', 'max' => 255, 'email', 'unique' => [Provider::class, 'representative_email']],
+            'phone' => ['required', 'max' => 15, 'unique' => [Provider::class, 'phone']],
+            'email' => ['required', 'max' => 255, 'email', 'unique' => [Provider::class, 'email']],
             'note' => ['max' => 1000],
             'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE', 'DELETED']]
         ];
@@ -60,33 +77,6 @@ class Provider extends Model
             return $validator->getErrors();
         }
 
-        // Validate unique phone and email
-        if (isset($data['phone'])) {
-            $query = self::where('phone', $data['phone'])
-                ->where('deleted', false);
-
-            if ($isUpdate) {
-                $query->where('id', '!=', $this->id);
-            }
-
-            if ($query->exists()) {
-                return ['phone' => ['Số điện thoại đã được sử dụng']];
-            }
-        }
-
-        if (isset($data['email'])) {
-            $query = self::where('email', $data['email'])
-                ->where('deleted', false);
-
-            if ($isUpdate) {
-                $query->where('id', '!=', $this->id);
-            }
-
-            if ($query->exists()) {
-                return ['email' => ['Email đã được sử dụng']];
-            }
-        }
-
         return null;
     }
 
@@ -95,7 +85,8 @@ class Provider extends Model
         return [
             'name' => [
                 'required' => 'Tên nhà cung cấp là bắt buộc.',
-                'max' => 'Tên nhà cung cấp không được vượt quá :max ký tự.'
+                'max' => 'Tên nhà cung cấp không được vượt quá :max ký tự.',
+                'unique' => 'Tên nhà cung cấp này đã được sử dụng.',
             ],
             'website' => [
                 'max' => 'Website không được vượt quá :max ký tự.',
@@ -117,14 +108,31 @@ class Provider extends Model
                 'required' => 'Phường/Xã là bắt buộc.',
                 'max' => 'Phường/Xã không được vượt quá :max ký tự.'
             ],
+            'representative_name' => [
+                'required' => 'Tên người đại diện là bắt buộc.',
+                'max' => 'Tên người đại diện không được vượt quá :max ký tự.'
+            ],
+            'representative_phone' => [
+                'required' => 'Số điện thoại người đại diện là bắt buộc.',
+                'max' => 'Số điện thoại người đại diện không được vượt quá :max ký tự.',
+                'unique' => 'Số điện thoại người đại diện này đã được sử dụng.',
+            ],
+            'representative_email' => [
+                'required' => 'Email người đại diện là bắt buộc.',
+                'max' => 'Email người đại diện không được vượt quá :max ký tự.',
+                'email' => 'Email người đại diện không hợp lệ.',
+                'unique' => 'Email người đại diện này đã được sử dụng.',
+            ],
             'phone' => [
-                'required' => 'Số điện thoại là bắt buộc.',
-                'max' => 'Số điện thoại không được vượt quá :max ký tự.',
+                'required' => 'Số điện thoại công ty là bắt buộc.',
+                'max' => 'Số điện thoại công ty không được vượt quá :max ký tự.',
+                'unique' => 'Số điện thoại này đã được sử dụng.',
             ],
             'email' => [
-                'required' => 'Email là bắt buộc.',
-                'max' => 'Email không được vượt quá :max ký tự.',
-                'email' => 'Email không hợp lệ.'
+                'required' => 'Email công ty là bắt buộc.',
+                'max' => 'Email công ty không được vượt quá :max ký tự.',
+                'email' => 'Email công ty không hợp lệ.',
+                'unique' => 'Coupon code này đã được sử dụng.',
             ],
             'note' => [
                 'max' => 'Ghi chú không được vượt quá :max ký tự.'
