@@ -13,7 +13,7 @@ class Material extends Model
     use HasFactory;
 
     protected $table = 'materials';
-    protected $fillable = ['name', 'unit', 'weight', 'origin', 'packing', 'quantity_available' ,'minimum_stock_level', 'maximum_stock_level', 'status', 'created_at', 'updated_at', 'note', 'deleted'];
+    protected $fillable = ['name', 'sku', 'unit', 'weight', 'origin', 'packing', 'quantity_available' , 'image' ,'minimum_stock_level', 'maximum_stock_level', 'status', 'created_at', 'updated_at', 'note', 'deleted'];
     protected $primaryKey = 'id';
     public $timestamps = true;
 
@@ -68,7 +68,6 @@ class Material extends Model
             'weight' => ['required', 'numeric', 'min' => 0],
             'origin' => ['required', 'max' => 255],
             'packing' => ['required', 'max' => 255],
-            'quantity_available' => ['required', 'integer', 'min' => 0],
             'minimum_stock_level' => ['required', 'integer', 'min' => 0],
             'maximum_stock_level' => ['required', 'integer', 'min' => 0],
             'status' => ['required', 'enum' => ['ACTIVE','INACTIVE','OUT_OF_STOCK']],
@@ -122,11 +121,6 @@ class Material extends Model
             'packing' => [
                 'required' => 'Loại chứa là bắt buộc.',
                 'max' => 'Loại chứa không được vượt quá :max ký tự.'
-            ],
-            'quantity_available' => [
-                'required' => 'Số lượng khả dụng là bắt buộc.',
-                'integer' => 'Số lượng khả dụng phải là số nguyên.',
-                'min' => 'Số lượng khả dụng không được nhỏ hơn :min.'
             ],
             'minimum_stock_level' => [
                 'required' => 'Mức tồn kho tối thiểu là bắt buộc.',

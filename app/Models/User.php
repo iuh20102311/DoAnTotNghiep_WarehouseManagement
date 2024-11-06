@@ -91,7 +91,6 @@ class User extends Model
             'role_id' => ['required', 'integer'],
             'email' => ['required', 'max' => 255, 'email'],
             'password' => ['required', 'min' => 6, 'max' => 255],
-            'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE', 'DELETED', 'UNVERIFIED']],
         ];
 
         if ($isUpdate) {
@@ -126,18 +125,6 @@ class User extends Model
             }
         }
 
-        // Validate password format if provided
-        if (isset($data['password']) && !preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{6,}$/', $data['password'])) {
-            return ['password' => ['Mật khẩu phải có ít nhất 6 ký tự, bao gồm chữ hoa, chữ thường và số']];
-        }
-
-        // Validate token expiry must be in future if token is provided
-        if (isset($data['reset_password_token']) && isset($data['token_expiry'])) {
-            if (strtotime($data['token_expiry']) < time()) {
-                return ['token_expiry' => ['Thời gian hết hạn token phải lớn hơn thời gian hiện tại']];
-            }
-        }
-
         return null;
     }
 
@@ -157,10 +144,6 @@ class User extends Model
                 'required' => 'Mật khẩu là bắt buộc.',
                 'min' => 'Mật khẩu phải có ít nhất :min ký tự.',
                 'max' => 'Mật khẩu không được vượt quá :max ký tự.'
-            ],
-            'status' => [
-                'required' => 'Trạng thái là bắt buộc.',
-                'enum' => 'Trạng thái phải là ACTIVE, INACTIVE, DELETED hoặc UNVERIFIED.'
             ],
             'reset_password_token' => [
                 'max' => 'Token không được vượt quá :max ký tự.'

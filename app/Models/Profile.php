@@ -10,8 +10,25 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Profile extends Model
 {
     use HasFactory;
+
     protected $table = 'profiles';
-    protected $fillable = ['user_id', 'first_name', 'last_name', 'phone', 'birthday', 'avatar', 'gender', 'status', 'created_at', 'updated_at', 'deleted'];
+    protected $fillable = [
+        'user_id',
+        'first_name',
+        'last_name',
+        'phone',
+        'birthday',
+        'avatar',
+        'gender',
+        'address',
+        'ward',
+        'district',
+        'city',
+        'status',
+        'created_at',
+        'updated_at',
+        'deleted'
+    ];
     protected $primaryKey = 'id';
     public $timestamps = true;
 
