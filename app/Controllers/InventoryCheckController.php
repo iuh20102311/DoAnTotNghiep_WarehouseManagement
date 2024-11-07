@@ -27,7 +27,12 @@ class InventoryCheckController
                                 $q->select('user_id', 'first_name', 'last_name');
                             }]);
                     },
-                    'details']);
+                    'details'])
+                ->orderByRaw("CASE 
+                WHEN status = 'ACTIVE' THEN 1 
+                ELSE 2 
+                END")  // Sort ACTIVE status first
+                ->orderBy('created_at', 'desc');
 
             if (isset($_GET['storage_area_id'])) {
                 $storageAreaId = urldecode($_GET['storage_area_id']);

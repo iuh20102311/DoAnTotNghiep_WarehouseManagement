@@ -24,7 +24,12 @@ class OrderController
         $page = $_GET['page'] ?? 1;
 
         $orders = Order::query()->where('status', '!=' , 'DELETED')
-            ->with(['customer', 'creator','orderDetails','giftSets']);
+            ->with(['customer', 'creator','orderDetails','giftSets'])
+            ->orderByRaw("CASE 
+                WHEN status = 'ACTIVE' THEN 1 
+                ELSE 2 
+                END")  // Sort ACTIVE status first
+            ->orderBy('created_at', 'desc');
 
         if (isset($_GET['status'])) {
             $status = urldecode($_GET['status']);

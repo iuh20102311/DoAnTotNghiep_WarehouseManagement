@@ -145,7 +145,7 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
 
             $router->put('/{id}', ['App\Controllers\ProductController', 'updateProductById']);
             $router->delete('/{id}', ['App\Controllers\ProductController', 'deleteProduct']);
-            $router->get('/{id}', ['App\Controllers\ProductController', 'getProductById']);
+            $router->get('/sku/{sku}', ['App\Controllers\ProductController', 'getProductBySku']);
             $router->post('/', ['App\Controllers\ProductController', 'createProduct']);
             $router->get('/', ['App\Controllers\ProductController', 'getProducts']);
 
@@ -264,7 +264,7 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
 
             $router->put('/{id}', ['App\Controllers\MaterialController', 'updateMaterialById']);
             $router->delete('/{id}', ['App\Controllers\MaterialController', 'deleteMaterial']);
-            $router->get('/{id}', ['App\Controllers\MaterialController', 'getMaterialById']);
+            $router->get('/sku/{sku}', ['App\Controllers\MaterialController', 'getMaterialBySku']);
             $router->post('/', ['App\Controllers\MaterialController', 'createMaterial']);
             $router->get('/', ['App\Controllers\MaterialController', 'getMaterials']);
         });
@@ -351,7 +351,7 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
 
             $router->delete('/{id}', ['App\Controllers\StorageAreaController', 'deleteStorageArea']);
             $router->put('/{id}', ['App\Controllers\StorageAreaController', 'updateStorageAreaById']);
-            $router->get('/{id}', ['App\Controllers\StorageAreaController', 'getStorageAreaById']);
+            $router->get('/{code}', ['App\Controllers\StorageAreaController', 'getStorageAreaByCode']);
             $router->post('/', ['App\Controllers\StorageAreaController', 'createStorageArea']);
             $router->get('/', ['App\Controllers\StorageAreaController', 'getStorageAreas']);
         });

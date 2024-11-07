@@ -42,7 +42,12 @@ class ProductController
                     'categories',
                     'inventoryCheckDetails',
                     'inventoryHistory'
-                ]);
+                ])
+                ->orderByRaw("CASE 
+                WHEN status = 'ACTIVE' THEN 1 
+                ELSE 2 
+                END")  // Sort ACTIVE status first
+                ->orderBy('created_at', 'desc');
 
             // Filters for basic fields
             if (isset($_GET['status'])) {
@@ -193,11 +198,12 @@ class ProductController
         }
     }
 
-    public function getProductById($id): array
+    public function getProductBySku($sku): array
     {
         try {
             $product = Product::query()
-                ->where('id', $id)
+                ->where('sku', $sku)
+                ->where('deleted', false)
                 ->with([
                     'categories',
                     'inventoryCheckDetails',
@@ -206,15 +212,16 @@ class ProductController
                 ->first();
 
             if (!$product) {
+                http_response_code(404);
                 return [
-                    'error' => 'Không tìm thấy sản phẩm'
+                    'error' => 'Không tìm thấy sản phẩm với SKU: ' . $sku
                 ];
             }
 
             return $product->toArray();
 
         } catch (\Exception $e) {
-            error_log("Error in getProductById: " . $e->getMessage());
+            error_log("Error in getProductBySku: " . $e->getMessage());
             return [
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
@@ -226,6 +233,10 @@ class ProductController
     {
         try {
             $data = json_decode(file_get_contents('php://input'), true);
+
+            // Loại bỏ quantity_available nếu có trong request
+            unset($data['quantity_available']);
+
             $product = new Product();
             $errors = $product->validate($data);
 
@@ -270,6 +281,10 @@ class ProductController
             }
 
             $data = json_decode(file_get_contents('php://input'), true);
+
+            // Loại bỏ quantity_available nếu có trong request
+            unset($data['quantity_available']);
+
             $errors = $product->validate($data, true);
 
             if ($errors) {

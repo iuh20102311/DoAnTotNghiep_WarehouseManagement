@@ -44,7 +44,8 @@ class Category extends Model
         $rules = [
             'name' => ['required', 'string', 'min' => 2, 'max' => 50, 'no_special_chars', 'no_emoji', 'no_whitespace'],
             'type' => ['required', 'string', 'enum' => ['PRODUCT','MATERIAL','PACKAGING']],
-            'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE', 'SUSPENDED']]
+            'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE', 'SUSPENDED']],
+            'description' => ['required', 'string'],
         ];
 
         if (!$validator->validate($rules)) {
@@ -64,6 +65,9 @@ class Category extends Model
                 'no_whitespace' => 'Không nhập khoảng trắng.',
                 'no_special_chars' => 'Không nhập các ký tự đặc biệt.',
                 'no_emoji' => 'Không được nhập ký tự chứa emoji.',
+            ],
+            'description' => [
+                'required' => 'Mô tả là bắt buộc.',
             ],
             'type' => [
                 'required' => 'Loại là bắt buộc.',

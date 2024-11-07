@@ -18,7 +18,12 @@ class StorageAreaController
 
             $storage = StorageArea::query()
                 ->where('deleted', false)
-                ->with(['productStorageLocations', 'materialStorageLocations', 'inventoryChecks', 'inventoryHistory']);
+                ->with(['productStorageLocations', 'materialStorageLocations', 'inventoryChecks', 'inventoryHistory'])
+                ->orderByRaw("CASE 
+                WHEN status = 'ACTIVE' THEN 1 
+                ELSE 2 
+                END")  // Sort ACTIVE status first
+                ->orderBy('created_at', 'desc');
 
             if (isset($_GET['status'])) {
                 $status = urldecode($_GET['status']);
@@ -57,11 +62,11 @@ class StorageAreaController
         }
     }
 
-    public function getStorageAreaById($id): array
+    public function getStorageAreaByCode($code): array
     {
         try {
             $storage = StorageArea::query()
-                ->where('id', $id)
+                ->where('code', $code)
                 ->where('deleted', false)
                 ->with(['productStorageLocations', 'materialStorageLocations', 'inventoryChecks', 'inventoryHistory'])
                 ->first();
@@ -72,6 +77,14 @@ class StorageAreaController
                     'error' => 'Không tìm thấy khu vực kho'
                 ];
             }
+
+            if (!$storage) {
+                http_response_code(404);
+                return [
+                    'error' => 'Không tìm thấy khu vực có code: ' . $code
+                ];
+            }
+
 
             return $storage->toArray();
 

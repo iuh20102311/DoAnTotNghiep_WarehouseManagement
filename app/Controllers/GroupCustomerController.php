@@ -20,7 +20,12 @@ class GroupCustomerController
 
             $groupcustomer = GroupCustomer::query()
                 ->where('deleted', false)
-                ->with(['customers']);
+                ->with(['customers'])
+                ->orderByRaw("CASE 
+                WHEN status = 'ACTIVE' THEN 1 
+                ELSE 2 
+                END")  // Sort ACTIVE status first
+                ->orderBy('created_at', 'desc');
 
             if (isset($_GET['status'])) {
                 $status = urldecode($_GET['status']);
