@@ -89,7 +89,6 @@ class Product extends Model
             'weight' => ['required', 'numeric', 'min' => 0],
             'origin' => ['required', 'string'],
             'image' => ['required', 'string'],
-            'quantity_available' => ['nullable', 'integer', 'min' => 0],
             'minimum_stock_level' => ['nullable', 'integer', 'min' => 0],
             'description' => ['nullable', 'string', 'max' => 1000],
             'usage_time' => ['nullable', 'string'],
@@ -138,10 +137,6 @@ class Product extends Model
             ],
             'image' => [
                 'required' => 'Hình ảnh là bắt buộc.'
-            ],
-            'quantity_available' => [
-                'integer' => 'Số lượng khả dụng phải là số nguyên.',
-                'min' => 'Số lượng khả dụng không được âm.'
             ],
             'minimum_stock_level' => [
                 'integer' => 'Mức tồn kho tối thiểu phải là số nguyên.',

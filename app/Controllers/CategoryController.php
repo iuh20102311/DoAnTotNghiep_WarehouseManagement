@@ -21,6 +21,7 @@ class CategoryController
                 ->find($id);
 
             if (!$category) {
+                http_response_code(404);
                 return [
                     'success' => false,
                     'error' => 'Không tìm thấy danh mục'
@@ -83,6 +84,7 @@ class CategoryController
 
         } catch (\Exception $e) {
             error_log("Error in getCategoryProductCount: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
@@ -99,6 +101,13 @@ class CategoryController
             $category = Category::query()
                 ->where('deleted', false)
                 ->with(['products', 'discounts', 'materials']);
+
+            if ($perPage <= 0 || $page <= 0) {
+                http_response_code(400);
+                return [
+                    'error' => 'Invalid pagination parameters'
+                ];
+            }
 
             // Basic filters
             if (isset($_GET['status'])) {
@@ -171,6 +180,7 @@ class CategoryController
 
         } catch (\Exception $e) {
             error_log("Error in getCategories: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
@@ -187,6 +197,7 @@ class CategoryController
                 ->find($id);
 
             if (!$category) {
+                http_response_code(404);
                 return [
                     'error' => 'Không tìm thấy danh mục'
                 ];
@@ -196,6 +207,7 @@ class CategoryController
 
         } catch (\Exception $e) {
             error_log("Error in getCategoryById: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
@@ -207,10 +219,20 @@ class CategoryController
     {
         try {
             $data = json_decode(file_get_contents('php://input'), true);
+
+            if (!$data) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'Invalid JSON data'
+                ];
+            }
+
             $category = new Category();
             $errors = $category->validate($data);
 
             if ($errors) {
+                http_response_code(422);
                 return [
                     'success' => false,
                     'error' => 'Validation failed',
@@ -232,6 +254,7 @@ class CategoryController
 
         } catch (\Exception $e) {
             error_log("Error in createCategory: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
@@ -248,6 +271,7 @@ class CategoryController
                 ->find($id);
 
             if (!$category) {
+                http_response_code(404);
                 return [
                     'success' => false,
                     'error' => 'Không tìm thấy danh mục'
@@ -255,9 +279,19 @@ class CategoryController
             }
 
             $data = json_decode(file_get_contents('php://input'), true);
+
+            if (!$data) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'Invalid JSON data'
+                ];
+            }
+
             $errors = $category->validate($data, true);
 
             if ($errors) {
+                http_response_code(422);
                 return [
                     'success' => false,
                     'error' => 'Validation failed',
@@ -279,6 +313,7 @@ class CategoryController
 
         } catch (\Exception $e) {
             error_log("Error in updateCategoryById: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
@@ -295,6 +330,7 @@ class CategoryController
                 ->find($id);
 
             if (!$category) {
+                http_response_code(404);
                 return [
                     'success' => false,
                     'error' => 'Không tìm thấy danh mục'
@@ -302,6 +338,7 @@ class CategoryController
             }
 
             if ($category->status == 'ACTIVE') {
+                http_response_code(400);
                 return [
                     'success' => false,
                     'error' => 'Không thể xóa sản phẩm đang ở trạng thái active'
@@ -319,6 +356,7 @@ class CategoryController
 
         } catch (\Exception $e) {
             error_log("Error in deleteCategory: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
@@ -333,12 +371,20 @@ class CategoryController
             $perPage = $_GET['per_page'] ?? 10;
             $page = $_GET['page'] ?? 1;
 
+            if ($perPage <= 0 || $page <= 0) {
+                http_response_code(400);
+                return [
+                    'error' => 'Invalid pagination parameters'
+                ];
+            }
+
             $category = Category::query()
                 ->where('status', '!=', 'INACTIVE')
                 ->where('deleted', false)
                 ->find($id);
 
             if (!$category) {
+                http_response_code(404);
                 return [
                     'error' => 'Không tìm thấy danh mục'
                 ];
@@ -352,6 +398,7 @@ class CategoryController
 
         } catch (\Exception $e) {
             error_log("Error in getProductByCategory: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
@@ -364,7 +411,16 @@ class CategoryController
         try {
             $data = json_decode(file_get_contents('php://input'), true);
 
+            if (!$data) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'Invalid JSON data'
+                ];
+            }
+
             if (empty($data['product_id'])) {
+                http_response_code(400);
                 return [
                     'success' => false,
                     'error' => 'Product ID là bắt buộc'
@@ -376,6 +432,7 @@ class CategoryController
                 ->find($id);
 
             if (!$category) {
+                http_response_code(404);
                 return [
                     'success' => false,
                     'error' => 'Không tìm thấy danh mục'
@@ -384,6 +441,7 @@ class CategoryController
 
             $product = Product::find($data['product_id']);
             if (!$product) {
+                http_response_code(404);
                 return [
                     'success' => false,
                     'error' => 'Không tìm thấy sản phẩm'
@@ -392,12 +450,12 @@ class CategoryController
 
             $exists = $category->products()->where('product_id', $product->id)->exists();
             if ($exists) {
+                http_response_code(409);
                 return [
                     'success' => false,
                     'error' => 'Sản phẩm đã tồn tại trong danh mục này'
                 ];
             }
-
             $category->products()->attach($product->id);
 
             return [
@@ -421,10 +479,11 @@ class CategoryController
         try {
             $data = json_decode(file_get_contents('php://input'), true);
 
-            if (empty($data['product_id'])) {
+            if (!$data) {
+                http_response_code(400);
                 return [
                     'success' => false,
-                    'error' => 'Product ID là bắt buộc'
+                    'error' => 'Invalid JSON data'
                 ];
             }
 
@@ -433,6 +492,7 @@ class CategoryController
                 ->find($id);
 
             if (!$category) {
+                http_response_code(404);
                 return [
                     'success' => false,
                     'error' => 'Không tìm thấy danh mục'
@@ -441,6 +501,7 @@ class CategoryController
 
             $exists = $category->products()->where('product_id', $data['product_id'])->exists();
             if (!$exists) {
+                http_response_code(404);
                 return [
                     'success' => false,
                     'error' => 'Sản phẩm không tồn tại trong danh mục này'
@@ -456,6 +517,7 @@ class CategoryController
 
         } catch (\Exception $e) {
             error_log("Error in deleteProductFromCategory: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
@@ -470,11 +532,19 @@ class CategoryController
             $perPage = $_GET['per_page'] ?? 15;
             $page = $_GET['page'] ?? 1;
 
+            if ($perPage <= 0 || $page <= 0) {
+                http_response_code(400);
+                return [
+                    'error' => 'Invalid pagination parameters'
+                ];
+            }
+
             $category = Category::query()
                 ->where('deleted', false)
                 ->find($id);
 
             if (!$category) {
+                http_response_code(404);
                 return [
                     'error' => 'Không tìm thấy danh mục'
                 ];
@@ -488,6 +558,7 @@ class CategoryController
 
         } catch (\Exception $e) {
             error_log("Error in getDiscountByCategory: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
@@ -500,7 +571,16 @@ class CategoryController
         try {
             $data = json_decode(file_get_contents('php://input'), true);
 
+            if (!$data) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'Invalid JSON data'
+                ];
+            }
+
             if (empty($data['discount_id'])) {
+                http_response_code(400);
                 return [
                     'success' => false,
                     'error' => 'Discount ID là bắt buộc'
@@ -512,6 +592,7 @@ class CategoryController
                 ->find($id);
 
             if (!$category) {
+                http_response_code(404);
                 return [
                     'success' => false,
                     'error' => 'Không tìm thấy danh mục'
@@ -520,6 +601,7 @@ class CategoryController
 
             $discount = Discount::find($data['discount_id']);
             if (!$discount) {
+                http_response_code(404);
                 return [
                     'success' => false,
                     'error' => 'Không tìm thấy mã giảm giá'
@@ -528,6 +610,7 @@ class CategoryController
 
             $exists = $category->discounts()->where('discount_id', $discount->id)->exists();
             if ($exists) {
+                http_response_code(409);
                 return [
                     'success' => false,
                     'error' => 'Mã giảm giá đã tồn tại trong danh mục này'
@@ -544,6 +627,7 @@ class CategoryController
 
         } catch (\Exception $e) {
             error_log("Error in addDiscountToCategory: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
@@ -557,7 +641,16 @@ class CategoryController
         try {
             $data = json_decode(file_get_contents('php://input'), true);
 
+            if (!$data) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'Invalid JSON data'
+                ];
+            }
+
             if (empty($data['discount_id'])) {
+                http_response_code(400);
                 return [
                     'success' => false,
                     'error' => 'Discount ID là bắt buộc'
@@ -569,6 +662,7 @@ class CategoryController
                 ->find($id);
 
             if (!$category) {
+                http_response_code(404);
                 return [
                     'success' => false,
                     'error' => 'Không tìm thấy danh mục'
@@ -577,6 +671,7 @@ class CategoryController
 
             $exists = $category->discounts()->where('discount_id', $data['discount_id'])->exists();
             if (!$exists) {
+                http_response_code(404);
                 return [
                     'success' => false,
                     'error' => 'Mã giảm giá không tồn tại trong danh mục này'
@@ -592,6 +687,7 @@ class CategoryController
 
         } catch (\Exception $e) {
             error_log("Error in deleteDiscountFromCategory: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
@@ -606,11 +702,19 @@ class CategoryController
             $perPage = $_GET['per_page'] ?? 15;
             $page = $_GET['page'] ?? 1;
 
+            if ($perPage <= 0 || $page <= 0) {
+                http_response_code(400);
+                return [
+                    'error' => 'Invalid pagination parameters'
+                ];
+            }
+
             $category = Category::query()
                 ->where('deleted', false)
                 ->find($id);
 
             if (!$category) {
+                http_response_code(404);
                 return [
                     'error' => 'Không tìm thấy danh mục'
                 ];
@@ -625,6 +729,7 @@ class CategoryController
 
         } catch (\Exception $e) {
             error_log("Error in getMaterialByCategory: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
@@ -637,7 +742,16 @@ class CategoryController
         try {
             $data = json_decode(file_get_contents('php://input'), true);
 
+            if (!$data) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'Invalid JSON data'
+                ];
+            }
+
             if (empty($data['material_id'])) {
+                http_response_code(400);
                 return [
                     'success' => false,
                     'error' => 'Material ID là bắt buộc'
@@ -649,6 +763,7 @@ class CategoryController
                 ->find($id);
 
             if (!$category) {
+                http_response_code(404);
                 return [
                     'success' => false,
                     'error' => 'Không tìm thấy danh mục'
@@ -657,6 +772,7 @@ class CategoryController
 
             $material = Material::find($data['material_id']);
             if (!$material) {
+                http_response_code(404);
                 return [
                     'success' => false,
                     'error' => 'Không tìm thấy nguyên liệu'
@@ -665,6 +781,7 @@ class CategoryController
 
             $exists = $category->materials()->where('material_id', $material->id)->exists();
             if ($exists) {
+                http_response_code(409);
                 return [
                     'success' => false,
                     'error' => 'Nguyên liệu đã tồn tại trong danh mục này'
@@ -681,6 +798,7 @@ class CategoryController
 
         } catch (\Exception $e) {
             error_log("Error in addMaterialToCategory: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
@@ -694,7 +812,16 @@ class CategoryController
         try {
             $data = json_decode(file_get_contents('php://input'), true);
 
+            if (!$data) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'Invalid JSON data'
+                ];
+            }
+
             if (empty($data['material_id'])) {
+                http_response_code(400);
                 return [
                     'success' => false,
                     'error' => 'Material ID là bắt buộc'
@@ -706,6 +833,7 @@ class CategoryController
                 ->find($id);
 
             if (!$category) {
+                http_response_code(404);
                 return [
                     'success' => false,
                     'error' => 'Không tìm thấy danh mục'
@@ -714,6 +842,7 @@ class CategoryController
 
             $exists = $category->materials()->where('material_id', $data['material_id'])->exists();
             if (!$exists) {
+                http_response_code(404);
                 return [
                     'success' => false,
                     'error' => 'Nguyên liệu không tồn tại trong danh mục này'
@@ -729,6 +858,7 @@ class CategoryController
 
         } catch (\Exception $e) {
             error_log("Error in deleteMaterialFromCategory: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
@@ -743,11 +873,19 @@ class CategoryController
             $perPage = $_GET['per_page'] ?? 10;
             $page = $_GET['page'] ?? 1;
 
+            if ($perPage <= 0 || $page <= 0) {
+                http_response_code(400);
+                return [
+                    'error' => 'Invalid pagination parameters'
+                ];
+            }
+
             $category = Category::query()
                 ->where('deleted', false)
                 ->find($id);
 
             if (!$category) {
+                http_response_code(404);
                 return [
                     'error' => 'Không tìm thấy danh mục'
                 ];
@@ -761,6 +899,7 @@ class CategoryController
 
         } catch (\Exception $e) {
             error_log("Error in getCategoryDiscountsByCategory: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()

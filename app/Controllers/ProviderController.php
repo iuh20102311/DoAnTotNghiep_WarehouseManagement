@@ -18,7 +18,12 @@ class ProviderController
 
             $provider = Provider::query()
                 ->where('deleted', false)
-                ->with(['materials', 'materialImportReceipts']);
+                ->with(['materials', 'materialImportReceipts'])
+                ->orderByRaw("CASE 
+                WHEN status = 'ACTIVE' THEN 1 
+                ELSE 2 
+                END")  // Sort ACTIVE status first
+                ->orderBy('created_at', 'desc');
 
             // Add all filters
             if (isset($_GET['status'])) {

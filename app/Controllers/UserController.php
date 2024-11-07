@@ -33,7 +33,12 @@ class UserController
                     'profile',
                     'createdInventoryChecks',
                     'inventoryHistory'
-                ]);
+                ])
+                ->orderByRaw("CASE 
+                WHEN status = 'ACTIVE' THEN 1 
+                ELSE 2 
+                END")  // Sort ACTIVE status first
+                ->orderBy('created_at', 'desc');
 
             if (isset($_GET['email'])) {
                 $email = urldecode($_GET['email']);

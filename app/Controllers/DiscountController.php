@@ -22,7 +22,12 @@ class DiscountController
             $discount = Discount::query()
                 ->where('status', '!=', 'INACTIVE')
                 ->where('deleted', false)
-                ->with(['categories', 'products']);
+                ->with(['categories', 'products'])
+                ->orderByRaw("CASE 
+                WHEN status = 'ACTIVE' THEN 1 
+                ELSE 2 
+                END")  // Sort ACTIVE status first
+                ->orderBy('created_at', 'desc');
 
             $columns = [
                 'coupon_code',

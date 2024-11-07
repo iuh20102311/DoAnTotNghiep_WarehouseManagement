@@ -19,7 +19,12 @@ class InventoryCheckDetailController
             
             $inventoryCheckDetail = InventoryCheckDetail::query()
                 ->where('deleted', false)
-                ->with(['inventoryCheck', 'product', 'material']);
+                ->with(['inventoryCheck', 'product', 'material'])
+                ->orderByRaw("CASE 
+                WHEN status = 'ACTIVE' THEN 1 
+                ELSE 2 
+                END")  // Sort ACTIVE status first
+                ->orderBy('created_at', 'desc');
 
             if (isset($_GET['inventory_check_id'])) {
                 $inventoryCheckId = urldecode($_GET['inventory_check_id']);

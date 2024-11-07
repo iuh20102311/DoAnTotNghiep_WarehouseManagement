@@ -46,7 +46,12 @@ class MaterialController
 
             $material = Material::query()
                 ->where('deleted', false)
-                ->with(['categories', 'providers']);
+                ->with(['categories', 'providers'])
+                ->orderByRaw("CASE 
+                WHEN status = 'ACTIVE' THEN 1 
+                ELSE 2 
+                END")  // Sort ACTIVE status first
+                ->orderBy('created_at', 'desc');
 
             if (isset($_GET['status'])) {
                 $status = urldecode($_GET['status']);
@@ -130,11 +135,11 @@ class MaterialController
     }
 
 
-    public function getMaterialById($id): array
+    public function getMaterialBySku(string $sku): array
     {
         try {
             $material = Material::query()
-                ->where('id', $id)
+                ->where('sku', $sku)
                 ->where('deleted', false)
                 ->with(['categories', 'providers'])
                 ->first();
@@ -142,14 +147,14 @@ class MaterialController
             if (!$material) {
                 http_response_code(404);
                 return [
-                    'error' => 'Không tìm thấy vật liệu'
+                    'error' => 'Không tìm thấy vật liệu với SKU: ' . $sku
                 ];
             }
 
             return $material->toArray();
 
         } catch (\Exception $e) {
-            error_log("Error in getMaterialById: " . $e->getMessage());
+            error_log("Error in getMaterialBySku: " . $e->getMessage());
             return [
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()

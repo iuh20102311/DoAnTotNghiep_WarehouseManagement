@@ -19,7 +19,12 @@ class ProductPriceController
         $page = $_GET['page'] ?? 1;
 
         $productprices = ProductPrice::query()->where('status', '!=' , 'DISABLE')
-            ->with(['product']);
+            ->with(['product'])
+            ->orderByRaw("CASE 
+                WHEN status = 'ACTIVE' THEN 1 
+                ELSE 2 
+                END")  // Sort ACTIVE status first
+            ->orderBy('created_at', 'desc');
 
         if (isset($_GET['status'])) {
             $status = urldecode($_GET['status']);

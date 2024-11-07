@@ -49,7 +49,7 @@ class Provider extends Model
 
         $rules = [
             'name' => ['required', 'unique' => [Provider::class, 'name'], 'max' => 255],
-            'website' => ['required', 'url'],
+            'website' => ['nullable', 'url'],
             'address' => ['required', 'max' => 255],
             'city' => ['required', 'max' => 100],
             'district' => ['required', 'max' => 100],
@@ -132,7 +132,7 @@ class Provider extends Model
                 'required' => 'Email công ty là bắt buộc.',
                 'max' => 'Email công ty không được vượt quá :max ký tự.',
                 'email' => 'Email công ty không hợp lệ.',
-                'unique' => 'Coupon code này đã được sử dụng.',
+                'unique' => 'Email này đã được sử dụng.',
             ],
             'note' => [
                 'max' => 'Ghi chú không được vượt quá :max ký tự.'

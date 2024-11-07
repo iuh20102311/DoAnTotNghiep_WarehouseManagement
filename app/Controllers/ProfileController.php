@@ -17,7 +17,12 @@ class ProfileController
 
             $profile = Profile::query()
                 ->where('deleted', false)
-                ->with(['user', 'createdOrders']);
+                ->with(['user', 'createdOrders'])
+                ->orderByRaw("CASE 
+                WHEN status = 'ACTIVE' THEN 1 
+                ELSE 2 
+                END")  // Sort ACTIVE status first
+                ->orderBy('created_at', 'desc');
 
             // Add all filters
             if (isset($_GET['phone'])) {

@@ -17,7 +17,12 @@ class RoleController
 
             $role = Role::query()
                 ->where('deleted', false)
-                ->with(['users']);
+                ->with(['users'])
+                ->orderByRaw("CASE 
+                WHEN status = 'ACTIVE' THEN 1 
+                ELSE 2 
+                END")  // Sort ACTIVE status first
+                ->orderBy('created_at', 'desc');
 
             // Add all filters
             if (isset($_GET['status'])) {

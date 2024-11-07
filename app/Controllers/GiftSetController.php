@@ -20,7 +20,12 @@ class GiftSetController
             
              $giftSet = GiftSet::query()
                 ->where('deleted', false)
-                ->with(['products', 'prices','orders']);
+                ->with(['products', 'prices','orders'])
+                 ->orderByRaw("CASE 
+                WHEN status = 'ACTIVE' THEN 1 
+                ELSE 2 
+                END")  // Sort ACTIVE status first
+                 ->orderBy('created_at', 'desc');
 
              
             if (isset($_GET['status'])) {

@@ -44,7 +44,7 @@ class StorageArea extends Model
             'name' => ['required', 'max' => 255],
             'code' => ['required', 'max' => 50],
             'description' => ['max' => 1000],
-            'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE', 'DELETED']]
+            'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE']]
         ];
 
         if ($isUpdate) {
@@ -104,7 +104,7 @@ class StorageArea extends Model
             ],
             'status' => [
                 'required' => 'Trạng thái là bắt buộc.',
-                'enum' => 'Trạng thái phải là ACTIVE, INACTIVE hoặc DELETED.'
+                'enum' => 'Trạng thái phải là ACTIVE, INACTIVE.'
             ]
         ];
     }

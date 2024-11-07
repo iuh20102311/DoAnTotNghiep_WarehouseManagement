@@ -18,7 +18,12 @@ class GiftSetPriceController
 
             $giftSetPrice = (new GiftSetPrice())->query()
                 ->where('deleted', false)
-                ->with(['giftSet']);
+                ->with(['giftSet'])
+                ->orderByRaw("CASE 
+                WHEN status = 'ACTIVE' THEN 1 
+                ELSE 2 
+                END")  // Sort ACTIVE status first
+                ->orderBy('created_at', 'desc');
 
             if (isset($_GET['gift_set_id'])) {
                 $giftSetId = urldecode($_GET['gift_set_id']);
