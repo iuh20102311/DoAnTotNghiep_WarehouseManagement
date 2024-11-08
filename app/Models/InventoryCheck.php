@@ -72,7 +72,7 @@ class InventoryCheck extends Model
             ],
             'status' => [
                 'required' => 'Trạng thái là bắt buộc.',
-                'enum' => 'Trạng thái phải là DRAFT, COMPLETED hoặc CANCELLED.'
+                'enum' => 'Trạng thái phải là ACTIVE,INACTIVE.'
             ],
             'note' => [
                 'max' => 'Ghi chú không được vượt quá :max ký tự.'

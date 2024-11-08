@@ -81,9 +81,16 @@ class MaterialImportReceiptController
                     'details'
                 ])
                 ->orderByRaw("CASE 
-                WHEN status = 'ACTIVE' THEN 1 
-                ELSE 2 
-                END")  // Sort ACTIVE status first
+                WHEN status = 'COMPLETED' THEN 1 
+                WHEN status = 'PENDING_APPROVED' THEN 2
+                WHEN status = 'APPROVED' THEN 3 
+                WHEN status = 'REJECTED' THEN 4 
+                END")
+                ->orderByRaw("CASE 
+                WHEN status = 'RETURN' THEN 1 
+                WHEN status = 'NORMAL' THEN 2
+                WHEN status = 'OTHER' THEN 3 
+                END")
                 ->orderBy('created_at', 'desc');
 
             if (isset($_GET['type'])) {

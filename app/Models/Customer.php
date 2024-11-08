@@ -43,7 +43,7 @@ class Customer extends Model
             'gender' => ['required', 'enum' => [0, 1]],
             'email' => ($isUpdate ? ['required', 'email', 'no_emoji', 'no_whitespace'] : ['required', 'email', 'unique' => [Customer::class, 'email'], 'no_emoji', 'no_whitespace']),
             'address' => ['required', 'string', 'max' => 500, 'no_special_chars', 'no_emoji', 'no_whitespace'],
-            'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE', 'SUSPENDED']]
+            'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE']]
         ];
 
         if ($isUpdate) {
@@ -107,7 +107,7 @@ class Customer extends Model
             ],
             'status' => [
                 'required' => 'Trạng thái là bắt buộc.',
-                'enum' => 'Trạng thái phải là ACTIVE, INACTIVE hoặc SUSPENDED.',
+                'enum' => 'Trạng thái phải là ACTIVE, INACTIVE.',
             ],
         ];
     }

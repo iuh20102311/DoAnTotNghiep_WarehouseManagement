@@ -40,7 +40,8 @@ class MaterialExportReceipt extends Model
         $rules = [
             'note' => ['nullable', 'string', 'max' => 500],
             'receipt_date' => ['required', 'date' => 'Y-m-d H:i:s', 'after' => 'now'],
-            'type' => ['required', 'enum' => ['NORMAL', 'RETURN']],
+            'type' => ['required', 'enum' => ['RETURN','NORMAL','OTHER','CANCEL']],
+            'status' => ['required', 'enum' => ['COMPLETED','TEMPORARY']],
             'created_by' => ['required', 'integer'],
         ];
 
@@ -66,7 +67,11 @@ class MaterialExportReceipt extends Model
             ],
             'type' => [
                 'required' => 'Loại phiếu xuất là bắt buộc.',
-                'enum' => 'Loại phiếu xuất phải là NORMAL hoặc RETURN.'
+                'enum' => 'Loại phiếu xuất phải là RETURN,NORMAL,OTHER hoặc CANCEL.'
+            ],
+            'status' => [
+                'required' => 'Trạng thái là bắt buộc.',
+                'enum' => 'Trạng thái phải là COMPLETED hoặc TEMPORARY.'
             ],
             'created_by' => [
                 'required' => 'Người tạo là bắt buộc.',

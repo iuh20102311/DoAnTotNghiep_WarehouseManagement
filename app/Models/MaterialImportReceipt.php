@@ -55,11 +55,11 @@ class MaterialImportReceipt extends Model
         $rules = [
             'provider_id' => ['required', 'integer'],
             'receipt_id' => ['required', 'string', 'max' => 50],
-            'type' => ['required', 'enum' => ['NORMAL', 'RETURN']],
+            'type' => ['required', 'enum' => ['RETURN','NORMAL','OTHER']],
             'note' => ['nullable', 'string', 'max' => 500],
             'receipt_date' => ['required', 'date' => 'Y-m-d', 'after' => 'now'],
             'total_price' => ['required', 'integer', 'min' => 0],
-            'status' => ['required', 'enum' => ['PENDING', 'COMPLETED']],
+            'status' => ['required', 'enum' => ['APPROVED','PENDING_APPROVED','COMPLETED','REJECTED']],
             'created_by' => ['required', 'integer'],
             'approved_by' => ['nullable', 'integer'],
             'receiver_id' => ['required', 'integer']
@@ -91,7 +91,7 @@ class MaterialImportReceipt extends Model
             ],
             'type' => [
                 'required' => 'Loại phiếu nhập là bắt buộc.',
-                'enum' => 'Loại phiếu nhập phải là NORMAL hoặc RETURN.'
+                'enum' => 'Loại phiếu nhập phải là RETURN,NORMAL hoặc OTHER.'
             ],
             'note' => [
                 'max' => 'Ghi chú không được vượt quá :max ký tự.'
@@ -107,7 +107,7 @@ class MaterialImportReceipt extends Model
             ],
             'status' => [
                 'required' => 'Trạng thái là bắt buộc.',
-                'enum' => 'Trạng thái phải là PENDING, APPROVED, REJECTED hoặc DELETED.'
+                'enum' => 'Trạng thái phải là APPROVED,PENDING_APPROVED,COMPLETED hoặc REJECTED.'
             ],
             'created_by' => [
                 'required' => 'Người tạo là bắt buộc.',
