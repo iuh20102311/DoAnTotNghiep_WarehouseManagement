@@ -39,6 +39,7 @@ class ProductController
             $product = Product::query()
                 ->where('deleted', false)
                 ->with([
+                    'prices',
                     'categories',
                     'inventoryCheckDetails',
                     'inventoryHistory'
@@ -207,6 +208,7 @@ class ProductController
                 ->where('sku', $sku)
                 ->where('deleted', false)
                 ->with([
+                    'prices',
                     'categories',
                     'inventoryCheckDetails',
                     'inventoryHistory'
