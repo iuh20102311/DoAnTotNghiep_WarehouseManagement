@@ -48,9 +48,11 @@ class MaterialController
                 ->where('deleted', false)
                 ->with(['categories', 'providers'])
                 ->orderByRaw("CASE 
-                WHEN status = 'ACTIVE' THEN 1 
-                ELSE 2 
-                END")  // Sort ACTIVE status first
+                                    WHEN status = 'ACTIVE' THEN 1
+                                    WHEN status = 'INACTIVE' THEN 2  
+                                    WHEN status = 'OUT_OF_STOCKS' THEN 3
+                                    ELSE 4
+                                END")
                 ->orderBy('created_at', 'desc');
 
             if (isset($_GET['status'])) {
@@ -123,7 +125,7 @@ class MaterialController
                 $material->where('updated_at', '<=', $updatedTo);
             }
 
-             return $this->paginateResults($material, $perPage, $page)->toArray();
+            return $this->paginateResults($material, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
             error_log("Error in getMaterials: " . $e->getMessage());

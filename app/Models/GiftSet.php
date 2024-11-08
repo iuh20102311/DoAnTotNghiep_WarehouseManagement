@@ -45,7 +45,7 @@ class GiftSet extends Model
         $rules = [
             'name' => ['required', 'string', 'min' => 2, 'max' => 100, 'no_special_chars', 'no_emoji'],
             'description' => ['nullable', 'string', 'max' => 500],
-            'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE', 'SUSPENDED']]
+            'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE', 'OUT_OF_STOCK']]
         ];
 
         // Nếu là update thì không bắt buộc phải có các trường
@@ -77,7 +77,7 @@ class GiftSet extends Model
             ],
             'status' => [
                 'required' => 'Trạng thái là bắt buộc.',
-                'enum' => 'Trạng thái phải là ACTIVE, INACTIVE hoặc SUSPENDED.',
+                'enum' => 'Trạng thái phải là ACTIVE, INACTIVE hoặc OUT_OF_STOCK.',
             ],
         ];
     }

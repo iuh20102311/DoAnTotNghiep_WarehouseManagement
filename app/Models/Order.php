@@ -2,15 +2,12 @@
 
 namespace App\Models;
 
+use App\Utils\Validator;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Exception;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Respect\Validation\Validator as v;
-use Respect\Validation\Exceptions\ValidationException;
-
 
 class Order extends Model
 {
@@ -46,36 +43,98 @@ class Order extends Model
         return $this->hasMany(OrderGiftSet::class);
     }
 
-    /**
-     * @throws Exception
-     */
-    public function validate(array $data, bool $isUpdate = false) : string
+    public function validate(array $data)
     {
-        $validators = [
-            'customer_id' => v::notEmpty()->setName('group_customer_id')->setTemplate('Khách hàng không được rỗng'),
-            'created_by' => v::notEmpty()->setName('create_by')->setTemplate('Người tạo đơn hàng không được rỗng'),
-            'total_price' => v::notEmpty()->numericVal()->positive()->setName('total_price')->setTemplate('Tổng tiền không hợp lệ. Tổng tiền không được trống và phải là số dương.'),
-            'phone' => v::digit()->length(10, 10)->startsWith('0')->setName('phone')->setTemplate('Số điện thoại không được rỗng, phải có 10 chữ số, bắt đầu bằng số 0 và chỉ chứa các chữ số.'),
-            'address' => v::notEmpty()->setTemplate('Địa chỉ không được trống'),
-//            'city' => v::notEmpty()->regex('/^([\p{L}\p{M}]+\s*)+$/u')->setName('city')->setTemplate('Thành phố không hợp lệ. Thành phố phải viết hoa chữ cái đầu tiên của mỗi từ và chỉ chứa chữ cái.'),
-//            'district' => v::notEmpty()->regex('/^([\p{L}\p{M}]+\s*)+$/u')->setName('district')->setTemplate('Tên quận/huyện không hợp lệ. Tên quận/huyện phải viết hoa chữ cái đầu tiên của mỗi từ và chỉ chứa chữ cái.'),
-//            'ward' => v::notEmpty()->regex('/^(?=.*[\p{L}\p{M}])(?=.*\d)([\p{L}\p{M}]+\s*)*?([\p{L}\p{M}]*\d+)?$/u')->setName('ward')->setTemplate('Phường không hợp lệ. Phường phải chứa chữ và số, và mỗi từ phải viết hoa chữ cái đầu tiên.'),
-            'status' => v::notEmpty()->in(['ACTIVE', 'DELETED'])->setName('status')->setTemplate('Trạng thái không hợp lệ. Trạng thái chỉ có thể là ACTIVE hoặc DELETED.'),
+        $validator = new Validator($data, $this->messages());
+
+        $rules = [
+            'customer_id' => ['required', 'integer'],
+            'created_by' => ['required', 'integer'],
+            'order_date' => ['required', 'date' => 'Y-m-d'],
+            'delivery_date' => ['required', 'date' => 'Y-m-d', 'after' => 'order_date'],
+            'total_price' => ['required', 'numeric', 'min' => 0],
+            'phone' => ['required', 'string'],
+            'address' => ['required', 'string', 'min' => 5, 'max' => 255],
+            'city' => ['required', 'string', 'max' => 100],
+            'district' => ['required', 'string', 'max' => 100],
+            'ward' => ['required', 'string', 'max' => 100],
+            'status' => ['required', 'enum' => ['PROCESSED', 'DELIVERED', 'SHIPPING', 'PENDING', 'CANCELLED', 'RETURNED', 'DRAFT']],
+            'payment_status' => ['required', 'enum' => ['PAID', 'PENDING']],
+            'payment_method' => ['required', 'enum' => ['CASH', 'BANK_TRANSFER']],
         ];
 
-        $error = "";
-        foreach ($validators as $field => $validator) {
-            if ($isUpdate && !array_key_exists($field, $data)) {
-                continue;
-            }
-
-            try {
-                $validator->assert(isset($data[$field]) ? $data[$field] : null);
-            } catch (ValidationException $exception) {
-                $error = $exception->getMessage();
-                break;
-            }
+        if (!$validator->validate($rules)) {
+            return $validator->getErrors();
         }
-        return $error;
+
+        return null;
+    }
+
+    protected function messages()
+    {
+        return [
+            'customer_id' => [
+                'required' => 'ID khách hàng là bắt buộc.',
+                'integer' => 'ID khách hàng phải là số nguyên.',
+                'exists' => 'Khách hàng không tồn tại.',
+            ],
+            'created_by' => [
+                'required' => 'Người tạo đơn là bắt buộc.',
+                'integer' => 'ID người tạo phải là số nguyên.',
+                'exists' => 'Người tạo không tồn tại.',
+            ],
+            'order_date' => [
+                'required' => 'Ngày đặt hàng là bắt buộc.',
+                'date' => 'Ngày đặt hàng không hợp lệ.',
+            ],
+            'delivery_date' => [
+                'required' => 'Ngày giao hàng là bắt buộc.',
+                'date' => 'Ngày giao hàng không hợp lệ.',
+                'after' => 'Ngày giao hàng phải sau ngày đặt hàng.',
+            ],
+            'total_price' => [
+                'required' => 'Tổng tiền là bắt buộc.',
+                'numeric' => 'Tổng tiền phải là số.',
+                'min' => 'Tổng tiền không được âm.',
+            ],
+            'phone' => [
+                'required' => 'Số điện thoại là bắt buộc.',
+                'string' => 'Số điện thoại phải là chuỗi.',
+                'regex' => 'Số điện thoại phải có 10 chữ số.',
+            ],
+            'address' => [
+                'required' => 'Địa chỉ là bắt buộc.',
+                'string' => 'Địa chỉ phải là chuỗi.',
+                'min' => 'Địa chỉ phải có ít nhất :min ký tự.',
+                'max' => 'Địa chỉ không được vượt quá :max ký tự.',
+            ],
+            'city' => [
+                'required' => 'Tỉnh/Thành phố là bắt buộc.',
+                'string' => 'Tỉnh/Thành phố phải là chuỗi.',
+                'max' => 'Tỉnh/Thành phố không được vượt quá :max ký tự.',
+            ],
+            'district' => [
+                'required' => 'Quận/Huyện là bắt buộc.',
+                'string' => 'Quận/Huyện phải là chuỗi.',
+                'max' => 'Quận/Huyện không được vượt quá :max ký tự.',
+            ],
+            'ward' => [
+                'required' => 'Phường/Xã là bắt buộc.',
+                'string' => 'Phường/Xã phải là chuỗi.',
+                'max' => 'Phường/Xã không được vượt quá :max ký tự.',
+            ],
+            'status' => [
+                'required' => 'Trạng thái đơn hàng là bắt buộc.',
+                'enum' => 'Trạng thái đơn hàng không hợp lệ, phải là PROCESSED, DELIVERED, SHIPPING, PENDING, CANCELLED, RETURNED, DRAFT.',
+            ],
+            'payment_status' => [
+                'required' => 'Trạng thái thanh toán là bắt buộc.',
+                'enum' => 'Trạng thái thanh toán không hợp lệ.',
+            ],
+            'payment_method' => [
+                'required' => 'Phương thức thanh toán là bắt buộc.',
+                'enum' => 'Phương thức thanh toán không hợp lệ.',
+            ],
+        ];
     }
 }

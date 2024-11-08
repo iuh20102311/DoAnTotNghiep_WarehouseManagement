@@ -100,7 +100,20 @@ class CategoryController
 
             $category = Category::query()
                 ->where('deleted', false)
-                ->with(['products', 'discounts', 'materials']);
+                ->with(['products', 'discounts', 'materials'])
+                ->orderByRaw("CASE 
+                    WHEN status = 'ACTIVE' THEN 1
+                    WHEN status = 'INACTIVE' THEN 2  
+                    WHEN status = 'OUT_OF_STOCKS' THEN 3
+                    ELSE 4
+                END")
+                ->orderByRaw("CASE 
+                    WHEN type = 'PRODUCT' THEN 1
+                    WHEN type = 'MATERIAL' THEN 2
+                    WHEN type = 'PACKAGING' THEN 3
+                    ELSE 4
+                END")
+                ->orderBy('created_at', 'desc');
 
             if ($perPage <= 0 || $page <= 0) {
                 http_response_code(400);

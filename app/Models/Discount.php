@@ -51,7 +51,8 @@ class Discount extends Model
             'minimum_order_value' => ['required', 'integer', 'no_special_chars', 'no_emoji', 'no_whitespace'],
             'maximum_discount_value' => ['required', 'integer', 'no_special_chars', 'no_emoji', 'no_whitespace'],
             'valid_until' => ['required', 'date', 'after_or_equal:valid_start'],
-            'valid_start' => ['required', 'date', 'before_or_equal:valid_until']
+            'valid_start' => ['required', 'date', 'before_or_equal:valid_until'],
+            'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE']]
         ];
 
         if (!$validator->validate($rules)) {
@@ -106,7 +107,11 @@ class Discount extends Model
                 'required' => 'Ngày bắt đầu là bắt buộc.',
                 'date' => 'Ngày bắt đầu không hợp lệ.',
                 'before_or_equal' => 'Ngày bắt đầu phải trước hoặc bằng ngày hết hạn.'
-            ]
+            ],
+            'status' => [
+                'required' => 'Trạng thái là bắt buộc.',
+                'enum' => 'Trạng thái phải là ACTIVE, INACTIVE.',
+            ],
         ];
     }
 }

@@ -44,9 +44,11 @@ class ProductController
                     'inventoryHistory'
                 ])
                 ->orderByRaw("CASE 
-                WHEN status = 'ACTIVE' THEN 1 
-                ELSE 2 
-                END")  // Sort ACTIVE status first
+                WHEN status = 'ACTIVE' THEN 1
+                WHEN status = 'INACTIVE' THEN 2  
+                WHEN status = 'OUT_OF_STOCKS' THEN 3
+                ELSE 4
+                END")
                 ->orderBy('created_at', 'desc');
 
             // Filters for basic fields

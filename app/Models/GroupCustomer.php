@@ -2,12 +2,10 @@
 
 namespace App\Models;
 
+use App\Utils\Validator;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Exception;
-use Respect\Validation\Validator as v;
-use Respect\Validation\Exceptions\ValidationException;
 
 class GroupCustomer extends Model
 {
@@ -22,29 +20,37 @@ class GroupCustomer extends Model
         return $this->hasMany(Customer::class,'group_customer_id');
     }
 
-    /**
-     * @throws Exception
-     */
-    public function validate(array $data, bool $isUpdate = false) : string
+    public function validate(array $data)
     {
-        $validators = [
-            'name' => v::notEmpty()->regex('/^([\p{L}\p{M}]+\s*)+$/u')->setName('name')->setTemplate('Tên không hợp lệ. Tên phải viết hoa chữ cái đầu tiên của mỗi từ và chỉ chứa chữ cái.'),
-            'status' => v::notEmpty()->in(['ACTIVE', 'DELETED'])->setName('status')->setTemplate('Trạng thái không hợp lệ. Trạng thái chỉ có thể là ACTIVE hoặc DELETED.'),
+        $validator = new Validator($data, $this->messages());
+
+        $rules = [
+            'name' => ['required', 'string', 'min' => 2, 'max' => 50, 'no_special_chars', 'no_emoji', 'no_whitespace'],
+            'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE']],
         ];
 
-        $error = "";
-        foreach ($validators as $field => $validator) {
-            if ($isUpdate && !array_key_exists($field, $data)) {
-                continue;
-            }
-
-            try {
-                $validator->assert(isset($data[$field]) ? $data[$field] : null);
-            } catch (ValidationException $exception) {
-                $error = $exception->getMessage();
-                break;
-            }
+        if (!$validator->validate($rules)) {
+            return $validator->getErrors();
         }
-        return $error;
+
+        return null;
+    }
+
+    protected function messages()
+    {
+        return [
+            'name' => [
+                'required' => 'Tên nhóm khách hàng là bắt buộc.',
+                'min' => 'Tên nhóm phải có ít nhất :min ký tự.',
+                'max' => 'Tên nhóm không được vượt quá :max ký tự.',
+                'no_whitespace' => 'Không nhập khoảng trắng.',
+                'no_special_chars' => 'Không nhập các ký tự đặc biệt.',
+                'no_emoji' => 'Không được nhập ký tự chứa emoji.',
+            ],
+            'status' => [
+                'required' => 'Trạng thái là bắt buộc.',
+                'enum' => 'Trạng thái phải là ACTIVE hoặc INACTIVE.',
+            ],
+        ];
     }
 }
