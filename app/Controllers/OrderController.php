@@ -48,8 +48,7 @@ class OrderController
                 WHEN payment_method = 'BANK_TRANSFER' THEN 2
                 ELSE 3
                 END")
-                ->orderBy('created_at', 'desc')
-                ->get();
+                ->orderBy('created_at', 'desc');
 
             if (isset($_GET['status'])) {
                 $status = urldecode($_GET['status']);
