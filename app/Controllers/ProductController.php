@@ -35,11 +35,18 @@ class ProductController
         try {
             $perPage = $_GET['per_page'] ?? 10;
             $page = $_GET['page'] ?? 1;
+            $today = date('Y-m-d');
 
             $product = Product::query()
                 ->where('deleted', false)
                 ->with([
-                    'prices',
+                    'prices' => function ($query) use ($today) {
+                        $query->where('deleted', false)
+                            ->where('status', 'ACTIVE')
+                            ->where('date_start', '<=', $today)
+                            ->where('date_end', '>=', $today)
+                            ->latest('date_start');
+                    },
                     'categories',
                     'inventoryCheckDetails',
                     'inventoryHistory'
@@ -126,23 +133,6 @@ class ProductController
                 $product->where('weight', '<=', $weight_max);
             }
 
-            if (isset($_GET['price']) || isset($_GET['price_min']) || isset($_GET['price_max'])) {
-                $product->whereHas('prices', function ($query) {
-                    if (isset($_GET['price'])) {
-                        $price = urldecode($_GET['price']);
-                        $query->where('price', $price);
-                    }
-                    if (isset($_GET['price_min'])) {
-                        $price_min = urldecode($_GET['price_min']);
-                        $query->where('price', '>=', $price_min);
-                    }
-                    if (isset($_GET['price_max'])) {
-                        $price_max = urldecode($_GET['price_max']);
-                        $query->where('price', '<=', $price_max);
-                    }
-                });
-            }
-
             if (isset($_GET['description'])) {
                 $description = urldecode($_GET['description']);
                 $product->where('description', 'like', '%' . $description . '%');
@@ -190,6 +180,36 @@ class ProductController
                 $product->orderBy('created_at', 'desc');
             }
 
+            if (isset($_GET['price']) || isset($_GET['price_min']) || isset($_GET['price_max'])) {
+                $product->whereHas('prices', function ($query) use ($today) {
+                    $query->where('deleted', false)
+                        ->where('status', 'ACTIVE')
+                        ->where('date_start', '<=', $today)
+                        ->where('date_end', '>=', $today);
+
+                    if (isset($_GET['price'])) {
+                        $price = urldecode($_GET['price']);
+                        $query->where('price', $price);
+                    }
+                    if (isset($_GET['price_min'])) {
+                        $price_min = urldecode($_GET['price_min']);
+                        $query->where('price', '>=', $price_min);
+                    }
+                    if (isset($_GET['price_max'])) {
+                        $price_max = urldecode($_GET['price_max']);
+                        $query->where('price', '<=', $price_max);
+                    }
+                });
+            }
+
+            if (isset($_GET['search'])) {
+                $search = urldecode($_GET['search']);
+                $product->where(function($query) use ($search) {
+                    $query->where('name', 'like', '%' . $search . '%')
+                        ->orWhere('sku', 'like', '%' . $search . '%');
+                });
+            }
+
             return $this->paginateResults($product, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
@@ -204,11 +224,19 @@ class ProductController
     public function getProductBySku($sku): array
     {
         try {
+            $today = date('Y-m-d');
+
             $product = Product::query()
                 ->where('sku', $sku)
                 ->where('deleted', false)
                 ->with([
-                    'prices',
+                    'prices' => function ($query) use ($today) {
+                        $query->where('deleted', false)
+                            ->where('status', 'ACTIVE')
+                            ->where('date_start', '<=', $today)
+                            ->where('date_end', '>=', $today)
+                            ->latest('date_start');
+                    },
                     'categories',
                     'inventoryCheckDetails',
                     'inventoryHistory'
