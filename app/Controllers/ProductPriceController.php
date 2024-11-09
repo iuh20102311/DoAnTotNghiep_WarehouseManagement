@@ -180,52 +180,66 @@ class ProductPriceController
         try {
             $data = json_decode(file_get_contents('php://input'), true);
 
-            if (!$data) {
+            if (!$data || !isset($data['product_id']) || !is_array($data['product_id']) || empty($data['product_id'])) {
                 http_response_code(400);
-                return json_encode(['error' => 'Invalid JSON data']);
+                return [
+                    'success' => false,
+                    'error' => 'Phải có ít nhất một product_id'
+                ];
             }
 
-            // Kiểm tra product có tồn tại không
-            $product = Product::query()
-                ->where('id', $data['product_id'])
+            // Kiểm tra tất cả products có tồn tại không
+            $existingProducts = Product::query()
+                ->whereIn('id', $data['product_id'])
                 ->where('deleted', false)
-                ->first();
+                ->pluck('id')
+                ->toArray();
 
-            if (!$product) {
+            $notFoundProducts = array_diff($data['product_id'], $existingProducts);
+            if (!empty($notFoundProducts)) {
                 http_response_code(404);
                 return [
                     'success' => false,
-                    'error' => 'Không tìm thấy sản phẩm với ID: ' . $data['product_id']
+                    'error' => 'Không tìm thấy sản phẩm với ID: ' . implode(', ', $notFoundProducts)
                 ];
             }
 
-            $productprice = new ProductPrice();
-            $errors = $productprice->validate($data);
+            $results = [];
+            foreach ($data['product_id'] as $productId) {
+                $priceData = array_merge($data, ['product_id' => $productId]);
+                unset($priceData['product_id']); // Xóa mảng product_id cũ
+                $priceData['product_id'] = $productId; // Thêm product_id mới
 
-            if ($errors) {
-                http_response_code(400);
-                return [
-                    'success' => false,
-                    'error' => 'Validation failed',
-                    'details' => $errors
-                ];
+                $productprice = new ProductPrice();
+                $errors = $productprice->validate($priceData);
+
+                if ($errors) {
+                    http_response_code(400);
+                    return [
+                        'success' => false,
+                        'error' => 'Validation failed for product ' . $productId,
+                        'details' => $errors
+                    ];
+                }
+
+                $productprice->fill($priceData);
+                $productprice->save();
+
+                $results[] = $productprice->toArray();
             }
-
-            $productprice->fill($data);
-            $productprice->save();
 
             return [
                 'success' => true,
-                'data' => $productprice->toArray()
+                'data' => $results
             ];
 
         } catch (\Exception $e) {
             error_log("Error in createProductPrice: " . $e->getMessage());
             http_response_code(500);
-            return json_encode([
+            return [
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
-            ]);
+            ];
         }
     }
 
@@ -249,42 +263,136 @@ class ProductPriceController
 
             if (!$data) {
                 http_response_code(400);
-                return json_encode(['error' => 'Invalid JSON data']);
+                return [
+                    'success' => false,
+                    'error' => 'Invalid JSON data'
+                ];
             }
 
-            // Nếu có thay đổi product_id thì kiểm tra product mới có tồn tại không
-            if (isset($data['product_id']) && $data['product_id'] != $productprice->product_id) {
-                $product = Product::query()
-                    ->where('id', $data['product_id'])
-                    ->where('deleted', false)
-                    ->first();
+            $results = [];
 
-                if (!$product) {
+            // Nếu có product_id mới và là array
+            if (isset($data['product_id']) && is_array($data['product_id'])) {
+                // Kiểm tra products tồn tại
+                $existingProducts = Product::query()
+                    ->whereIn('id', $data['product_id'])
+                    ->where('deleted', false)
+                    ->pluck('id')
+                    ->toArray();
+
+                $notFoundProducts = array_diff($data['product_id'], $existingProducts);
+                if (!empty($notFoundProducts)) {
                     http_response_code(404);
                     return [
                         'success' => false,
-                        'error' => 'Không tìm thấy sản phẩm với ID: ' . $data['product_id']
+                        'error' => 'Không tìm thấy sản phẩm với ID: ' . implode(', ', $notFoundProducts)
                     ];
                 }
+
+                // Kiểm tra những product_id đã có giá
+                $existingPrices = ProductPrice::query()
+                    ->whereIn('product_id', $data['product_id'])
+                    ->where('deleted', false)
+                    ->where('id', '!=', $id) // Loại trừ record hiện tại
+                    ->pluck('product_id')
+                    ->toArray();
+
+                // Update record hiện tại nếu product_id mới không tồn tại trong bảng giá
+                if (!in_array($productprice->product_id, $data['product_id'])) {
+                    $updateData = $data;
+                    unset($updateData['product_id']);
+                    $updateData['product_id'] = $data['product_id'][0];
+
+                    $error = $productprice->validate($updateData);
+                    if ($error !== null) {
+                        http_response_code(400);
+                        return [
+                            'success' => false,
+                            'error' => $error
+                        ];
+                    }
+
+                    $productprice->fill($updateData);
+                    $productprice->save();
+
+                    $results[] = [
+                        'action' => 'updated',
+                        'data' => $productprice->toArray()
+                    ];
+                } else {
+                    $results[] = [
+                        'action' => 'unchanged',
+                        'data' => $productprice->toArray()
+                    ];
+                }
+
+                // Thêm mới cho các product_id chưa có giá
+                $newProductIds = array_diff($data['product_id'], $existingPrices);
+                foreach ($newProductIds as $productId) {
+                    // Bỏ qua nếu là product_id của record hiện tại
+                    if ($productId == $productprice->product_id) {
+                        continue;
+                    }
+
+                    $newPriceData = array_merge($data, ['product_id' => $productId]);
+                    unset($newPriceData['product_id']); // Xóa mảng product_id cũ
+                    $newPriceData['product_id'] = $productId; // Thêm product_id mới
+
+                    $newProductPrice = new ProductPrice();
+                    $error = $newProductPrice->validate($newPriceData);
+
+                    if ($error === null) {
+                        $newProductPrice->fill($newPriceData);
+                        $newProductPrice->save();
+                        $results[] = [
+                            'action' => 'created',
+                            'data' => $newProductPrice->toArray()
+                        ];
+                    }
+                }
+
+                // Thêm thông tin về product_id đã tồn tại vào kết quả
+                foreach ($existingPrices as $existingProductId) {
+                    $results[] = [
+                        'action' => 'skipped',
+                        'data' => [
+                            'product_id' => $existingProductId,
+                            'message' => 'Giá cho sản phẩm này đã tồn tại'
+                        ]
+                    ];
+                }
+
+                return [
+                    'success' => true,
+                    'message' => 'Cập nhật và thêm mới giá thành công',
+                    'data' => $results
+                ];
+            } else {
+                // Update bình thường nếu không có mảng product_id
+                $error = $productprice->validate($data);
+                if ($error !== null) {
+                    http_response_code(400);
+                    return [
+                        'success' => false,
+                        'error' => $error
+                    ];
+                }
+
+                $productprice->fill($data);
+                $productprice->save();
+
+                return [
+                    'success' => true,
+                    'data' => $productprice->toArray()
+                ];
             }
-
-            $error = $productprice->validate($data);
-            if ($error !== null) {
-                http_response_code(400);
-                return json_encode(['error' => $error]);
-            }
-
-            $productprice->fill($data);
-            $productprice->save();
-
-            return $productprice;
         } catch (\Exception $e) {
             error_log("Error in updateProductPriceById: " . $e->getMessage());
             http_response_code(500);
-            return json_encode([
+            return [
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
-            ]);
+            ];
         }
     }
 
