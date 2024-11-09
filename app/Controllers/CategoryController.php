@@ -111,27 +111,7 @@ class CategoryController
                 ];
             }
 
-            // Tính tổng theo từng loại
-            $totalsByType = [
-                'PRODUCT' => 0,
-                'MATERIAL' => 0
-            ];
-
-            foreach ($result as $categoryData) {
-                $type = $categoryData['category_type'];
-                $totalsByType[$type] += $categoryData['available_quantity'];
-            }
-
-            return [
-                'data' => [
-                    'categories' => $result,
-                    'total_summary' => [
-                        'total_by_type' => $totalsByType,
-                        'total_categories' => count($result),
-                        'total_quantity' => array_sum($totalsByType)
-                    ]
-                ]
-            ];
+            return $result;
 
         } catch (\Exception $e) {
             error_log("Error in getAllCategoriesProductCount: " . $e->getMessage());
