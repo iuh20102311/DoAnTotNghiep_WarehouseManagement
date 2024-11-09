@@ -254,12 +254,12 @@ class ProductPriceController
     public function updateProductPriceById($id)
     {
         try {
-            $productprice = ProductPrice::query()
+            $productPrice = ProductPrice::query()
                 ->where('id', $id)
                 ->where('deleted', false)
                 ->first();
 
-            if (!$productprice) {
+            if (!$productPrice) {
                 http_response_code(404);
                 return [
                     'success' => false,
@@ -277,107 +277,76 @@ class ProductPriceController
                 ];
             }
 
-            $results = [];
+            // Case 1: Status ACTIVE - chỉ được sửa ngày kết thúc
+            if ($productPrice->status === 'ACTIVE') {
+                // Kiểm tra xem có đang cố gắng sửa các trường khác không
+                $allowedFields = ['date_end'];
+                $attemptedFields = array_keys($data);
+                $invalidFields = array_diff($attemptedFields, $allowedFields);
 
-            // Nếu có product_id mới và là array
-            if (isset($data['product_id']) && is_array($data['product_id'])) {
-                // Kiểm tra products tồn tại
-                $existingProducts = Product::query()
-                    ->whereIn('id', $data['product_id'])
-                    ->where('deleted', false)
-                    ->pluck('id')
-                    ->toArray();
-
-                $notFoundProducts = array_diff($data['product_id'], $existingProducts);
-                if (!empty($notFoundProducts)) {
-                    http_response_code(404);
+                if (!empty($invalidFields)) {
+                    http_response_code(400);
                     return [
                         'success' => false,
-                        'error' => 'Không tìm thấy sản phẩm với ID: ' . implode(', ', $notFoundProducts)
+                        'error' => 'Chỉ được phép thay đổi ngày kết thúc khi status là ACTIVE'
                     ];
                 }
 
-                // Kiểm tra những product_id đã có giá
-                $existingPrices = ProductPrice::query()
-                    ->whereIn('product_id', $data['product_id'])
-                    ->where('deleted', false)
-                    ->where('id', '!=', $id) // Loại trừ record hiện tại
-                    ->pluck('product_id')
-                    ->toArray();
-
-                // Update record hiện tại nếu product_id mới không tồn tại trong bảng giá
-                if (!in_array($productprice->product_id, $data['product_id'])) {
-                    $updateData = $data;
-                    unset($updateData['product_id']);
-                    $updateData['product_id'] = $data['product_id'][0];
-
-                    $error = $productprice->validate($updateData);
-                    if ($error !== null) {
-                        http_response_code(400);
-                        return [
-                            'success' => false,
-                            'error' => $error
-                        ];
-                    }
-
-                    $productprice->fill($updateData);
-                    $productprice->save();
-
-                    $results[] = [
-                        'action' => 'updated',
-                        'data' => $productprice->toArray()
-                    ];
-                } else {
-                    $results[] = [
-                        'action' => 'unchanged',
-                        'data' => $productprice->toArray()
+                // Kiểm tra ngày kết thúc mới phải từ ngày hiện tại trở đi
+                $currentDate = date('Y-m-d');
+                if (isset($data['date_end']) && $data['date_end'] < $currentDate) {
+                    http_response_code(400);
+                    return [
+                        'success' => false,
+                        'error' => 'Ngày kết thúc phải từ ngày hiện tại trở đi'
                     ];
                 }
 
-                // Thêm mới cho các product_id chưa có giá
-                $newProductIds = array_diff($data['product_id'], $existingPrices);
-                foreach ($newProductIds as $productId) {
-                    // Bỏ qua nếu là product_id của record hiện tại
-                    if ($productId == $productprice->product_id) {
-                        continue;
-                    }
-
-                    $newPriceData = array_merge($data, ['product_id' => $productId]);
-                    unset($newPriceData['product_id']); // Xóa mảng product_id cũ
-                    $newPriceData['product_id'] = $productId; // Thêm product_id mới
-
-                    $newProductPrice = new ProductPrice();
-                    $error = $newProductPrice->validate($newPriceData);
-
-                    if ($error === null) {
-                        $newProductPrice->fill($newPriceData);
-                        $newProductPrice->save();
-                        $results[] = [
-                            'action' => 'created',
-                            'data' => $newProductPrice->toArray()
-                        ];
-                    }
-                }
-
-                // Thêm thông tin về product_id đã tồn tại vào kết quả
-                foreach ($existingPrices as $existingProductId) {
-                    $results[] = [
-                        'action' => 'skipped',
-                        'data' => [
-                            'product_id' => $existingProductId,
-                            'message' => 'Giá cho sản phẩm này đã tồn tại'
-                        ]
-                    ];
-                }
+                $productPrice->date_end = $data['date_end'];
+                $productPrice->save();
 
                 return [
                     'success' => true,
-                    'message' => 'Cập nhật và thêm mới giá thành công',
-                    'data' => $results
+                    'message' => 'Cập nhật ngày kết thúc thành công',
+                    'data' => $productPrice->toArray()
                 ];
-            } else {
-                // Update bình thường nếu không có mảng product_id
-                $error = $productprice->validate($data);
+            }
+
+            // Case 2: Status INACTIVE
+            if ($productPrice->status === 'INACTIVE') {
+                // Case 2.1: Nếu đang thay đổi status từ INACTIVE sang ACTIVE
+                if (isset($data['status']) && $data['status'] === 'ACTIVE') {
+                    // Kiểm tra xem có bị trùng với khoảng thời gian nào đang ACTIVE không
+                    $existingActivePrice = ProductPrice::query()
+                        ->where('product_id', $productPrice->product_id)
+                        ->where('status', 'ACTIVE')
+                        ->where('id', '!=', $id)
+                        ->where(function ($query) use ($data, $productPrice) {
+                            $startDate = $data['date_start'] ?? $productPrice->date_start;
+                            $endDate = $data['date_end'] ?? $productPrice->date_end;
+
+                            $query->whereBetween('date_start', [$startDate, $endDate])
+                                ->orWhereBetween('date_end', [$startDate, $endDate])
+                                ->orWhere(function ($q) use ($startDate, $endDate) {
+                                    $q->where('date_start', '<=', $startDate)
+                                        ->where('date_end', '>=', $endDate);
+                                });
+                        })
+                        ->exists();
+
+                    if ($existingActivePrice) {
+                        http_response_code(400);
+                        return [
+                            'success' => false,
+                            'error' => 'Không thể kích hoạt vì đã tồn tại khoảng thời gian đang active'
+                        ];
+                    }
+                }
+
+                // Validate dữ liệu mới
+                $updateData = array_merge($productPrice->toArray(), $data);
+                $error = $productPrice->validate($updateData);
+
                 if ($error !== null) {
                     http_response_code(400);
                     return [
@@ -386,18 +355,22 @@ class ProductPriceController
                     ];
                 }
 
-                $productprice->fill($data);
-                $productprice->save();
+                // Cập nhật dữ liệu
+                $productPrice->fill($data);
+                $productPrice->save();
 
                 return [
                     'success' => true,
-                    'data' => $productprice->toArray()
+                    'message' => 'Cập nhật thành công',
+                    'data' => $productPrice->toArray()
                 ];
             }
+
         } catch (\Exception $e) {
             error_log("Error in updateProductPriceById: " . $e->getMessage());
             http_response_code(500);
             return [
+                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
