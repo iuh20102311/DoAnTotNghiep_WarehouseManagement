@@ -7,7 +7,8 @@ use App\Models\Discount;
 use App\Models\Material;
 use App\Models\Product;
 use App\Utils\PaginationTrait;
-
+use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Capsule\Manager as Capsule;
 
 class CategoryController
 {
@@ -16,9 +17,7 @@ class CategoryController
     public function getAllCategoriesProductCount(): array
     {
         try {
-            $categories = Category::query()
-                ->where('categories.deleted', false)
-                ->get();
+            $categories = Category::where('deleted', false)->get();
 
             if ($categories->isEmpty()) {
                 return [
@@ -30,91 +29,89 @@ class CategoryController
             $result = [];
 
             foreach ($categories as $category) {
-                // Tính tổng số lượng khả dụng
-                $availableCount = $category->products()
-                    ->where('products.deleted', false)
-                    ->sum('products.quantity_available');
+                if ($category->type === 'PRODUCT') {
+                    // Đếm từ bảng product_categories
+                    $query = $category->products()
+                        ->where('products.deleted', false)
+                        ->where('product_categories.deleted', false);
 
-                // Đếm số lượng sản phẩm unique
-                $uniqueProducts = $category->products()
-                    ->where('products.deleted', false)
-                    ->count();
+                    $totalItems = $query->count();
+                    $availableCount = $query->sum('quantity_available');
+                    $belowMinimumStock = $query->whereRaw('quantity_available < minimum_stock_level')->count();
+                    $outOfStock = $query->where('quantity_available', 0)->count();
+                    $inStock = $query->where('quantity_available', '>', 0)->count();
 
-                // Số sản phẩm dưới mức tồn kho tối thiểu
-                $belowMinimumStock = $category->products()
-                    ->where('products.deleted', false)
-                    ->whereRaw('products.quantity_available < products.minimum_stock_level')
-                    ->count();
+                    // Stock by area cho products
+                    $stockByArea = Capsule::table('product_categories')
+                        ->join('products', 'product_categories.product_id', '=', 'products.id')
+                        ->join('product_storage_locations', 'products.id', '=', 'product_storage_locations.product_id')
+                        ->join('storage_areas', 'product_storage_locations.storage_area_id', '=', 'storage_areas.id')
+                        ->where('product_categories.category_id', $category->id)
+                        ->where('products.deleted', false)
+                        ->where('product_categories.deleted', false)
+                        ->groupBy('storage_areas.id', 'storage_areas.name')  // Thêm storage_areas.id vào group by
+                        ->select(
+                            'storage_areas.name as storage_area',
+                            Capsule::raw('SUM(product_storage_locations.quantity) as total_quantity')
+                        )
+                        ->get();
 
-                // Stock by area
-                $stockByArea = Product::query()
-                    ->join('product_categories', 'products.id', '=', 'product_categories.product_id')
-                    ->join('product_storage_locations', 'products.id', '=', 'product_storage_locations.product_id')
-                    ->join('storage_areas', 'product_storage_locations.storage_area_id', '=', 'storage_areas.id')
-                    ->where('product_categories.category_id', $category->id)
-                    ->where('products.deleted', false)
-                    ->select('storage_areas.name as storage_area')
-                    ->selectRaw('SUM(product_storage_locations.quantity) as total_quantity')
-                    ->groupBy('storage_areas.name')
-                    ->get();
+                } else {
+                    // Đếm từ bảng material_categories
+                    $query = $category->materials()
+                        ->where('materials.deleted', false)
+                        ->where('material_categories.deleted', false);
 
-                // Thống kê trạng thái tồn kho
-                $outOfStock = $category->products()
-                    ->where('products.deleted', false)
-                    ->where('products.quantity_available', 0)
-                    ->count();
+                    $totalItems = $query->count();
+                    $availableCount = $query->sum('quantity_available');
+                    $belowMinimumStock = $query->whereRaw('quantity_available < minimum_stock_level')->count();
+                    $outOfStock = $query->where('quantity_available', 0)->count();
+                    $inStock = $query->where('quantity_available', '>', 0)->count();
 
-                $inStock = $category->products()
-                    ->where('products.deleted', false)
-                    ->where('products.quantity_available', '>', 0)
-                    ->count();
+                    // Stock by area cho materials
+                    $stockByArea = Capsule::table('material_categories')
+                        ->join('materials', 'material_categories.material_id', '=', 'materials.id')
+                        ->join('material_storage_locations', 'materials.id', '=', 'material_storage_locations.material_id')
+                        ->join('storage_areas', 'material_storage_locations.storage_area_id', '=', 'storage_areas.id')
+                        ->where('material_categories.category_id', $category->id)
+                        ->where('materials.deleted', false)
+                        ->where('material_categories.deleted', false)
+                        ->groupBy('storage_areas.id', 'storage_areas.name')  // Thêm storage_areas.id vào group by
+                        ->select(
+                            'storage_areas.name as storage_area',
+                            Capsule::raw('SUM(material_storage_locations.quantity) as total_quantity')
+                        )
+                        ->get();
+                }
 
-                // Thêm thông tin của category vào kết quả
                 $result[] = [
                     'category_id' => $category->id,
                     'category_name' => $category->name,
                     'category_type' => $category->type,
                     'totals_by_type' => [
-                        'PRODUCT' => $category->type === 'PRODUCT' ? $availableCount : 0,
-                        'MATERIAL' => $category->type === 'MATERIAL' ? $availableCount : 0,
-                        'PACKING' => $category->type === 'PACKING' ? $availableCount : 0
+                        'PRODUCT' => $category->type === 'PRODUCT' ? (int)$availableCount : 0,
+                        'MATERIAL' => $category->type === 'MATERIAL' ? (int)$availableCount : 0
                     ],
-                    'available_quantity' => $availableCount,
-                    'unique_products_count' => $uniqueProducts,
-                    'below_minimum_stock' => $belowMinimumStock,
-                    'stock_by_area' => $stockByArea,
+                    'available_quantity' => (int)$availableCount,
+                    'total_items' => (int)$totalItems,
+                    'below_minimum_stock' => (int)$belowMinimumStock,
+                    'stock_by_area' => $stockByArea->map(function($item) {
+                        return [
+                            'storage_area' => $item->storage_area,
+                            'total_quantity' => (int)$item->total_quantity
+                        ];
+                    }),
                     'statistics' => [
                         $category->type => [
-                            'out_of_stock' => $outOfStock,
-                            'low_stock' => $belowMinimumStock,
-                            'in_stock' => $inStock
+                            'out_of_stock' => (int)$outOfStock,
+                            'low_stock' => (int)$belowMinimumStock,
+                            'in_stock' => (int)$inStock
                         ]
                     ]
                 ];
             }
 
-            // Tính tổng theo từng loại
-            $totalsByType = [
-                'PRODUCT' => 0,
-                'MATERIAL' => 0,
-                'PACKING' => 0
-            ];
-
-            foreach ($result as $categoryData) {
-                $type = $categoryData['category_type'];
-                $totalsByType[$type] += $categoryData['available_quantity'];
-            }
-
-            return [
-                'data' => [
-                    'categories' => $result,
-                    'total_summary' => [
-                        'total_by_type' => $totalsByType,
-                        'total_categories' => count($result),
-                        'total_quantity' => array_sum($totalsByType)
-                    ]
-                ]
-            ];
+            return $result;
 
         } catch (\Exception $e) {
             error_log("Error in getAllCategoriesProductCount: " . $e->getMessage());
