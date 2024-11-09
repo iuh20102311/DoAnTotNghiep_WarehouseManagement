@@ -100,6 +100,7 @@ class CategoryController
 
             $category = Category::query()
                 ->where('deleted', false)
+                ->where('status', 'ACTIVE')
                 ->with(['products', 'discounts', 'materials'])
                 ->orderByRaw("CASE 
                     WHEN status = 'ACTIVE' THEN 1
@@ -206,6 +207,7 @@ class CategoryController
         try {
             $category = Category::query()
                 ->where('deleted', false)
+                ->where('status', 'ACTIVE')
                 ->with(['products', 'discounts', 'materials'])
                 ->find($id);
 
@@ -233,6 +235,7 @@ class CategoryController
         try {
             $categoryQuery = Category::query()
                 ->where('deleted', false)
+                ->where('status', 'ACTIVE')
                 ->select('id', 'name', 'type')
                 ->orderBy('name', 'asc');
 
