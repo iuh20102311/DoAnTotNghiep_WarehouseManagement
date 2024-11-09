@@ -180,22 +180,26 @@ class ProductPriceController
         try {
             $data = json_decode(file_get_contents('php://input'), true);
 
-            if (!$data || !isset($data['product_id']) || !is_array($data['product_id']) || empty($data['product_id'])) {
+            // Validate input structure
+            if (!$data || !isset($data['products']) || !is_array($data['products']) || empty($data['products'])) {
                 http_response_code(400);
                 return [
                     'success' => false,
-                    'error' => 'Phải có ít nhất một product_id'
+                    'error' => 'Phải có ít nhất một sản phẩm'
                 ];
             }
 
+            // Lấy tất cả product_id từ request
+            $productIds = array_column($data['products'], 'product_id');
+
             // Kiểm tra tất cả products có tồn tại không
             $existingProducts = Product::query()
-                ->whereIn('id', $data['product_id'])
+                ->whereIn('id', $productIds)
                 ->where('deleted', false)
                 ->pluck('id')
                 ->toArray();
 
-            $notFoundProducts = array_diff($data['product_id'], $existingProducts);
+            $notFoundProducts = array_diff($productIds, $existingProducts);
             if (!empty($notFoundProducts)) {
                 http_response_code(404);
                 return [
@@ -205,27 +209,31 @@ class ProductPriceController
             }
 
             $results = [];
-            foreach ($data['product_id'] as $productId) {
-                $priceData = array_merge($data, ['product_id' => $productId]);
-                unset($priceData['product_id']); // Xóa mảng product_id cũ
-                $priceData['product_id'] = $productId; // Thêm product_id mới
+            foreach ($data['products'] as $product) {
+                $priceData = [
+                    'product_id' => $product['product_id'],
+                    'date_start' => $data['date_start'] ?? null,
+                    'date_end' => $data['date_end'] ?? null,
+                    'price' => $product['price'] ?? $data['price'], // Ưu tiên giá riêng của sản phẩm, nếu không có thì lấy giá chung
+                    'status' => $data['status'] ?? 'ACTIVE'
+                ];
 
-                $productprice = new ProductPrice();
-                $errors = $productprice->validate($priceData);
+                $productPrice = new ProductPrice();
+                $errors = $productPrice->validate($priceData);
 
                 if ($errors) {
                     http_response_code(400);
                     return [
                         'success' => false,
-                        'error' => 'Validation failed for product ' . $productId,
+                        'error' => 'Validation failed for product ' . $product['product_id'],
                         'details' => $errors
                     ];
                 }
 
-                $productprice->fill($priceData);
-                $productprice->save();
+                $productPrice->fill($priceData);
+                $productPrice->save();
 
-                $results[] = $productprice->toArray();
+                $results[] = $productPrice->toArray();
             }
 
             return [

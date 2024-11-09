@@ -141,16 +141,16 @@ class CategoryController
                     'discounts'
                 ])
                 ->orderByRaw("CASE 
-                WHEN status = 'ACTIVE' THEN 1
-                WHEN status = 'INACTIVE' THEN 2  
-                WHEN status = 'OUT_OF_STOCKS' THEN 3
-                ELSE 4
-            END")
+            WHEN status = 'ACTIVE' THEN 1
+            WHEN status = 'INACTIVE' THEN 2  
+            WHEN status = 'OUT_OF_STOCKS' THEN 3
+            ELSE 4
+        END")
                 ->orderByRaw("CASE 
-                WHEN type = 'PRODUCT' THEN 1
-                WHEN type = 'MATERIAL' THEN 2
-                ELSE 3
-            END")
+            WHEN type = 'PRODUCT' THEN 1
+            WHEN type = 'MATERIAL' THEN 2
+            ELSE 3
+        END")
                 ->orderBy('created_at', 'desc');
 
             if ($perPage <= 0 || $page <= 0) {
@@ -229,19 +229,17 @@ class CategoryController
 
             $results = $this->paginateResults($category, $perPage, $page)->toArray();
 
-            // Tính total_product và total_material cho mỗi category
+            // Đếm số lượng sản phẩm và nguyên liệu cho mỗi category
             $data = collect($results['data'])->map(function($category) {
-                // Tính tổng quantity_available của products
-                $total_product = collect($category['products'] ?? [])
-                    ->sum('quantity_available');
+                // Đếm số lượng products
+                $total_product = count($category['products'] ?? []);
 
-                // Tính tổng quantity_available của materials
-                $total_material = collect($category['materials'] ?? [])
-                    ->sum('quantity_available');
+                // Đếm số lượng materials
+                $total_material = count($category['materials'] ?? []);
 
                 // Thêm totals vào dữ liệu hiện tại
-                $category['total_product'] = (int)$total_product;
-                $category['total_material'] = (int)$total_material;
+                $category['total_product'] = $total_product;
+                $category['total_material'] = $total_material;
 
                 return $category;
             })->all();
