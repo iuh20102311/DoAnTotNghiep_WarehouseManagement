@@ -208,7 +208,6 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
             $router->get('/', ['App\Controllers\CategoryController', 'getCategories']);
             $router->post('/', ['App\Controllers\CategoryController', 'createCategory']);
 
-            $router->get('/active_categories', ['App\Controllers\CategoryController', 'getActiveCategories']);
             $router->get('/product_count', ['App\Controllers\CategoryController', 'getAllCategoriesProductCount']);
 
             $router->get('/{id}', ['App\Controllers\CategoryController', 'getCategoryById']);
