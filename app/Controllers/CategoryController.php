@@ -14,30 +14,6 @@ class CategoryController
 {
     use PaginationTrait;
 
-    public function getActiveCategories(): array
-    {
-        try {
-            $categories = Category::query()
-                ->where('deleted', false)
-                ->where('status', 'ACTIVE')
-                ->get()
-                ->toArray();
-
-            return [
-                'success' => true,
-                'data' => $categories
-            ];
-
-        } catch (\Exception $e) {
-            error_log("Error in getActiveCategories: " . $e->getMessage());
-            http_response_code(500);
-            return [
-                'error' => 'Database error occurred',
-                'details' => $e->getMessage()
-            ];
-        }
-    }
-
     public function getAllCategoriesProductCount(): array
     {
         try {
