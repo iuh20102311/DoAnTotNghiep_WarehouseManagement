@@ -266,6 +266,19 @@ class ProductController
         try {
             $data = json_decode(file_get_contents('php://input'), true);
 
+            // Validate category_id
+            if (empty($data['category_id']) || !is_array($data['category_id'])) {
+                http_response_code(400); // Bad Request
+                return [
+                    'success' => false,
+                    'error' => 'Phải chọn ít nhất một danh mục cho sản phẩm'
+                ];
+            }
+
+            // Tách category_id ra khỏi data sản phẩm
+            $categoryIds = $data['category_id'];
+            unset($data['category_id']);
+
             // Loại bỏ quantity_available nếu có trong request
             unset($data['quantity_available']);
 
@@ -273,6 +286,7 @@ class ProductController
             $errors = $product->validate($data);
 
             if ($errors) {
+                http_response_code(422); // Unprocessable Entity
                 return [
                     'success' => false,
                     'error' => 'Validation failed',
@@ -280,16 +294,33 @@ class ProductController
                 ];
             }
 
+            // Kiểm tra các category tồn tại
+            $categories = Category::whereIn('id', $categoryIds)->get();
+
+            if ($categories->count() !== count($categoryIds)) {
+                http_response_code(404); // Not Found
+                return [
+                    'success' => false,
+                    'error' => 'Một hoặc nhiều danh mục không tồn tại'
+                ];
+            }
+
+            // Lưu sản phẩm
             $product->fill($data);
             $product->save();
 
+            // Thêm categories
+            $product->categories()->attach($categoryIds);
+
+            http_response_code(201); // Created
             return [
                 'success' => true,
-                'data' => $product->toArray()
+                'data' => $product->fresh()->load(['categories'])->toArray()
             ];
 
         } catch (\Exception $e) {
             error_log("Error in createProduct: " . $e->getMessage());
+            http_response_code(500); // Internal Server Error
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
@@ -306,6 +337,7 @@ class ProductController
                 ->find($id);
 
             if (!$product) {
+                http_response_code(404);
                 return [
                     'success' => false,
                     'error' => 'Không tìm thấy sản phẩm'
@@ -314,12 +346,26 @@ class ProductController
 
             $data = json_decode(file_get_contents('php://input'), true);
 
+            // Tách category_id ra khỏi data nếu có
+            $categoryIds = null;
+            if (isset($data['category_id'])) {
+                if (!is_array($data['category_id'])) {
+                    http_response_code(400);
+                    return [
+                        'success' => false,
+                        'error' => 'category_id phải là một mảng'
+                    ];
+                }
+                $categoryIds = $data['category_id'];
+                unset($data['category_id']);
+            }
+
             // Loại bỏ quantity_available nếu có trong request
             unset($data['quantity_available']);
 
             $errors = $product->validate($data, true);
-
             if ($errors) {
+                http_response_code(422);
                 return [
                     'success' => false,
                     'error' => 'Validation failed',
@@ -327,16 +373,61 @@ class ProductController
                 ];
             }
 
+            // Nếu có cập nhật categories
+            if ($categoryIds !== null) {
+                if (!empty($categoryIds)) {
+                    // Kiểm tra các category tồn tại
+                    $categories = Category::whereIn('id', $categoryIds)
+                        ->where('deleted', false)
+                        ->get();
+
+                    if ($categories->count() !== count($categoryIds)) {
+                        http_response_code(404);
+                        return [
+                            'success' => false,
+                            'error' => 'Một hoặc nhiều danh mục không tồn tại hoặc đã bị xóa'
+                        ];
+                    }
+
+                    // Kiểm tra categories đã tồn tại
+                    $existingCategories = $product->categories()
+                        ->whereIn('category_id', $categoryIds)
+                        ->pluck('category_id')
+                        ->toArray();
+
+                    // Lọc ra các categories mới chưa được thêm
+                    $newCategoryIds = array_diff($categoryIds, $existingCategories);
+                    if (empty($newCategoryIds)) {
+                        http_response_code(400);
+                        return [
+                            'success' => false,
+                            'error' => 'Tất cả danh mục đã tồn tại cho sản phẩm này'
+                        ];
+                    }
+
+                    // Chỉ thêm các categories mới
+                    $product->categories()->attach($newCategoryIds);
+                } else {
+                    // Nếu gửi mảng rỗng thì xóa hết categories
+                    $product->categories()->detach();
+                }
+            }
+
+            // Cập nhật thông tin sản phẩm
             $product->fill($data);
             $product->save();
 
+            // Trả về sản phẩm đã cập nhật kèm categories
+            http_response_code(200);
             return [
                 'success' => true,
-                'data' => $product->toArray()
+                'data' => $product->fresh()->load(['categories'])->toArray(),
+                'message' => 'Cập nhật sản phẩm thành công'
             ];
 
         } catch (\Exception $e) {
             error_log("Error in updateProductById: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'success' => false,
                 'error' => 'Database error occurred',

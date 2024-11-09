@@ -43,7 +43,7 @@ class Category extends Model
 
         $rules = [
             'name' => ['required', 'string', 'min' => 2, 'max' => 50, 'no_special_chars', 'no_emoji', 'no_whitespace'],
-            'type' => ['required', 'string', 'enum' => ['PRODUCT','MATERIAL','PACKAGING']],
+            'type' => ['required', 'string', 'enum' => ['PRODUCT','MATERIAL','PACKING']],
             'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE']],
             'description' => ['required', 'string'],
         ];
@@ -71,7 +71,7 @@ class Category extends Model
             ],
             'type' => [
                 'required' => 'Loại là bắt buộc.',
-                'enum' => 'Loại phải là PRODUCT,MATERIAL,PACKAGING.',
+                'enum' => 'Loại phải là PRODUCT,MATERIAL,PACKING.',
             ],
             'status' => [
                 'required' => 'Trạng thái là bắt buộc.',
