@@ -14,6 +14,30 @@ class CategoryController
 {
     use PaginationTrait;
 
+    public function getActiveCategories(): array
+    {
+        try {
+            $categories = Category::query()
+                ->where('deleted', false)
+                ->where('status', 'ACTIVE')
+                ->get()
+                ->toArray();
+
+            return [
+                'success' => true,
+                'data' => $categories
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in getActiveCategories: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
     public function getAllCategoriesProductCount(): array
     {
         try {
@@ -95,7 +119,7 @@ class CategoryController
                     'available_quantity' => (int)$availableCount,
                     'total_items' => (int)$totalItems,
                     'below_minimum_stock' => (int)$belowMinimumStock,
-                    'stock_by_area' => $stockByArea->map(function($item) {
+                    'stock_by_area' => $stockByArea->map(function ($item) {
                         return [
                             'storage_area' => $item->storage_area,
                             'total_quantity' => (int)$item->total_quantity
@@ -131,20 +155,26 @@ class CategoryController
 
             $category = Category::query()
                 ->where('deleted', false)
-                ->where('status', 'ACTIVE')
-                ->with(['products', 'discounts', 'materials'])
+                ->with([
+                    'products' => function($query) {
+                        $query->where('products.deleted', false);
+                    },
+                    'materials' => function($query) {
+                        $query->where('materials.deleted', false);
+                    },
+                    'discounts'
+                ])
                 ->orderByRaw("CASE 
-                    WHEN status = 'ACTIVE' THEN 1
-                    WHEN status = 'INACTIVE' THEN 2  
-                    WHEN status = 'OUT_OF_STOCKS' THEN 3
-                    ELSE 4
-                END")
+                WHEN status = 'ACTIVE' THEN 1
+                WHEN status = 'INACTIVE' THEN 2  
+                WHEN status = 'OUT_OF_STOCKS' THEN 3
+                ELSE 4
+            END")
                 ->orderByRaw("CASE 
-                    WHEN type = 'PRODUCT' THEN 1
-                    WHEN type = 'MATERIAL' THEN 2
-                    WHEN type = 'PACKING' THEN 3
-                    ELSE 4
-                END")
+                WHEN type = 'PRODUCT' THEN 1
+                WHEN type = 'MATERIAL' THEN 2
+                ELSE 3
+            END")
                 ->orderBy('created_at', 'desc');
 
             if ($perPage <= 0 || $page <= 0) {
@@ -221,7 +251,28 @@ class CategoryController
                 $category->orderBy('created_at', 'desc');
             }
 
-            return $this->paginateResults($category, $perPage, $page)->toArray();
+            $results = $this->paginateResults($category, $perPage, $page)->toArray();
+
+            // Tính total_product và total_material cho mỗi category
+            $data = collect($results['data'])->map(function($category) {
+                // Tính tổng quantity_available của products
+                $total_product = collect($category['products'] ?? [])
+                    ->sum('quantity_available');
+
+                // Tính tổng quantity_available của materials
+                $total_material = collect($category['materials'] ?? [])
+                    ->sum('quantity_available');
+
+                // Thêm totals vào dữ liệu hiện tại
+                $category['total_product'] = (int)$total_product;
+                $category['total_material'] = (int)$total_material;
+
+                return $category;
+            })->all();
+
+            $results['data'] = $data;
+
+            return $results;
 
         } catch (\Exception $e) {
             error_log("Error in getCategories: " . $e->getMessage());
