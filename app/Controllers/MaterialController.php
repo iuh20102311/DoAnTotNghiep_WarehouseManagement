@@ -169,6 +169,19 @@ class MaterialController
         try {
             $data = json_decode(file_get_contents('php://input'), true);
 
+            // Validate category_id
+            if (empty($data['category_id']) || !is_array($data['category_id'])) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'Phải chọn ít nhất một danh mục cho vật liệu'
+                ];
+            }
+
+            // Tách category_id ra khỏi data
+            $categoryIds = $data['category_id'];
+            unset($data['category_id']);
+
             // Loại bỏ quantity_available nếu có trong request
             unset($data['quantity_available']);
 
@@ -176,7 +189,7 @@ class MaterialController
             $errors = $material->validate($data);
 
             if ($errors) {
-                http_response_code(400);
+                http_response_code(422);
                 return [
                     'success' => false,
                     'error' => 'Validation failed',
@@ -184,12 +197,32 @@ class MaterialController
                 ];
             }
 
+            // Kiểm tra các category tồn tại và không bị xóa
+            $categories = Category::whereIn('id', $categoryIds)
+                ->where('deleted', false)
+                ->get();
+
+            if ($categories->count() !== count($categoryIds)) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'Một hoặc nhiều danh mục không tồn tại hoặc đã bị xóa'
+                ];
+            }
+
+            // Lưu material
             $material->fill($data);
             $material->save();
 
+            // Thêm categories
+            $material->categories()->attach($categoryIds);
+
+            // Trả về material kèm theo categories
+            http_response_code(201);
             return [
                 'success' => true,
-                'data' => $material->toArray()
+                'data' => $material->fresh()->load(['categories'])->toArray(),
+                'message' => 'Tạo vật liệu và thêm danh mục thành công'
             ];
 
         } catch (\Exception $e) {
@@ -207,7 +240,6 @@ class MaterialController
     {
         try {
             $material = Material::where('deleted', false)->find($id);
-
             if (!$material) {
                 http_response_code(404);
                 return [
@@ -218,13 +250,26 @@ class MaterialController
 
             $data = json_decode(file_get_contents('php://input'), true);
 
+            // Tách category_ids ra khỏi data nếu có
+            $categoryIds = null;
+            if (isset($data['category_ids'])) {
+                if (!is_array($data['category_ids'])) {
+                    http_response_code(400);
+                    return [
+                        'success' => false,
+                        'error' => 'category_ids phải là một mảng'
+                    ];
+                }
+                $categoryIds = $data['category_ids'];
+                unset($data['category_ids']);
+            }
+
             // Loại bỏ quantity_available nếu có trong request
             unset($data['quantity_available']);
 
             $errors = $material->validate($data, true);
-
             if ($errors) {
-                http_response_code(400);
+                http_response_code(422);
                 return [
                     'success' => false,
                     'error' => 'Validation failed',
@@ -232,12 +277,56 @@ class MaterialController
                 ];
             }
 
+            // Nếu có cập nhật categories
+            if ($categoryIds !== null) {
+                if (!empty($categoryIds)) {
+                    // Kiểm tra các category tồn tại
+                    $categories = Category::whereIn('id', $categoryIds)
+                        ->where('deleted', false)
+                        ->get();
+
+                    if ($categories->count() !== count($categoryIds)) {
+                        http_response_code(404);
+                        return [
+                            'success' => false,
+                            'error' => 'Một hoặc nhiều danh mục không tồn tại hoặc đã bị xóa'
+                        ];
+                    }
+
+                    // Kiểm tra categories đã tồn tại
+                    $existingCategories = $material->categories()
+                        ->whereIn('category_id', $categoryIds)
+                        ->pluck('category_id')
+                        ->toArray();
+
+                    // Lọc ra các categories mới chưa được thêm
+                    $newCategoryIds = array_diff($categoryIds, $existingCategories);
+                    if (empty($newCategoryIds)) {
+                        http_response_code(400);
+                        return [
+                            'success' => false,
+                            'error' => 'Tất cả danh mục đã tồn tại cho vật liệu này'
+                        ];
+                    }
+
+                    // Chỉ thêm các categories mới
+                    $material->categories()->attach($newCategoryIds);
+                } else {
+                    // Nếu gửi mảng rỗng thì xóa hết categories
+                    $material->categories()->detach();
+                }
+            }
+
+            // Cập nhật thông tin vật liệu
             $material->fill($data);
             $material->save();
 
+            // Trả về vật liệu đã cập nhật kèm categories
+            http_response_code(200);
             return [
                 'success' => true,
-                'data' => $material->toArray()
+                'data' => $material->fresh()->load(['categories'])->toArray(),
+                'message' => 'Cập nhật vật liệu thành công'
             ];
 
         } catch (\Exception $e) {
