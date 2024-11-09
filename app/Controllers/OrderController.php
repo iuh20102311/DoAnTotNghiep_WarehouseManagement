@@ -233,121 +233,18 @@ class OrderController
         }
     }
 
-//    public function createOrder()
-//    {
-//        $rawInput = file_get_contents('php://input');
-//
-//        // Decode JSON và kiểm tra lỗi
-//        $data = json_decode($rawInput, true);
-//        if (json_last_error() !== JSON_ERROR_NONE) {
-//            error_log("JSON decode error: " . json_last_error_msg());
-//            header('Content-Type: application/json');
-//            echo json_encode(['error' => 'Invalid JSON data: ' . json_last_error_msg()]);
-//            return;
-//        }
-//
-//        try {
-//            // Xử lý khách hàng
-//            $customer = $this->handleCustomer($data);
-//
-//            if (!$customer) {
-//                throw new Exception('Không thể tạo hoặc cập nhật khách hàng');
-//            }
-//
-//            // Xác thực token
-//            $headers = apache_request_headers();
-//            error_log("Headers: " . print_r($headers, true));
-//
-//            $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
-//            if (!$token) {
-//                throw new Exception('Token không tồn tại');
-//            }
-//
-//            // Parse token
-//            $parser = new Parser(new JoseEncoder());
-//            $parsedToken = $parser->parse($token);
-//            $profileId = $parsedToken->claims()->get('profile_id');
-//
-//            if (!$profileId) {
-//                throw new Exception('Profile ID không tồn tại trong token');
-//            }
-//
-//            $profile = Profile::find($profileId);
-//            if (!$profile) {
-//                throw new Exception('Profile không tồn tại trong hệ thống');
-//            }
-//
-//            // Tạo đơn hàng
-//            $orderData = [
-//                'customer_id' => $customer->id,
-//                'created_by' => $profileId,
-//                'phone' => $data['phone'],
-//                'address' => $data['address'],
-//                'city' => $data['city'],
-//                'district' => $data['district'],
-//                'ward' => $data['ward'],
-//                'delivery_date' => $data['delivery_date'] ?? date('Y-m-d', strtotime('+3 days')),
-//                'status' => 'PENDING',
-//                'total_price' => 0
-//            ];
-//
-//            $order = Order::create($orderData);
-//
-//            // Xử lý chi tiết đơn hàng
-//            $totalPrice = 0;
-//
-//            foreach ($data['order_details'] as $detail) {
-//
-//                $product = Product::find($detail['product_id']);
-//                if (!$product) {
-//                    throw new Exception("Sản phẩm #{$detail['product_id']} không tồn tại");
-//                }
-//
-//                $detailData = [
-//                    'product_id' => $detail['product_id'],
-//                    'quantity' => $detail['quantity'],
-//                    'price' => $detail['price'],
-//                    'packaging_type' => $detail['packaging_type'] ?? 'PLASTIC_JAR',
-//                    'packaging_weight' => $detail['packaging_weight'] ?? 0,
-//                    'status' => 'ACTIVE',
-//                    'note' => $detail['note'] ?? null
-//                ];
-//
-//                $order->orderDetails()->create($detailData);
-//                $totalPrice += $detail['price'] * $detail['quantity'];
-//            }
-//
-//            // Cập nhật tổng tiền
-//            $order->total_price = $totalPrice;
-//            $order->save();
-//
-//            header('Content-Type: application/json');
-//            echo json_encode([
-//                'status' => 'success',
-//                'message' => 'Tạo đơn hàng thành công',
-//                'order_id' => $order->id
-//            ], JSON_UNESCAPED_UNICODE);
-//
-//        } catch (Exception $e) {
-//            error_log("ERROR: " . $e->getMessage());
-//            error_log("Stack trace: " . $e->getTraceAsString());
-//
-//            header('Content-Type: application/json');
-//            echo json_encode([
-//                'status' => 'error',
-//                'message' => $e->getMessage()
-//            ], JSON_UNESCAPED_UNICODE);
-//        }
-//    }
-
     public function createOrder()
     {
         try {
             $rawInput = file_get_contents('php://input');
             $data = json_decode($rawInput, true);
 
+            // Loại bỏ total_price nếu có trong request
+            unset($data['total_price']);
+            unset($data['order_date']);
+
             if (json_last_error() !== JSON_ERROR_NONE) {
-                throw new Exception('Invalid JSON data: ' . json_last_error_msg());
+                throw new Exception('Invalid JSON data: ' . json_last_error_msg(), 400);
             }
 
             // Xác thực token và lấy profile ID
@@ -355,7 +252,7 @@ class OrderController
             $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
 
             if (!$token) {
-                throw new Exception('Token không tồn tại');
+                throw new Exception('Token không tồn tại', 401);
             }
 
             $parser = new Parser(new JoseEncoder());
@@ -363,32 +260,36 @@ class OrderController
             $profileId = $parsedToken->claims()->get('profile_id');
 
             if (!$profileId) {
-                throw new Exception('Profile ID không tồn tại trong token');
+                throw new Exception('Profile ID không tồn tại trong token', 401);
             }
 
-            $profile = Profile::find($profileId);
+            $profile = Profile::where('deleted',false)->find($profileId);
 
             if (!$profile) {
-                throw new Exception('Profile không tồn tại trong hệ thống');
+                throw new Exception('Profile không tồn tại trong hệ thống', 404);
             }
 
             // Lấy thông tin khách hàng
-            $customer = Customer::find($data['customer_id']);
+            $customer = Customer::where('deleted',false)->find($data['customer_id']);
 
             if (!$customer) {
-                throw new Exception('Khách hàng không tồn tại');
+                throw new Exception('Khách hàng không tồn tại', 404);
             }
 
             // Kiểm tra phương thức thanh toán
             $paymentMethod = $data['payment_method'] ?? null;
             if ($paymentMethod && !in_array($paymentMethod, ['CASH', 'BANK_TRANSFER'])) {
-                throw new Exception('Phương thức thanh toán không hợp lệ');
+                throw new Exception('Phương thức thanh toán không hợp lệ', 400);
             }
+
+            // Lấy ngày đặt hàng là ngày hiện tại
+            $orderDate = date('Y-m-d');
 
             // Tạo đơn hàng
             $orderData = [
                 'customer_id' => $customer->id,
                 'created_by' => $profileId,
+                'order_date' => $orderDate,
                 'phone' => $data['phone'] ?? $customer->phone,
                 'address' => $data['address'] ?? $customer->address,
                 'city' => $data['city'] ?? $customer->city,
@@ -401,7 +302,20 @@ class OrderController
                 'total_price' => 0
             ];
 
-            $order = Order::create($orderData);
+            // Kiểm tra dữ liệu với hàm validate
+            $order = new Order();
+            $order->fill($orderData);
+            $errors = $order->validate($orderData);
+
+            if ($errors) {
+                return [
+                    'success' => false,
+                    'error' => 'Validation failed',
+                    'details' => $errors
+                ];
+            }
+
+            $order->save();
 
             // Xử lý chi tiết đơn hàng
             $totalPrice = 0;
@@ -410,7 +324,7 @@ class OrderController
                 $product = Product::find($item['product_id']);
 
                 if (!$product) {
-                    throw new Exception("Sản phẩm #{$item['product_id']} không tồn tại");
+                    throw new Exception("Sản phẩm #{$item['product_id']} không tồn tại", 404);
                 }
 
                 $currentDate = date('Y-m-d');
@@ -422,15 +336,13 @@ class OrderController
                     ->first();
 
                 if (!$price) {
-                    throw new Exception("Giá sản phẩm #{$product->id} chưa được cập nhật");
+                    throw new Exception("Giá sản phẩm #{$product->id} chưa được cập nhật", 400);
                 }
 
                 $detailData = [
                     'product_id' => $item['product_id'],
                     'quantity' => $item['quantity'],
                     'price' => $price->price,
-                    'packaging_type' => $product->packing,
-                    'packaging_weight' => $product->weight,
                     'status' => 'ACTIVE',
                 ];
 
@@ -447,9 +359,87 @@ class OrderController
                 'message' => 'Tạo đơn hàng thành công',
                 'order_id' => $order->id
             ];
+        } catch (\Exception $e) {
+            error_log("Error in createOrder: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function updateOrder($id)
+    {
+        try {
+            $rawInput = file_get_contents('php://input');
+            $data = json_decode($rawInput, true);
+
+            unset($data['total_price']);
+            unset($data['order_date']);
+
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                throw new Exception('Invalid JSON data: ' . json_last_error_msg(), 400);
+            }
+
+            // Xác thực token và lấy profile ID
+            $headers = apache_request_headers();
+            $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
+
+            if (!$token) {
+                throw new Exception('Token không tồn tại', 401);
+            }
+
+            $parser = new Parser(new JoseEncoder());
+            $parsedToken = $parser->parse($token);
+            $profileId = $parsedToken->claims()->get('profile_id');
+
+            if (!$profileId) {
+                throw new Exception('Profile ID không tồn tại trong token', 401);
+            }
+
+            $profile = Profile::where('deleted',false)->find($profileId);
+
+            if (!$profile) {
+                throw new Exception('Profile không tồn tại trong hệ thống', 404);
+            }
+
+            // Tìm đơn hàng cần cập nhật
+            $order = Order::where('deleted',false)->find($id);
+
+            if (!$order) {
+                throw new Exception('Đơn hàng không tồn tại', 404);
+            }
+
+            // Lấy ngày đặt hàng từ đơn hàng hiện tại
+            $orderDate = $order->order_date;
+
+            // Cập nhật thông tin đơn hàng
+            $order->fill($data);
+            $order->order_date = $orderDate; // Đảm bảo ngày đặt hàng không bị thay đổi
+
+            $errors = $order->validate($order->toArray());
+
+            if ($errors) {
+                return [
+                    'success' => false,
+                    'error' => 'Validation failed',
+                    'details' => $errors
+                ];
+            }
+            $order->save();
+
+            return [
+                'status' => 'success',
+                'message' => 'Cập nhật đơn hàng thành công',
+                'order_id' => $order->id
+            ];
         } catch (Exception $e) {
             error_log("ERROR: " . $e->getMessage());
             error_log("Stack trace: " . $e->getTraceAsString());
+
+            $errorCode = $e->getCode() ?: 500;
+            http_response_code($errorCode);
 
             return [
                 'status' => 'error',
@@ -457,31 +447,4 @@ class OrderController
             ];
         }
     }
-
-//    private function handleCustomer($data)
-//    {
-//        $customerData = [
-//            'group_customer_id' => $data['group_customer_id'] ?? null,
-//            'name' => $data['name'],
-//            'gender' => $data['gender'] ?? null,
-//            'phone' => $data['phone'],
-//            'address' => $data['address'],
-//            'city' => $data['city'],
-//            'district' => $data['district'],
-//            'ward' => $data['ward'],
-//        ];
-//
-//        // Kiểm tra khách hàng đã tồn tại dựa trên số điện thoại
-//        $customer = Customer::where('phone', $data['phone'])->first();
-//
-//        if ($customer) {
-//            // Nếu khách hàng đã tồn tại, cập nhật thông tin
-//            $customer->update($customerData);
-//        } else {
-//            // Nếu khách hàng chưa tồn tại, tạo mới
-//            $customer = Customer::create($customerData);
-//        }
-//
-//        return $customer;
-//    }
 }

@@ -204,6 +204,13 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
         });
 
         $router->group(array('prefix' => '/v1/categories'), function (RouteCollector $router) {
+            $router->get('/list', ['App\Controllers\CategoryController', 'getCategoryList']);
+            $router->get('/', ['App\Controllers\CategoryController', 'getCategories']);
+            $router->post('/', ['App\Controllers\CategoryController', 'createCategory']);
+            $router->get('/{id}', ['App\Controllers\CategoryController', 'getCategoryById']);
+            $router->put('/{id}', ['App\Controllers\CategoryController', 'updateCategoryById']);
+            $router->delete('/{id}', ['App\Controllers\CategoryController', 'deleteCategory']);
+
             $router->delete('/{id}/materials', ['App\Controllers\CategoryController', 'deleteMaterialFromCategory']);
             $router->post('/{id}/materials', ['App\Controllers\CategoryController', 'addMaterialToCategory']);
             $router->get('/{id}/materials', ['App\Controllers\CategoryController', 'getMaterialByCategory']);
@@ -217,13 +224,6 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
             $router->get('/{id}/products', ['App\Controllers\CategoryController', 'getProductByCategory']);
 
             $router->get('/{id}/category_discounts', ['App\Controllers\CategoryController', 'getCategoryDiscountsByCategory']);
-
-            $router->put('/{id}', ['App\Controllers\CategoryController', 'updateCategoryById']);
-            $router->delete('/{id}', ['App\Controllers\CategoryController', 'deleteCategory']);
-            $router->get('/{id}', ['App\Controllers\CategoryController', 'getCategoryById']);
-            $router->post('/', ['App\Controllers\CategoryController', 'createCategory']);
-            $router->get('/', ['App\Controllers\CategoryController', 'getCategories']);
-
             $router->get('/{id}/product_count', ['App\Controllers\CategoryController', 'getCategoryProductCount']);
         });
 
@@ -362,7 +362,7 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
             $router->get('/{id}/order_details', ['App\Controllers\OrderController', 'getOrderDetailByOrder']);
             $router->post('/{id}/products', ['App\Controllers\OrderController', 'addProductToOrder']);
             $router->get('/{id}/products', ['App\Controllers\OrderController', 'getProductByOrder']);
-            $router->put('/{id}', ['App\Controllers\OrderController', 'updateOrderById']);
+            $router->put('/{id}', ['App\Controllers\OrderController', 'updateOrder']);
             $router->delete('/{id}', ['App\Controllers\OrderController', 'deleteOrder']);
             $router->get('/{id}', ['App\Controllers\OrderController', 'getOrderById']);
             $router->post('/', ['App\Controllers\OrderController', 'createOrder']);

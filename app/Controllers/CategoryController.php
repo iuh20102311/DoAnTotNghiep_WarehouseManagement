@@ -91,7 +91,7 @@ class CategoryController
             ];
         }
     }
-    
+
     public function getCategories(): array
     {
         try {
@@ -220,6 +220,33 @@ class CategoryController
 
         } catch (\Exception $e) {
             error_log("Error in getCategoryById: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function getCategoryList(): array
+    {
+        try {
+            $categoryQuery = Category::query()
+                ->where('deleted', false)
+                ->select('id', 'name', 'type')
+                ->orderBy('name', 'asc');
+
+            if (isset($_GET['type'])) {
+                $type = urldecode($_GET['type']);
+                $categoryQuery->where('type', $type);
+            }
+
+            $categories = $categoryQuery->get();
+
+            return $categories->toArray();
+
+        } catch (\Exception $e) {
+            error_log("Error in getCategoryList: " . $e->getMessage());
             http_response_code(500);
             return [
                 'error' => 'Database error occurred',
@@ -880,7 +907,7 @@ class CategoryController
         }
     }
 
-    public function getCategoryDiscountsByCategory($id): array 
+    public function getCategoryDiscountsByCategory($id): array
     {
         try {
             $perPage = $_GET['per_page'] ?? 10;

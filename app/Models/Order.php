@@ -50,9 +50,7 @@ class Order extends Model
         $rules = [
             'customer_id' => ['required', 'integer'],
             'created_by' => ['required', 'integer'],
-            'order_date' => ['required', 'date' => 'Y-m-d'],
             'delivery_date' => ['required', 'date' => 'Y-m-d', 'after' => 'order_date'],
-            'total_price' => ['required', 'numeric', 'min' => 0],
             'phone' => ['required', 'string'],
             'address' => ['required', 'string', 'min' => 5, 'max' => 255],
             'city' => ['required', 'string', 'max' => 100],
@@ -83,19 +81,10 @@ class Order extends Model
                 'integer' => 'ID người tạo phải là số nguyên.',
                 'exists' => 'Người tạo không tồn tại.',
             ],
-            'order_date' => [
-                'required' => 'Ngày đặt hàng là bắt buộc.',
-                'date' => 'Ngày đặt hàng không hợp lệ.',
-            ],
             'delivery_date' => [
                 'required' => 'Ngày giao hàng là bắt buộc.',
                 'date' => 'Ngày giao hàng không hợp lệ.',
                 'after' => 'Ngày giao hàng phải sau ngày đặt hàng.',
-            ],
-            'total_price' => [
-                'required' => 'Tổng tiền là bắt buộc.',
-                'numeric' => 'Tổng tiền phải là số.',
-                'min' => 'Tổng tiền không được âm.',
             ],
             'phone' => [
                 'required' => 'Số điện thoại là bắt buộc.',

@@ -93,6 +93,28 @@ class ProductPriceController
                 $productprices->where('updated_at', '<=', $updatedTo);
             }
 
+            if (isset($_GET['product_name'])) {
+                $productName = urldecode($_GET['product_name']);
+                $productprices->whereHas('product', function ($query) use ($productName) {
+                    $query->where('name', 'like', '%' . $productName . '%');
+                });
+            }
+
+            if (isset($_GET['product_sku'])) {
+                $productSku = urldecode($_GET['product_sku']);
+                $productprices->whereHas('product', function ($query) use ($productSku) {
+                    $query->where('sku', 'like', '%' . $productSku . '%');
+                });
+            }
+
+            if (isset($_GET['search'])) {
+                $search = urldecode($_GET['search']);
+                $productprices->whereHas('product', function ($query) use ($search) {
+                    $query->where('name', 'like', '%' . $search . '%')
+                        ->orWhere('sku', 'like', '%' . $search . '%');
+                });
+            }
+
             return $this->paginateResults($productprices, $perPage, $page)->toArray();
         } catch (\Exception $e) {
             error_log("Error in getProductPrices: " . $e->getMessage());
