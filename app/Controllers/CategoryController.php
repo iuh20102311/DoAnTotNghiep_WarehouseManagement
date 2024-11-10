@@ -126,16 +126,16 @@ class CategoryController
     public function getCategories(): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $category = Category::query()
                 ->where('deleted', false)
                 ->with([
-                    'products' => function($query) {
+                    'products' => function ($query) {
                         $query->where('products.deleted', false);
                     },
-                    'materials' => function($query) {
+                    'materials' => function ($query) {
                         $query->where('materials.deleted', false);
                     },
                     'discounts'
@@ -230,7 +230,7 @@ class CategoryController
             $results = $this->paginateResults($category, $perPage, $page)->toArray();
 
             // Đếm số lượng sản phẩm và nguyên liệu cho mỗi category
-            $data = collect($results['data'])->map(function($category) {
+            $data = collect($results['data'])->map(function ($category) {
                 // Đếm số lượng products
                 $total_product = count($category['products'] ?? []);
 
@@ -467,8 +467,8 @@ class CategoryController
     public function getProductByCategory($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             if ($perPage <= 0 || $page <= 0) {
                 http_response_code(400);
@@ -969,8 +969,8 @@ class CategoryController
     public function getCategoryDiscountsByCategory($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             if ($perPage <= 0 || $page <= 0) {
                 http_response_code(400);

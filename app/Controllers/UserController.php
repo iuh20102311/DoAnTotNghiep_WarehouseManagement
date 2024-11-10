@@ -22,8 +22,8 @@ class UserController
     public function getUsers(): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $query = User::query()
                 ->where('deleted', false)
@@ -117,8 +117,8 @@ class UserController
     public function getRolesByUser($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $user = User::where('deleted', false)->find($id);
 
@@ -149,8 +149,8 @@ class UserController
     public function getOrdersByUser($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $user = User::where('deleted', false)->find($id);
 
@@ -191,8 +191,8 @@ class UserController
     public function getProfileByUser($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $user = User::where('deleted', false)->find($id);
 
@@ -223,8 +223,8 @@ class UserController
     public function getInventoryHistoryByUser($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $user = User::where('deleted', false)->find($id);
 

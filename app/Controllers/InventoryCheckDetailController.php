@@ -14,9 +14,9 @@ class InventoryCheckDetailController
     public function getInventoryCheckDetails(): array
     {
         try {
-            $perPage = isset($_GET['per_page']) ? (int)$_GET['per_page'] : 10;
-            $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-            
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
+
             $inventoryCheckDetail = InventoryCheckDetail::query()
                 ->where('deleted', false)
                 ->with(['inventoryCheck', 'product', 'material'])
@@ -272,9 +272,9 @@ class InventoryCheckDetailController
             }
 
             $data = $detail->inventoryCheck()->with([
-                'creator' => function($productER) {
+                'creator' => function ($productER) {
                     $productER->select('id', 'email', 'role_id')
-                        ->with(['profile' => function($q) {
+                        ->with(['profile' => function ($q) {
                             $q->select('user_id', 'first_name', 'last_name');
                         }]);
                 },

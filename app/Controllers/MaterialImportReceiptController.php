@@ -53,10 +53,10 @@ class MaterialImportReceiptController
     public function getMaterialImportReceipts(): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
-            $query = (new MaterialImportReceipt())
+            $materialIR = (new MaterialImportReceipt())
                 ->where('deleted', false)
                 ->with([
                     'provider',
@@ -93,27 +93,42 @@ class MaterialImportReceiptController
                 END")
                 ->orderBy('created_at', 'desc');
 
+            if (isset($_GET['provider_id'])) {
+                $providerId = urldecode($_GET['provider_id']);
+                $materialIR->where('provider_id', $providerId);
+            }
+
+            if (isset($_GET['receipt_id'])) {
+                $receipt_id = urldecode($_GET['receipt_id']);
+                $materialIR->where('receipt_id', 'like', '%' . $receipt_id . '%');
+            }
+
             if (isset($_GET['type'])) {
-                $query->where('type', urldecode($_GET['type']));
+                $materialIR->where('type', urldecode($_GET['type']));
             }
 
             if (isset($_GET['status'])) {
-                $query->where('status', urldecode($_GET['status']));
+                $materialIR->where('status', urldecode($_GET['status']));
             }
 
             if (isset($_GET['total_price'])) {
-                $query->where('total_price', urldecode($_GET['total_price']));
+                $materialIR->where('total_price', urldecode($_GET['total_price']));
             }
 
             if (isset($_GET['total_price_min'])) {
-                $query->where('total_price', '>=', urldecode($_GET['total_price_min']));
+                $materialIR->where('total_price', '>=', urldecode($_GET['total_price_min']));
             }
 
             if (isset($_GET['total_price_max'])) {
-                $query->where('total_price', '<=', urldecode($_GET['total_price_max']));
+                $materialIR->where('total_price', '<=', urldecode($_GET['total_price_max']));
             }
 
-            $result = $this->paginateResults($query, $perPage, $page)->toArray();
+            if (isset($_GET['note'])) {
+                $note = urldecode($_GET['note']);
+                $materialIR->where('note', '%' . $note . '%');
+            }
+
+            $result = $this->paginateResults($materialIR, $perPage, $page)->toArray();
 
             if (isset($result['data']) && is_array($result['data'])) {
                 foreach ($result['data'] as &$item) {
@@ -201,8 +216,8 @@ class MaterialImportReceiptController
     public function getImportReceiptDetailsByImportReceipt($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $materialIR = (new MaterialImportReceipt())
                 ->where('id', $id)
@@ -233,8 +248,8 @@ class MaterialImportReceiptController
     public function getProvidersByImportReceipt($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $materialIR = (new MaterialImportReceipt())
                 ->where('id', $id)

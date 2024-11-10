@@ -15,21 +15,25 @@ class GiftSetController
     public function getGiftSets(): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
-            
-             $giftSet = GiftSet::query()
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
+
+            $giftSet = GiftSet::query()
                 ->where('deleted', false)
-                ->with(['products', 'prices','orders'])
-                 ->orderByRaw("CASE 
+                ->with(['products', 'prices', 'orders'])
+                ->orderByRaw("CASE 
                                     WHEN status = 'ACTIVE' THEN 1
                                     WHEN status = 'INACTIVE' THEN 2  
                                     WHEN status = 'OUT_OF_STOCKS' THEN 3
                                     ELSE 4
                                 END")
-                 ->orderBy('created_at', 'desc');
+                ->orderBy('created_at', 'desc');
 
-             
+            if (isset($_GET['sku'])) {
+                $sku = urldecode($_GET['sku']);
+                $giftSet->where('sku', 'like', '%' . $sku . '%');
+            }
+
             if (isset($_GET['status'])) {
                 $status = urldecode($_GET['status']);
                 $giftSet->where('status', $status);
@@ -37,12 +41,12 @@ class GiftSetController
 
             if (isset($_GET['name'])) {
                 $name = urldecode($_GET['name']);
-                $giftSet->where('name', $name);
+                $giftSet->where('name', '%' . $name . '%');
             }
 
             if (isset($_GET['description'])) {
-                $description = urldecode($_GET['gender']);
-                $giftSet->where('gender', $description);
+                $description = urldecode($_GET['description']);
+                $giftSet->where('description', '%' . $description . '%');
             }
 
             if (isset($_GET['created_from'])) {
@@ -64,7 +68,7 @@ class GiftSetController
                 $updatedTo = urldecode($_GET['updated_to']);
                 $giftSet->where('updated_at', '<=', $updatedTo);
             }
-            
+
             return $this->paginateResults($giftSet, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
@@ -198,8 +202,8 @@ class GiftSetController
     public function getProductsByGiftSet($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $giftSet = GiftSet::query()->where('id', $id)
                 ->where('deleted', false)
@@ -214,7 +218,7 @@ class GiftSetController
 
             $productsQuery = $giftSet->products()
                 ->where('products.deleted', false)
-                ->with(['categories','discounts','prices','storageLocations','orderDetails'])
+                ->with(['categories', 'discounts', 'prices', 'storageLocations', 'orderDetails'])
                 ->getQuery();
 
             return $this->paginateResults($productsQuery, $perPage, $page)->toArray();
@@ -364,8 +368,8 @@ class GiftSetController
     public function getOrdersByGiftSet($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $giftSet = GiftSet::query()->where('id', $id)
                 ->where('deleted', false)
@@ -380,7 +384,7 @@ class GiftSetController
 
             $ordersQuery = $giftSet->orders()
                 ->where('orders.deleted', false)
-                ->with(['customer','creator','orderDetails'])
+                ->with(['customer', 'creator', 'orderDetails'])
                 ->getQuery();
 
             return $this->paginateResults($ordersQuery, $perPage, $page)->toArray();
@@ -533,8 +537,8 @@ class GiftSetController
     public function getGiftSetPricesByGiftSet($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $giftSet = (new GiftSet())->where('deleted', false)->find($id);
 

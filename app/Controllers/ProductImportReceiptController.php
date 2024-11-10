@@ -55,21 +55,21 @@ class ProductImportReceiptController
     public function getProductImportReceipts(): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $query = (new ProductImportReceipt())
                 ->where('deleted', false)
                 ->with([
-                    'creator' => function($query) {
+                    'creator' => function ($query) {
                         $query->select('id', 'email', 'role_id')
-                            ->with(['profile' => function($q) {
+                            ->with(['profile' => function ($q) {
                                 $q->select('user_id', 'first_name', 'last_name');
                             }]);
                     },
-                    'receiver' => function($query) {
+                    'receiver' => function ($query) {
                         $query->select('id', 'email', 'role_id')
-                            ->with(['profile' => function($q) {
+                            ->with(['profile' => function ($q) {
                                 $q->select('user_id', 'first_name', 'last_name');
                             }]);
                     },
@@ -87,6 +87,15 @@ class ProductImportReceiptController
 
             if (isset($_GET['quantity'])) {
                 $query->where('quantity', urldecode($_GET['quantity']));
+            }
+
+            if (isset($_GET['status'])) {
+                $query->where('status', urldecode($_GET['status']));
+            }
+
+            if (isset($_GET['note'])) {
+                $note = urldecode($_GET['note']);
+                $query->where('note', '%' . $note . '%');
             }
 
             $result = $this->paginateResults($query, $perPage, $page)->toArray();
@@ -120,15 +129,15 @@ class ProductImportReceiptController
                 ->where('id', $id)
                 ->where('deleted', false)
                 ->with([
-                    'creator' => function($query) {
+                    'creator' => function ($query) {
                         $query->select('id', 'email', 'role_id')
-                            ->with(['profile' => function($q) {
+                            ->with(['profile' => function ($q) {
                                 $q->select('user_id', 'first_name', 'last_name');
                             }]);
                     },
-                    'receiver' => function($query) {
+                    'receiver' => function ($query) {
                         $query->select('id', 'email', 'role_id')
-                            ->with(['profile' => function($q) {
+                            ->with(['profile' => function ($q) {
                                 $q->select('user_id', 'first_name', 'last_name');
                             }]);
                     },
@@ -169,8 +178,8 @@ class ProductImportReceiptController
     public function getImportReceiptDetailsByImportReceipt($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $productIR = (new ProductImportReceipt())
                 ->where('id', $id)

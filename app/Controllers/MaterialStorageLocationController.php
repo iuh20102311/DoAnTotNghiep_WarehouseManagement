@@ -12,8 +12,8 @@ class MaterialStorageLocationController
     public function getMaterialStorageLocations(): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $materialStorageLocation = MaterialStorageLocation::query()
                 ->where('deleted', false)
@@ -117,8 +117,8 @@ class MaterialStorageLocationController
     public function getMaterialByMaterialStorageLocation($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $materialStorageLocation = MaterialStorageLocation::where('deleted', false)->find($id);
 
@@ -149,8 +149,8 @@ class MaterialStorageLocationController
     public function getProvidersByMaterialStorageLocation($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $materialStorageLocation = MaterialStorageLocation::where('deleted', false)->find($id);
 
@@ -181,8 +181,8 @@ class MaterialStorageLocationController
     public function getStorageAreaByMaterialStorageLocation($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $materialStorageLocation = MaterialStorageLocation::where('deleted', false)->find($id);
 

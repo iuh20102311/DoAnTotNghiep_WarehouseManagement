@@ -41,8 +41,8 @@ class MaterialController
     public function getMaterials(): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $material = Material::query()
                 ->where('deleted', false)
@@ -55,6 +55,11 @@ class MaterialController
                                 END")
                 ->orderBy('created_at', 'desc');
 
+            if (isset($_GET['sku'])) {
+                $sku = urldecode($_GET['sku']);
+                $material->where('sku', 'like', '%' . $sku . '%');
+            }
+
             if (isset($_GET['status'])) {
                 $status = urldecode($_GET['status']);
                 $material->where('status', $status);
@@ -62,12 +67,12 @@ class MaterialController
 
             if (isset($_GET['name'])) {
                 $name = urldecode($_GET['name']);
-                $material->where('name', 'like', $name . '%');
+                $material->where('name', 'like', '%' . $name . '%');
             }
 
             if (isset($_GET['unit'])) {
                 $unit = urldecode($_GET['unit']);
-                $material->where('unit', 'like', $unit . '%');
+                $material->where('unit', 'like', '%' . $unit . '%');
             }
 
             if (isset($_GET['weight'])) {
@@ -102,7 +107,7 @@ class MaterialController
 
             if (isset($_GET['origin'])) {
                 $origin = urldecode($_GET['origin']);
-                $material->where('origin', 'like', $origin . '%');
+                $material->where('origin', 'like', '%' . $origin . '%');
             }
 
             if (isset($_GET['created_from'])) {
@@ -250,18 +255,18 @@ class MaterialController
 
             $data = json_decode(file_get_contents('php://input'), true);
 
-            // Tách category_ids ra khỏi data nếu có
+            // Tách category_id ra khỏi data nếu có
             $categoryIds = null;
-            if (isset($data['category_ids'])) {
-                if (!is_array($data['category_ids'])) {
+            if (isset($data['category_id'])) {
+                if (!is_array($data['category_id'])) {
                     http_response_code(400);
                     return [
                         'success' => false,
-                        'error' => 'category_ids phải là một mảng'
+                        'error' => 'category_id phải là một mảng'
                     ];
                 }
-                $categoryIds = $data['category_ids'];
-                unset($data['category_ids']);
+                $categoryIds = $data['category_id'];
+                unset($data['category_id']);
             }
 
             // Loại bỏ quantity_available nếu có trong request
@@ -279,42 +284,21 @@ class MaterialController
 
             // Nếu có cập nhật categories
             if ($categoryIds !== null) {
-                if (!empty($categoryIds)) {
-                    // Kiểm tra các category tồn tại
-                    $categories = Category::whereIn('id', $categoryIds)
-                        ->where('deleted', false)
-                        ->get();
+                // Kiểm tra các category tồn tại
+                $categories = Category::whereIn('id', $categoryIds)
+                    ->where('deleted', false)
+                    ->get();
 
-                    if ($categories->count() !== count($categoryIds)) {
-                        http_response_code(404);
-                        return [
-                            'success' => false,
-                            'error' => 'Một hoặc nhiều danh mục không tồn tại hoặc đã bị xóa'
-                        ];
-                    }
-
-                    // Kiểm tra categories đã tồn tại
-                    $existingCategories = $material->categories()
-                        ->whereIn('category_id', $categoryIds)
-                        ->pluck('category_id')
-                        ->toArray();
-
-                    // Lọc ra các categories mới chưa được thêm
-                    $newCategoryIds = array_diff($categoryIds, $existingCategories);
-                    if (empty($newCategoryIds)) {
-                        http_response_code(400);
-                        return [
-                            'success' => false,
-                            'error' => 'Tất cả danh mục đã tồn tại cho vật liệu này'
-                        ];
-                    }
-
-                    // Chỉ thêm các categories mới
-                    $material->categories()->attach($newCategoryIds);
-                } else {
-                    // Nếu gửi mảng rỗng thì xóa hết categories
-                    $material->categories()->detach();
+                if ($categories->count() !== count($categoryIds)) {
+                    http_response_code(404);
+                    return [
+                        'success' => false,
+                        'error' => 'Một hoặc nhiều danh mục không tồn tại hoặc đã bị xóa'
+                    ];
                 }
+
+                // Cập nhật lại danh sách categories
+                $material->categories()->sync($categoryIds);
             }
 
             // Cập nhật thông tin vật liệu
@@ -383,8 +367,8 @@ class MaterialController
     public function getProviderByMaterial($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $material = Material::where('deleted', false)->where('deleted', false)->find($id);
 
@@ -590,8 +574,8 @@ class MaterialController
     public function getCategoryByMaterial($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $material = Material::where('deleted', false)->where('deleted', false)->find($id);
 
@@ -798,8 +782,8 @@ class MaterialController
     public function getExportReceiptDetailsByMaterial($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $material = Material::where('deleted', false)->where('deleted', false)->find($id);
 
@@ -828,8 +812,8 @@ class MaterialController
     public function getImportReceiptDetailsByMaterial($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $material = Material::where('deleted', false)->where('deleted', false)->find($id);
 
@@ -858,8 +842,8 @@ class MaterialController
     public function getMaterialStorageLocationsByMaterial($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $material = Material::where('deleted', false)->find($id);
 
@@ -888,8 +872,8 @@ class MaterialController
     public function getInventoryCheckDetailsByMaterial($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $material = Material::where('deleted', false)->where('deleted', false)->find($id);
 
@@ -919,8 +903,8 @@ class MaterialController
     public function getInventoryHistoryByMaterial($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $material = Material::where('deleted', false)->where('deleted', false)->find($id);
 

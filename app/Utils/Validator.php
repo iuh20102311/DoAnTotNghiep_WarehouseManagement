@@ -386,6 +386,100 @@ class Validator
         return true;
     }
 
+    public function validateArray($field, $value)
+    {
+        if (!is_array($value)) {
+            $this->addError($field, 'array');
+            return false;
+        }
+        return true;
+    }
+
+    public function validateArrayOf($field, $value, $type)
+    {
+        if (!$this->validateArray($field, $value)) {
+            return false;
+        }
+
+        foreach ($value as $index => $item) {
+            $valid = true;
+            switch ($type) {
+                case 'integer':
+                    $valid = filter_var($item, FILTER_VALIDATE_INT) !== false;
+                    break;
+                case 'numeric':
+                    $valid = is_numeric($item);
+                    break;
+                case 'string':
+                    $valid = is_string($item);
+                    break;
+                case 'boolean':
+                    $valid = is_bool($item);
+                    break;
+                default:
+                    throw new \Exception("Unsupported array type validation: {$type}");
+            }
+
+            if (!$valid) {
+                $this->addError($field, 'array_of', ['type' => $type, 'index' => $index]);
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public function validateArraySize($field, $value, $size)
+    {
+        if (!$this->validateArray($field, $value)) {
+            return false;
+        }
+
+        if (count($value) !== (int)$size) {
+            $this->addError($field, 'array_size', ['size' => $size]);
+            return false;
+        }
+        return true;
+    }
+
+    public function validateArrayMin($field, $value, $min)
+    {
+        if (!$this->validateArray($field, $value)) {
+            return false;
+        }
+
+        if (count($value) < (int)$min) {
+            $this->addError($field, 'array_min', ['min' => $min]);
+            return false;
+        }
+        return true;
+    }
+
+    public function validateArrayMax($field, $value, $max)
+    {
+        if (!$this->validateArray($field, $value)) {
+            return false;
+        }
+
+        if (count($value) > (int)$max) {
+            $this->addError($field, 'array_max', ['max' => $max]);
+            return false;
+        }
+        return true;
+    }
+
+    public function validateArrayUnique($field, $value)
+    {
+        if (!$this->validateArray($field, $value)) {
+            return false;
+        }
+
+        if (count($value) !== count(array_unique($value))) {
+            $this->addError($field, 'array_unique');
+            return false;
+        }
+        return true;
+    }
+
     protected function addError($field, $rule, $parameters = [])
     {
         $message = $this->messages[$field][$rule] ?? $this->getDefaultMessage($field, $rule);
@@ -426,6 +520,12 @@ class Validator
             'between' => ':field phải nằm trong khoảng từ :min đến :max.',
             'url' => ':field phải là URL hợp lệ.',
             'url_with_protocols' => ':field phải là URL hợp lệ và sử dụng một trong các giao thức sau: :protocols.',
+            'array' => ':field phải là một mảng.',
+            'array_of' => 'Phần tử tại vị trí :index trong :field phải là kiểu :type.',
+            'array_size' => ':field phải có chính xác :size phần tử.',
+            'array_min' => ':field phải có ít nhất :min phần tử.',
+            'array_max' => ':field không được vượt quá :max phần tử.',
+            'array_unique' => 'Các phần tử trong :field phải là duy nhất.',
         ];
         return str_replace(':field', $field, $messages[$rule] ?? ':field không hợp lệ.');
     }

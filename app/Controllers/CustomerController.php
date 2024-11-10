@@ -15,8 +15,8 @@ class CustomerController
     public function getCustomers(): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $customer = Customer::with('groupCustomer')
                 ->where('deleted', false)
@@ -34,7 +34,7 @@ class CustomerController
 
             if (isset($_GET['name'])) {
                 $name = urldecode($_GET['name']);
-                $customer->where('name', 'like', $name . '%');
+                $customer->where('name', 'like', '%' . $name . '%');
             }
 
             if (isset($_GET['gender'])) {
@@ -44,13 +44,16 @@ class CustomerController
 
             if (isset($_GET['email'])) {
                 $email = urldecode($_GET['email']);
-                $customer->where('email', 'like', $email . '%');
+                $customer->where('email', 'like', '%' . $email . '%');
             }
 
             if (isset($_GET['phone'])) {
                 $phone = urldecode($_GET['phone']);
-                $length = strlen($phone);
-                $customer->whereRaw('SUBSTRING(phone, 1, ?) = ?', [$length, $phone]);
+                $customer->where(function($query) use ($phone) {
+                    $query->where('phone', 'LIKE', '%'.$phone.'%')
+                        ->orWhere('phone', 'LIKE', $phone.'%')
+                        ->orWhere('phone', 'LIKE', '%'.$phone);
+                });
             }
 
             if (isset($_GET['address'])) {
@@ -131,13 +134,13 @@ class CustomerController
     public function getOrderByCustomer($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $customer = Customer::query()->where('id', $id)->firstOrFail();
             $ordersQuery = $customer->orders()
                 ->where('orders.deleted', false)
-                ->with(['customer','creator'])
+                ->with(['customer', 'creator'])
                 ->getQuery();
 
             return $this->paginateResults($ordersQuery, $perPage, $page)->toArray();
@@ -153,8 +156,8 @@ class CustomerController
     public function getGroupCustomerByCustomer($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $customer = Customer::query()->where('id', $id)->firstOrFail();
             $groupCustomersQuery = $customer->groupCustomer()

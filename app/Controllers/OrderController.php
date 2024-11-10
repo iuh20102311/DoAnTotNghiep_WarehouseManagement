@@ -23,8 +23,8 @@ class OrderController
     public function getOrders(): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $orders = Order::query()->where('status', '!=', 'DELETED')
                 ->with(['customer', 'creator', 'orderDetails', 'giftSets'])
@@ -62,8 +62,11 @@ class OrderController
 
             if (isset($_GET['phone'])) {
                 $phone = urldecode($_GET['phone']);
-                $length = strlen($phone);
-                $orders->whereRaw('SUBSTRING(phone, 1, ?) = ?', [$length, $phone]);
+                $orders->where(function($query) use ($phone) {
+                    $query->where('phone', 'LIKE', '%'.$phone.'%')
+                        ->orWhere('phone', 'LIKE', $phone.'%')
+                        ->orWhere('phone', 'LIKE', '%'.$phone);
+                });
             }
 
             if (isset($_GET['address'])) {
@@ -121,8 +124,8 @@ class OrderController
     public function getOrderDetailByOrder($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $order = Order::query()->where('id', $id)->firstOrFail();
             $orderDetailsQuery = $order->orderDetails()->with(['order', 'product'])->getQuery();
@@ -140,8 +143,8 @@ class OrderController
     public function getGiftSetsByOrder($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $order = Order::query()->where('id', $id)->firstOrFail();
             $giftSetsQuery = $order->giftSets()
@@ -161,8 +164,8 @@ class OrderController
     public function getOrderGiftSetsByOrder($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $order = Order::query()->where('id', $id)->firstOrFail();
             $orderGiftSetsQuery = $order->orderGiftSets()
@@ -263,14 +266,14 @@ class OrderController
                 throw new Exception('Profile ID không tồn tại trong token', 401);
             }
 
-            $profile = Profile::where('deleted',false)->find($profileId);
+            $profile = Profile::where('deleted', false)->find($profileId);
 
             if (!$profile) {
                 throw new Exception('Profile không tồn tại trong hệ thống', 404);
             }
 
             // Lấy thông tin khách hàng
-            $customer = Customer::where('deleted',false)->find($data['customer_id']);
+            $customer = Customer::where('deleted', false)->find($data['customer_id']);
 
             if (!$customer) {
                 throw new Exception('Khách hàng không tồn tại', 404);
@@ -398,14 +401,14 @@ class OrderController
                 throw new Exception('Profile ID không tồn tại trong token', 401);
             }
 
-            $profile = Profile::where('deleted',false)->find($profileId);
+            $profile = Profile::where('deleted', false)->find($profileId);
 
             if (!$profile) {
                 throw new Exception('Profile không tồn tại trong hệ thống', 404);
             }
 
             // Tìm đơn hàng cần cập nhật
-            $order = Order::where('deleted',false)->find($id);
+            $order = Order::where('deleted', false)->find($id);
 
             if (!$order) {
                 throw new Exception('Đơn hàng không tồn tại', 404);
