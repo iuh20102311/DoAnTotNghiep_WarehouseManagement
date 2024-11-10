@@ -375,42 +375,21 @@ class ProductController
 
             // Nếu có cập nhật categories
             if ($categoryIds !== null) {
-                if (!empty($categoryIds)) {
-                    // Kiểm tra các category tồn tại
-                    $categories = Category::whereIn('id', $categoryIds)
-                        ->where('deleted', false)
-                        ->get();
+                // Kiểm tra các category tồn tại
+                $categories = Category::whereIn('id', $categoryIds)
+                    ->where('deleted', false)
+                    ->get();
 
-                    if ($categories->count() !== count($categoryIds)) {
-                        http_response_code(404);
-                        return [
-                            'success' => false,
-                            'error' => 'Một hoặc nhiều danh mục không tồn tại hoặc đã bị xóa'
-                        ];
-                    }
-
-                    // Kiểm tra categories đã tồn tại
-                    $existingCategories = $product->categories()
-                        ->whereIn('category_id', $categoryIds)
-                        ->pluck('category_id')
-                        ->toArray();
-
-                    // Lọc ra các categories mới chưa được thêm
-                    $newCategoryIds = array_diff($categoryIds, $existingCategories);
-                    if (empty($newCategoryIds)) {
-                        http_response_code(400);
-                        return [
-                            'success' => false,
-                            'error' => 'Tất cả danh mục đã tồn tại cho sản phẩm này'
-                        ];
-                    }
-
-                    // Chỉ thêm các categories mới
-                    $product->categories()->attach($newCategoryIds);
-                } else {
-                    // Nếu gửi mảng rỗng thì xóa hết categories
-                    $product->categories()->detach();
+                if ($categories->count() !== count($categoryIds)) {
+                    http_response_code(404);
+                    return [
+                        'success' => false,
+                        'error' => 'Một hoặc nhiều danh mục không tồn tại hoặc đã bị xóa'
+                    ];
                 }
+
+                // Cập nhật lại danh sách categories
+                $product->categories()->sync($categoryIds);
             }
 
             // Cập nhật thông tin sản phẩm
