@@ -16,8 +16,8 @@ class ProductPriceController
     public function getProductPrices(): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $productprices = ProductPrice::query()->where('deleted', false)
                 ->with(['product'])
@@ -154,8 +154,8 @@ class ProductPriceController
     public function getProductsByProductPrice($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $productprice = ProductPrice::query()
                 ->where('id', $id)
@@ -189,6 +189,11 @@ class ProductPriceController
                 ];
             }
 
+            // Unset status if provided - always set to INACTIVE when creating
+            if (isset($data['status'])) {
+                unset($data['status']);
+            }
+
             // Lấy tất cả product_id từ request
             $productIds = array_column($data['products'], 'product_id');
 
@@ -214,12 +219,13 @@ class ProductPriceController
                     'product_id' => $product['product_id'],
                     'date_start' => $data['date_start'] ?? null,
                     'date_end' => $data['date_end'] ?? null,
-                    'price' => $product['price'] ?? $data['price'], // Ưu tiên giá riêng của sản phẩm, nếu không có thì lấy giá chung
-                    'status' => $data['status'] ?? 'ACTIVE'
+                    'price' => $product['price'] ?? $data['price'], // Ưu tiên giá riêng của sản phẩm
+                    'status' => 'INACTIVE' // Luôn set INACTIVE khi tạo mới
                 ];
 
                 $productPrice = new ProductPrice();
-                $errors = $productPrice->validate($priceData);
+                // Không cần kiểm tra trùng ngày vì status luôn là INACTIVE
+                $errors = $productPrice->validate($priceData, false);
 
                 if ($errors) {
                     http_response_code(400);
@@ -245,6 +251,7 @@ class ProductPriceController
             error_log("Error in createProductPrice: " . $e->getMessage());
             http_response_code(500);
             return [
+                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -314,38 +321,13 @@ class ProductPriceController
 
             // Case 2: Status INACTIVE
             if ($productPrice->status === 'INACTIVE') {
-                // Case 2.1: Nếu đang thay đổi status từ INACTIVE sang ACTIVE
-                if (isset($data['status']) && $data['status'] === 'ACTIVE') {
-                    // Kiểm tra xem có bị trùng với khoảng thời gian nào đang ACTIVE không
-                    $existingActivePrice = ProductPrice::query()
-                        ->where('product_id', $productPrice->product_id)
-                        ->where('status', 'ACTIVE')
-                        ->where('id', '!=', $id)
-                        ->where(function ($query) use ($data, $productPrice) {
-                            $startDate = $data['date_start'] ?? $productPrice->date_start;
-                            $endDate = $data['date_end'] ?? $productPrice->date_end;
+                // Kiểm tra trùng ngày chỉ khi chuyển sang ACTIVE
+                $needsOverlapCheck = isset($data['status']) && $data['status'] === 'ACTIVE';
 
-                            $query->whereBetween('date_start', [$startDate, $endDate])
-                                ->orWhereBetween('date_end', [$startDate, $endDate])
-                                ->orWhere(function ($q) use ($startDate, $endDate) {
-                                    $q->where('date_start', '<=', $startDate)
-                                        ->where('date_end', '>=', $endDate);
-                                });
-                        })
-                        ->exists();
-
-                    if ($existingActivePrice) {
-                        http_response_code(400);
-                        return [
-                            'success' => false,
-                            'error' => 'Không thể kích hoạt vì đã tồn tại khoảng thời gian đang active'
-                        ];
-                    }
-                }
-
-                // Validate dữ liệu mới
+                // Merge dữ liệu cũ với dữ liệu mới để validate
                 $updateData = array_merge($productPrice->toArray(), $data);
-                $error = $productPrice->validate($updateData);
+
+                $error = $productPrice->validate($updateData, true, $needsOverlapCheck);
 
                 if ($error !== null) {
                     http_response_code(400);
@@ -355,13 +337,21 @@ class ProductPriceController
                     ];
                 }
 
-                // Cập nhật dữ liệu
-                $productPrice->fill($data);
-                $productPrice->save();
+                // Cập nhật dữ liệu cho tất cả product_id
+                foreach ($data['product_id'] as $productId) {
+                    $newPrice = clone $productPrice;
+                    $newPrice->product_id = $productId;
+                    foreach ($data as $key => $value) {
+                        if ($key !== 'product_id') {
+                            $newPrice->$key = $value;
+                        }
+                    }
+                    $newPrice->save();
+                }
 
                 return [
                     'success' => true,
-                    'message' => 'Cập nhật thành công',
+                    'message' => 'Cập nhật thành công cho tất cả sản phẩm',
                     'data' => $productPrice->toArray()
                 ];
             }

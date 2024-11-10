@@ -33,8 +33,8 @@ class ProductController
     public function getProducts(): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
             $today = date('Y-m-d');
 
             $product = Product::query()
@@ -204,7 +204,7 @@ class ProductController
 
             if (isset($_GET['search'])) {
                 $search = urldecode($_GET['search']);
-                $product->where(function($query) use ($search) {
+                $product->where(function ($query) use ($search) {
                     $query->where('name', 'like', '%' . $search . '%')
                         ->orWhere('sku', 'like', '%' . $search . '%');
                 });
@@ -455,8 +455,8 @@ class ProductController
     public function getCategoryByProduct($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $product = Product::query()
                 ->where('deleted', false)
@@ -591,8 +591,8 @@ class ProductController
     public function getDiscountByProduct($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $product = Product::query()
                 ->where('deleted', false)
@@ -726,8 +726,8 @@ class ProductController
     public function getOrderDetailsByProduct($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $product = Product::query()
                 ->where('deleted', false)
@@ -757,8 +757,8 @@ class ProductController
     public function getPriceByProduct($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $product = Product::query()
                 ->where('deleted', false)
@@ -887,8 +887,8 @@ class ProductController
     public function getProductStorageLocationByProduct($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $product = Product::query()
                 ->where('deleted', false)
@@ -1061,8 +1061,8 @@ class ProductController
     public function getProductImportReceiptDetailsByProduct($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $product = Product::query()
                 ->where('deleted', false)
@@ -1092,8 +1092,8 @@ class ProductController
     public function getProductExportReceiptDetailsByProduct($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $product = Product::query()
                 ->where('deleted', false)
@@ -1123,8 +1123,8 @@ class ProductController
     public function getGiftSetsByProduct($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $product = Product::query()
                 ->where('deleted', false)
@@ -1154,8 +1154,8 @@ class ProductController
     public function getInventoryCheckDetailsByProduct($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $product = Product::query()
                 ->where('deleted', false)
@@ -1185,8 +1185,8 @@ class ProductController
     public function getInventoryHistoryByProduct($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $product = Product::query()
                 ->where('deleted', false)
@@ -1216,8 +1216,8 @@ class ProductController
     public function getProductDiscountsByProduct($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $product = Product::query()
                 ->where('deleted', false)
@@ -1247,8 +1247,8 @@ class ProductController
     public function getProductCategoriesByProduct($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $product = Product::query()
                 ->where('deleted', false)

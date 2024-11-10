@@ -54,15 +54,15 @@ class ProductExportReceiptController
     public function getProductExportReceipts(): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $productER = (new ProductExportReceipt())
                 ->where('deleted', false)
                 ->with([
-                    'creator' => function($productER) {
+                    'creator' => function ($productER) {
                         $productER->select('id', 'email', 'role_id')
-                            ->with(['profile' => function($q) {
+                            ->with(['profile' => function ($q) {
                                 $q->select('user_id', 'first_name', 'last_name');
                             }]);
                     },
@@ -73,6 +73,11 @@ class ProductExportReceiptController
                 ELSE 2 
                 END")  // Sort ACTIVE status first
                 ->orderBy('created_at', 'desc');
+
+            if (isset($_GET['note'])) {
+                $note = urldecode($_GET['note']);
+                $productER->where('note', '%' . $note . '%');
+            }
 
             if (isset($_GET['type'])) {
                 $type = urldecode($_GET['type']);
@@ -94,7 +99,7 @@ class ProductExportReceiptController
                 }
             }
 
-            return  $result;
+            return $result;
 
         } catch (\Exception $e) {
             error_log("Error in getProductExportReceipts: " . $e->getMessage());
@@ -112,9 +117,9 @@ class ProductExportReceiptController
                 ->where('id', $id)
                 ->where('deleted', false)
                 ->with([
-                    'creator' => function($productER) {
+                    'creator' => function ($productER) {
                         $productER->select('id', 'email', 'role_id')
-                            ->with(['profile' => function($q) {
+                            ->with(['profile' => function ($q) {
                                 $q->select('user_id', 'first_name', 'last_name');
                             }]);
                     },
@@ -148,8 +153,8 @@ class ProductExportReceiptController
     public function getExportReceiptDetailsByExportReceipt($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $productER = (new ProductExportReceipt())
                 ->where('id', $id)

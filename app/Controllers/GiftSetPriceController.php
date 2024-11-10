@@ -13,8 +13,8 @@ class GiftSetPriceController
     public function getGiftSetPrices(): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $giftSetPrice = (new GiftSetPrice())->query()
                 ->where('deleted', false)
@@ -107,7 +107,7 @@ class GiftSetPriceController
             $data = json_decode(file_get_contents('php://input'), true);
 
             // Kiểm tra gift set tồn tại
-            $giftSet = (new GiftSet())->where('deleted',false)->find($data['gift_set_id']);
+            $giftSet = (new GiftSet())->where('deleted', false)->find($data['gift_set_id']);
 
             if (!$giftSet) {
                 return [
@@ -148,7 +148,7 @@ class GiftSetPriceController
     public function updateGiftSetPrice($id): array
     {
         try {
-            $giftSetPrice = (new GiftSetPrice())->where('deleted',false)->find($id);
+            $giftSetPrice = (new GiftSetPrice())->where('deleted', false)->find($id);
 
             if (!$giftSetPrice) {
                 return [
@@ -160,7 +160,7 @@ class GiftSetPriceController
 
             // Nếu có cập nhật gift_set_id thì kiểm tra gift set tồn tại
             if (!empty($data['gift_set_id'])) {
-                $giftSet = (new GiftSet())->where('deleted',false)->find($data['gift_set_id']);
+                $giftSet = (new GiftSet())->where('deleted', false)->find($data['gift_set_id']);
                 if (!$giftSet) {
                     return [
                         'success' => false,
@@ -228,10 +228,10 @@ class GiftSetPriceController
     public function getPricesByGiftSet($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
-            $giftSet = (new GiftSet())->where('deleted',false)->find($id);
+            $giftSet = (new GiftSet())->where('deleted', false)->find($id);
 
             if (!$giftSet) {
                 return [
@@ -264,7 +264,7 @@ class GiftSetPriceController
     public function addPriceToGiftSet($id): array
     {
         try {
-            $giftSet = (new GiftSet())->where('deleted',false)->find($id);
+            $giftSet = (new GiftSet())->where('deleted', false)->find($id);
 
             if (!$giftSet) {
                 return [
@@ -311,7 +311,7 @@ class GiftSetPriceController
     public function removePriceFromGiftSet($id, $priceId): array
     {
         try {
-            $giftSet = (new GiftSet())->where('deleted',false)->find($id);
+            $giftSet = (new GiftSet())->where('deleted', false)->find($id);
 
             if (!$giftSet) {
                 return [
@@ -354,7 +354,7 @@ class GiftSetPriceController
     public function updateGiftSetPriceByGiftSet($id, $priceId): array
     {
         try {
-            $giftSet = (new GiftSet())->where('deleted',false)->find($id);
+            $giftSet = (new GiftSet())->where('deleted', false)->find($id);
 
             if (!$giftSet) {
                 return [
@@ -364,7 +364,7 @@ class GiftSetPriceController
             }
 
             $giftSetPrice = (new GiftSetPrice())
-                ->where('deleted',false)
+                ->where('deleted', false)
                 ->where('gift_set_id', $id)
                 ->where('id', $priceId)
                 ->first();

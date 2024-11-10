@@ -48,15 +48,15 @@ class MaterialExportReceiptController
     public function getMaterialExportReceipts(): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $materialER = (new MaterialExportReceipt())
                 ->where('deleted', false)
                 ->with([
-                    'creator' => function($productER) {
+                    'creator' => function ($productER) {
                         $productER->select('id', 'email', 'role_id')
-                            ->with(['profile' => function($q) {
+                            ->with(['profile' => function ($q) {
                                 $q->select('user_id', 'first_name', 'last_name');
                             }]);
                     },
@@ -77,6 +77,16 @@ class MaterialExportReceiptController
             if (isset($_GET['type'])) {
                 $type = urldecode($_GET['type']);
                 $materialER->where('type', $type);
+            }
+
+            if (isset($_GET['status'])) {
+                $status = urldecode($_GET['status']);
+                $materialER->where('status', $status);
+            }
+
+            if (isset($_GET['note'])) {
+                $note = urldecode($_GET['note']);
+                $materialER->where('note', '%' . $note . '%');
             }
 
             $result = $this->paginateResults($materialER, $perPage, $page)->toArray();
@@ -107,9 +117,9 @@ class MaterialExportReceiptController
                 ->where('id', $id)
                 ->where('deleted', false)
                 ->with([
-                    'creator' => function($productER) {
+                    'creator' => function ($productER) {
                         $productER->select('id', 'email', 'role_id')
-                            ->with(['profile' => function($q) {
+                            ->with(['profile' => function ($q) {
                                 $q->select('user_id', 'first_name', 'last_name');
                             }]);
                     },
@@ -143,8 +153,8 @@ class MaterialExportReceiptController
     public function getExportReceiptDetailsByExportReceipt($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $materialER = (new MaterialExportReceipt())->find($id);
 

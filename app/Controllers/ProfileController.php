@@ -12,8 +12,8 @@ class ProfileController
     public function getProfile(): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $profile = Profile::query()
                 ->where('deleted', false)
@@ -24,13 +24,14 @@ class ProfileController
                 END")  // Sort ACTIVE status first
                 ->orderBy('created_at', 'desc');
 
-            // Add all filters
             if (isset($_GET['phone'])) {
                 $phone = urldecode($_GET['phone']);
-                $length = strlen($phone);
-                $profile->whereRaw('SUBSTRING(phone, 1, ?) = ?', [$length, $phone]);
+                $profile->where(function($query) use ($phone) {
+                    $query->where('phone', 'LIKE', '%'.$phone.'%')
+                        ->orWhere('phone', 'LIKE', $phone.'%')
+                        ->orWhere('phone', 'LIKE', '%'.$phone);
+                });
             }
-
             if (isset($_GET['gender'])) {
                 $gender = urldecode($_GET['gender']);
                 $profile->where('gender', $gender);
@@ -124,8 +125,8 @@ class ProfileController
     public function getUserByProfile($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $profile = Profile::where('deleted', false)->find($id);
 
@@ -155,8 +156,8 @@ class ProfileController
     public function getCreatedOrdersByProfile($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $profile = Profile::where('deleted', false)->find($id);
 

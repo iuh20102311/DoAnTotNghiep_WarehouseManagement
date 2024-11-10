@@ -12,8 +12,8 @@ class RoleController
     public function getRoles(): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $role = Role::query()
                 ->where('deleted', false)
@@ -89,8 +89,8 @@ class RoleController
     public function getUserByRole($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $role = Role::where('deleted', false)->find($id);
 

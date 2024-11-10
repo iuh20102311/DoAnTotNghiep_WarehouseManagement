@@ -16,8 +16,8 @@ class DiscountController
     public function getDiscounts(): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $discount = Discount::query()
                 ->where('status', '!=', 'INACTIVE')
@@ -39,10 +39,22 @@ class DiscountController
                 'note'
             ];
 
+            $enumColumns = [
+                'status',
+                'discount_unit'
+            ];
+
             foreach ($columns as $column) {
-                if (isset($_GET[$column])) {
+                if (isset($_GET[$column]) && $_GET[$column] !== '') {
                     $value = urldecode($_GET[$column]);
-                    $discount->where($column, $value);
+
+                    // Nếu là enum thì tìm chính xác
+                    if (in_array($column, $enumColumns)) {
+                        $discount->where($column, $value);
+                    } // Các trường còn lại tìm tương đối
+                    else {
+                        $discount->where($column, 'LIKE', '%' . $value . '%');
+                    }
                 }
             }
 
@@ -68,10 +80,10 @@ class DiscountController
         }
     }
 
-    public function getDiscountById($id) : array
+    public function getDiscountById($id): array
     {
         try {
-            $discount = Discount::query()->where('id',$id)
+            $discount = Discount::query()->where('id', $id)
                 ->where('deleted', false)
                 ->with(['categories', 'products'])
                 ->first();
@@ -148,8 +160,7 @@ class DiscountController
             $discount->fill($data);
             $discount->save();
 
-            return $discount->toArray()
-                ;
+            return $discount->toArray();
         } catch (\Exception $e) {
             error_log("Error in updateDiscountById: " . $e->getMessage());
             return [
@@ -199,8 +210,8 @@ class DiscountController
     public function getProductByDiscount($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $discount = Discount::query()->where('id', $id)->firstOrFail();
             $productsQuery = $discount->products()
@@ -223,10 +234,10 @@ class DiscountController
         try {
             $discount = Discount::query()
                 ->where('deleted', false)
-                ->where('id',$id)
+                ->where('id', $id)
                 ->first();
 
-            $data = json_decode(file_get_contents('php://input'),true);
+            $data = json_decode(file_get_contents('php://input'), true);
 
             if (empty($data['product_id'])) {
                 return [
@@ -237,7 +248,7 @@ class DiscountController
 
             $product = Product::query()
                 ->where('products.deleted', false)
-                ->where('id',$data['product_id'])
+                ->where('id', $data['product_id'])
                 ->first();
 
             if (!$product) {
@@ -321,8 +332,8 @@ class DiscountController
     public function getCategoryByDiscount($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $discount = Discount::query()->where('id', $id)->firstOrFail();
             $categoriesQuery = $discount->categories()
@@ -343,8 +354,8 @@ class DiscountController
     public function addCategoryToDiscount($id): array
     {
         try {
-            $discount = Discount::query()->where('id',$id)->first();
-            $data = json_decode(file_get_contents('php://input'),true);
+            $discount = Discount::query()->where('id', $id)->first();
+            $data = json_decode(file_get_contents('php://input'), true);
 
             if (empty($data['category_id'])) {
                 return [
@@ -353,7 +364,7 @@ class DiscountController
                 ];
             }
 
-            $category = Category::query()->where('id',$data['category_id'])->first();
+            $category = Category::query()->where('id', $data['category_id'])->first();
             if (!$category) {
                 return [
                     'success' => false,

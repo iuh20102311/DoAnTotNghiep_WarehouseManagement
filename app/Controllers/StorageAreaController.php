@@ -13,8 +13,8 @@ class StorageAreaController
     public function getStorageAreas(): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $storage = StorageArea::query()
                 ->where('deleted', false)
@@ -223,8 +223,8 @@ class StorageAreaController
     public function getProductStorageLocationsByStorageArea($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $storage = StorageArea::where('deleted', false)->find($id);
 
@@ -265,8 +265,8 @@ class StorageAreaController
     public function getMaterialStorageLocationsByStorageArea($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $storage = StorageArea::where('deleted', false)->find($id);
 
@@ -307,8 +307,8 @@ class StorageAreaController
     public function getInventoryChecksByStorageArea($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $storage = StorageArea::where('deleted', false)->find($id);
 
@@ -354,8 +354,8 @@ class StorageAreaController
     public function getInventoryHistoryByStorageArea($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $storage = StorageArea::where('deleted', false)->find($id);
 

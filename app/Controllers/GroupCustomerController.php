@@ -15,8 +15,8 @@ class GroupCustomerController
     public function getGroupCustomers(): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $groupcustomer = GroupCustomer::query()
                 ->where('deleted', false)
@@ -71,7 +71,7 @@ class GroupCustomerController
     public function getGroupCustomerById($id): string
     {
         $groupcustomer = GroupCustomer::query()
-            ->where('deleted',false)
+            ->where('deleted', false)
             ->where('id', $id)
             ->with(['customers'])
             ->first();
@@ -88,10 +88,10 @@ class GroupCustomerController
         $perPage = $_GET['per_page'] ?? 10;
         $page = $_GET['page'] ?? 1;
 
-        $groupcustomer = GroupCustomer::where('deleted',false)->findOrFail($id);
+        $groupcustomer = GroupCustomer::where('deleted', false)->findOrFail($id);
 
         $customersQuery = $groupcustomer->customers()
-            ->where('deleted',false)
+            ->where('deleted', false)
             ->with('groupCustomer')
             ->getQuery();
 

@@ -12,8 +12,8 @@ class ProductStorageLocationController
     public function getProductStorageLocations(): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $productStorageLocation = ProductStorageLocation::query()
                 ->where('deleted', false)
@@ -112,8 +112,8 @@ class ProductStorageLocationController
     public function getProductsByProductStorageLocation($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $productStorageLocation = ProductStorageLocation::where('deleted', false)->find($id);
 
@@ -125,7 +125,7 @@ class ProductStorageLocationController
             }
 
             $productsQuery = $productStorageLocation->product()
-                ->with(['categories','prices'])
+                ->with(['categories', 'prices'])
                 ->getQuery();
 
             return $this->paginateResults($productsQuery, $perPage, $page)->toArray();
@@ -143,8 +143,8 @@ class ProductStorageLocationController
     public function getStorageAreasByProductStorageLocation($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $productStorageLocation = ProductStorageLocation::where('deleted', false)->find($id);
 

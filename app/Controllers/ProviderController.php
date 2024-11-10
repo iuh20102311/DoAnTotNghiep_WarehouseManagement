@@ -13,8 +13,8 @@ class ProviderController
     public function getProviders(): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $provider = Provider::query()
                 ->where('deleted', false)
@@ -43,8 +43,11 @@ class ProviderController
 
             if (isset($_GET['phone'])) {
                 $phone = urldecode($_GET['phone']);
-                $length = strlen($phone);
-                $provider->whereRaw('SUBSTRING(phone, 1, ?) = ?', [$length, $phone]);
+                $provider->where(function($query) use ($phone) {
+                    $query->where('phone', 'LIKE', '%'.$phone.'%')
+                        ->orWhere('phone', 'LIKE', $phone.'%')
+                        ->orWhere('phone', 'LIKE', '%'.$phone);
+                });
             }
 
             if (isset($_GET['address'])) {
@@ -130,8 +133,8 @@ class ProviderController
     public function getMaterialByProvider($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $provider = Provider::where('deleted', false)->find($id);
 
@@ -161,8 +164,8 @@ class ProviderController
     public function getMaterialImportReceiptsByProvider($id): array
     {
         try {
-            $perPage = $_GET['per_page'] ?? 10;
-            $page = $_GET['page'] ?? 1;
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
             $provider = Provider::where('deleted', false)->find($id);
 
