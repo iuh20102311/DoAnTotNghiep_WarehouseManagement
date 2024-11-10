@@ -90,7 +90,6 @@ class Product extends Model
             'origin' => ['required', 'string'],
             'image' => ['required', 'string'],
             'minimum_stock_level' => ['nullable', 'integer', 'min' => 0],
-            'description' => ['nullable', 'string', 'max' => 1000],
             'usage_time' => ['nullable', 'string'],
             'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE', 'OUT_OF_STOCK']]
         ];
@@ -141,9 +140,6 @@ class Product extends Model
             'minimum_stock_level' => [
                 'integer' => 'Mức tồn kho tối thiểu phải là số nguyên.',
                 'min' => 'Mức tồn kho tối thiểu không được âm.'
-            ],
-            'description' => [
-                'max' => 'Mô tả không được vượt quá :max ký tự.'
             ],
             'status' => [
                 'required' => 'Trạng thái là bắt buộc.',
