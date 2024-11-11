@@ -25,7 +25,7 @@ class ProductPrice extends Model
         $validator = new Validator($data, $this->messages());
 
         $rules = [
-            'product_id' => ['required', 'array'],
+            'product_id' => ['required', 'integer'],  // Changed to validate single product_id
             'date_start' => ['required', 'date' => 'Y-m-d'],
             'date_end' => ['required', 'date' => 'Y-m-d', 'after' => 'date_start'],
             'price' => ['required', 'integer', 'min' => 0],
@@ -39,37 +39,25 @@ class ProductPrice extends Model
             return $validator->getErrors();
         }
 
-        // Validate từng product_id trong mảng
-        foreach ($data['product_id'] as $productId) {
-            if (!is_int($productId)) {
-                return [
-                    'product_id' => ['Các ID sản phẩm phải là số nguyên']
-                ];
-            }
-        }
-
         // Chỉ kiểm tra trùng ngày khi chuyển sang ACTIVE
         if ($checkDateOverlap) {
-            // Kiểm tra trùng lặp cho từng product_id
-            foreach ($data['product_id'] as $productId) {
-                $existingPrice = $this->where('product_id', $productId)
-                    ->where('status', 'ACTIVE')
-                    ->where(function ($query) use ($data) {
-                        $query->whereBetween('date_start', [$data['date_start'], $data['date_end']])
-                            ->orWhereBetween('date_end', [$data['date_start'], $data['date_end']])
-                            ->orWhere(function ($q) use ($data) {
-                                $q->where('date_start', '<=', $data['date_start'])
-                                    ->where('date_end', '>=', $data['date_end']);
-                            });
-                    })
-                    ->where('id', '!=', $this->id ?? 0)
-                    ->exists();
+            $existingPrice = $this->where('product_id', $data['product_id'])
+                ->where('status', 'ACTIVE')
+                ->where(function ($query) use ($data) {
+                    $query->whereBetween('date_start', [$data['date_start'], $data['date_end']])
+                        ->orWhereBetween('date_end', [$data['date_start'], $data['date_end']])
+                        ->orWhere(function ($q) use ($data) {
+                            $q->where('date_start', '<=', $data['date_start'])
+                                ->where('date_end', '>=', $data['date_end']);
+                        });
+                })
+                ->where('id', '!=', $this->id ?? 0)
+                ->exists();
 
-                if ($existingPrice) {
-                    return [
-                        'date_overlap' => 'Đã tồn tại bảng giá ACTIVE cho sản phẩm ' . $productId . ' trong khoảng thời gian này.'
-                    ];
-                }
+            if ($existingPrice) {
+                return [
+                    'date_overlap' => 'Đã tồn tại bảng giá ACTIVE cho sản phẩm ' . $data['product_id'] . ' trong khoảng thời gian này.'
+                ];
             }
         }
 
@@ -82,8 +70,6 @@ class ProductPrice extends Model
         return [
             'product_id' => [
                 'required' => 'ID sản phẩm là bắt buộc.',
-                'integer' => 'ID sản phẩm phải là số nguyên.',
-                'exists' => 'Sản phẩm không tồn tại.',
             ],
             'date_start' => [
                 'required' => 'Ngày bắt đầu là bắt buộc.',

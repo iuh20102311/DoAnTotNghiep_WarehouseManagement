@@ -217,14 +217,13 @@ class ProductPriceController
             foreach ($data['products'] as $product) {
                 $priceData = [
                     'product_id' => $product['product_id'],
-                    'date_start' => $data['date_start'] ?? null,
-                    'date_end' => $data['date_end'] ?? null,
+                    'date_start' => $data['date_start'],
+                    'date_end' => $data['date_end'],
                     'price' => $product['price'] ?? $data['price'], // Ưu tiên giá riêng của sản phẩm
                     'status' => 'INACTIVE' // Luôn set INACTIVE khi tạo mới
                 ];
 
                 $productPrice = new ProductPrice();
-                // Không cần kiểm tra trùng ngày vì status luôn là INACTIVE
                 $errors = $productPrice->validate($priceData, false);
 
                 if ($errors) {
