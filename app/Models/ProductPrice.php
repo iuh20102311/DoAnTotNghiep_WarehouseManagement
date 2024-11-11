@@ -25,7 +25,7 @@ class ProductPrice extends Model
         $validator = new Validator($data, $this->messages());
 
         $rules = [
-            'product_id' => ['required', 'integer'],  // Changed to validate single product_id
+            'product_id' => ['required'],
             'date_start' => ['required', 'date' => 'Y-m-d'],
             'date_end' => ['required', 'date' => 'Y-m-d', 'after' => 'date_start'],
             'price' => ['required', 'integer', 'min' => 0],
