@@ -323,6 +323,9 @@ class ProductPriceController
                 // Kiểm tra trùng ngày chỉ khi chuyển sang ACTIVE
                 $needsOverlapCheck = isset($data['status']) && $data['status'] === 'ACTIVE';
 
+                // Thêm product_id vào data để validate
+                $data['product_id'] = $productPrice->product_id;
+
                 // Merge dữ liệu cũ với dữ liệu mới để validate
                 $updateData = array_merge($productPrice->toArray(), $data);
 
@@ -336,21 +339,13 @@ class ProductPriceController
                     ];
                 }
 
-                // Cập nhật dữ liệu cho tất cả product_id
-                foreach ($data['product_id'] as $productId) {
-                    $newPrice = clone $productPrice;
-                    $newPrice->product_id = $productId;
-                    foreach ($data as $key => $value) {
-                        if ($key !== 'product_id') {
-                            $newPrice->$key = $value;
-                        }
-                    }
-                    $newPrice->save();
-                }
+                // Cập nhật dữ liệu
+                $productPrice->fill($data);
+                $productPrice->save();
 
                 return [
                     'success' => true,
-                    'message' => 'Cập nhật thành công cho tất cả sản phẩm',
+                    'message' => 'Cập nhật thành công',
                     'data' => $productPrice->toArray()
                 ];
             }
