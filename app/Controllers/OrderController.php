@@ -19,47 +19,52 @@ class OrderController
 {
     use PaginationTrait;
 
-
     public function getOrders(): array
     {
         try {
             $perPage = (int)($_GET['per_page'] ?? 10);
             $page = (int)($_GET['page'] ?? 1);
 
-            $orders = Order::query()->where('status', '!=', 'DELETED')
+            $orders = Order::query()
+                ->where('status', '!=', 'DELETED')
                 ->with(['customer', 'creator', 'orderDetails', 'giftSets'])
                 ->orderByRaw("CASE 
-                WHEN status = 'PROCESSED' THEN 1
-                WHEN status = 'DELIVERED' THEN 2
-                WHEN status = 'SHIPPING' THEN 3
-                WHEN status = 'PENDING' THEN 4
-                WHEN status = 'CANCELLED' THEN 5
-                WHEN status = 'RETURNED' THEN 6
-                WHEN status = 'DRAFT' THEN 7
-                ELSE 8
-                END")
+            WHEN status = 'PROCESSED' THEN 1
+            WHEN status = 'DELIVERED' THEN 2
+            WHEN status = 'SHIPPING' THEN 3
+            WHEN status = 'PENDING' THEN 4
+            WHEN status = 'CANCELLED' THEN 5
+            WHEN status = 'RETURNED' THEN 6
+            WHEN status = 'DRAFT' THEN 7
+            ELSE 8
+            END")
                 ->orderByRaw("CASE 
-                WHEN payment_status = 'PAID' THEN 1
-                WHEN payment_status = 'PENDING' THEN 2
-                ELSE 3
-                END")
+            WHEN payment_status = 'PAID' THEN 1
+            WHEN payment_status = 'PENDING' THEN 2
+            ELSE 3
+            END")
                 ->orderByRaw("CASE 
-                WHEN payment_method = 'CASH' THEN 1
-                WHEN payment_method = 'BANK_TRANSFER' THEN 2
-                ELSE 3
-                END")
+            WHEN payment_method = 'CASH' THEN 1
+            WHEN payment_method = 'BANK_TRANSFER' THEN 2
+            ELSE 3
+            END")
                 ->orderBy('created_at', 'desc');
 
-            if (isset($_GET['status'])) {
-                $status = urldecode($_GET['status']);
-                $orders->where('status', $status);
+            // Filter by customer name
+            if (isset($_GET['customer_name'])) {
+                $customerName = urldecode($_GET['customer_name']);
+                $orders->whereHas('customer', function ($query) use ($customerName) {
+                    $query->where('name', 'LIKE', '%' . $customerName . '%');
+                });
             }
 
-            if (isset($_GET['total_price'])) {
-                $total_price = urldecode($_GET['total_price']);
-                $orders->where('total_price', $total_price);
+            // Filter by order code
+            if (isset($_GET['code'])) {
+                $code = urldecode($_GET['code']);
+                $orders->where('code', 'LIKE', '%' . $code . '%');
             }
 
+            // Filter by phone
             if (isset($_GET['phone'])) {
                 $phone = urldecode($_GET['phone']);
                 $orders->where(function ($query) use ($phone) {
@@ -69,9 +74,42 @@ class OrderController
                 });
             }
 
-            if (isset($_GET['code'])) {
-                $code = urldecode($_GET['code']);
-                $orders->where('code', 'like', '%' . $code . '%');
+            // Filter by order date
+            if (isset($_GET['order_date_from']) && isset($_GET['order_date_to'])) {
+                $fromDate = date('Y-m-d', strtotime(urldecode($_GET['order_date_from'])));
+                $toDate = date('Y-m-d', strtotime(urldecode($_GET['order_date_to'])));
+                $orders->whereBetween('order_date', [$fromDate, $toDate]);
+            } elseif (isset($_GET['order_date_from'])) {
+                $fromDate = date('Y-m-d', strtotime(urldecode($_GET['order_date_from'])));
+                $orders->where('order_date', '>=', $fromDate);
+            } elseif (isset($_GET['order_date_to'])) {
+                $toDate = date('Y-m-d', strtotime(urldecode($_GET['order_date_to'])));
+                $orders->where('order_date', '<=', $toDate);
+            }
+
+            // Filter by delivery date
+            if (isset($_GET['delivery_date_from']) && isset($_GET['delivery_date_to'])) {
+                $fromDate = date('Y-m-d', strtotime(urldecode($_GET['delivery_date_from'])));
+                $toDate = date('Y-m-d', strtotime(urldecode($_GET['delivery_date_to'])));
+                $orders->whereBetween('delivery_date', [$fromDate, $toDate]);
+            } elseif (isset($_GET['delivery_date_from'])) {
+                $fromDate = date('Y-m-d', strtotime(urldecode($_GET['delivery_date_from'])));
+                $orders->where('delivery_date', '>=', $fromDate);
+            } elseif (isset($_GET['delivery_date_to'])) {
+                $toDate = date('Y-m-d', strtotime(urldecode($_GET['delivery_date_to'])));
+                $orders->where('delivery_date', '<=', $toDate);
+            }
+
+            // Filter by status
+            if (isset($_GET['status'])) {
+                $status = urldecode($_GET['status']);
+                $orders->where('status', $status);
+            }
+
+            // Keep existing filters
+            if (isset($_GET['total_price'])) {
+                $total_price = urldecode($_GET['total_price']);
+                $orders->where('total_price', $total_price);
             }
 
             if (isset($_GET['address'])) {
