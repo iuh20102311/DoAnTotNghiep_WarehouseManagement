@@ -13,6 +13,7 @@ class Provider extends Model
     use HasFactory;
     protected $table = 'providers';
     protected $fillable = [
+        'code',
         'name',
         'website',
         'address',

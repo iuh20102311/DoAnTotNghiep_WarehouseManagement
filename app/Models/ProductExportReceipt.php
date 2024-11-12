@@ -17,7 +17,7 @@ class ProductExportReceipt extends Model
     use HasFactory;
 
     protected $table = 'product_export_receipts';
-    protected $fillable = ['note', 'receipt_date', 'type', 'status', 'image', 'created_at', 'updated_at', 'deleted', 'created_by'];
+    protected $fillable = ['code', 'note', 'receipt_date', 'type', 'status', 'image', 'created_at', 'updated_at', 'deleted', 'created_by'];
     protected $primaryKey = 'id';
     public $timestamps = true;
 

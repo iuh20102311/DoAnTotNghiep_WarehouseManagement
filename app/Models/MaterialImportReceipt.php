@@ -16,7 +16,7 @@ class MaterialImportReceipt extends Model
 {
     use HasFactory;
     protected $table = 'material_import_receipts';
-    protected $fillable = ['provider_id', 'receipt_id', 'type', 'note', 'receipt_date', 'total_price', 'status', 'image', 'created_at', 'updated_at', 'deleted', 'created_by', 'approved_by', 'receiver_id'];
+    protected $fillable = ['provider_id', 'code', 'type', 'note', 'receipt_date', 'total_price', 'status', 'image', 'created_at', 'updated_at', 'deleted', 'created_by', 'approved_by', 'receiver_id'];
     protected $primaryKey = 'id';
     public $timestamps = true;
 
@@ -54,7 +54,6 @@ class MaterialImportReceipt extends Model
 
         $rules = [
             'provider_id' => ['required', 'integer'],
-            'receipt_id' => ['required', 'string', 'max' => 50],
             'type' => ['required', 'enum' => ['RETURN','NORMAL','OTHER']],
             'note' => ['nullable', 'string', 'max' => 500],
             'receipt_date' => ['required', 'date' => 'Y-m-d', 'after' => 'now'],
@@ -84,10 +83,6 @@ class MaterialImportReceipt extends Model
             'provider_id' => [
                 'required' => 'Nhà cung cấp là bắt buộc.',
                 'integer' => 'ID nhà cung cấp phải là số nguyên.'
-            ],
-            'receipt_id' => [
-                'required' => 'Mã phiếu nhập là bắt buộc.',
-                'max' => 'Mã phiếu nhập không được vượt quá :max ký tự.'
             ],
             'type' => [
                 'required' => 'Loại phiếu nhập là bắt buộc.',

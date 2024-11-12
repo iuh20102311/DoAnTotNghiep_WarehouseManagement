@@ -130,6 +130,14 @@ class MaterialController
                 $material->where('updated_at', '<=', $updatedTo);
             }
 
+            if (isset($_GET['search'])) {
+                $search = urldecode($_GET['search']);
+                $material->where(function ($query) use ($search) {
+                    $query->where('name', 'like', '%' . $search . '%')
+                        ->orWhere('sku', 'like', '%' . $search . '%');
+                });
+            }
+
             return $this->paginateResults($material, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
@@ -183,6 +191,11 @@ class MaterialController
                 ];
             }
 
+            // Unset sku if provided by user
+            if (isset($data['sku'])) {
+                unset($data['sku']);
+            }
+
             // Tách category_id ra khỏi data
             $categoryIds = $data['category_id'];
             unset($data['category_id']);
@@ -201,6 +214,27 @@ class MaterialController
                     'details' => $errors
                 ];
             }
+
+            // Generate new sku for material
+            $currentMonth = date('m');
+            $currentYear = date('y');
+            $prefix = "NVL" . $currentMonth . $currentYear;
+
+            // Get latest material sku with current prefix
+            $latestMaterial = Material::query()
+                ->where('sku', 'LIKE', $prefix . '%')
+                ->orderBy('sku', 'desc')
+                ->first();
+
+            if ($latestMaterial) {
+                // Extract sequence number and increment
+                $sequence = intval(substr($latestMaterial->sku, -5)) + 1;
+            } else {
+                $sequence = 1;
+            }
+
+            // Format sequence to 5 digits
+            $data['sku'] = $prefix . str_pad($sequence, 5, '0', STR_PAD_LEFT);
 
             // Kiểm tra các category tồn tại và không bị xóa
             $categories = Category::whereIn('id', $categoryIds)
@@ -222,7 +256,6 @@ class MaterialController
             // Thêm categories
             $material->categories()->attach($categoryIds);
 
-            // Trả về material kèm theo categories
             http_response_code(201);
             return [
                 'success' => true,
@@ -254,6 +287,11 @@ class MaterialController
             }
 
             $data = json_decode(file_get_contents('php://input'), true);
+
+            // Remove sku from update data to prevent modification
+            if (isset($data['sku'])) {
+                unset($data['sku']);
+            }
 
             // Tách category_id ra khỏi data nếu có
             $categoryIds = null;

@@ -24,31 +24,6 @@ use Illuminate\Database\Capsule\Manager as Capsule;
 
 class AuthController
 {
-//    public function login(): false|string
-//    {
-//        $data = json_decode(file_get_contents('php://input'), true);
-//        if (!isset($data['email']) || !isset($data['password'])) {
-//            return json_encode(['error' => 'Email và mật khẩu là bắt buộc.'], JSON_UNESCAPED_UNICODE);
-//        }
-//
-//        $user = User::where('email', $data['email'])->first();
-//        if (!$user || !password_verify($data['password'], $user->password)) {
-//            return json_encode(['error' => 'Email hoặc password không chính xác.'], JSON_UNESCAPED_UNICODE);
-//        }
-//
-//        $role = Role::where('id', $user->role_id)->first();
-//        $roleName = $role->name;
-//
-//        $profile = Profile::where('user_id', $user->id)->first(); // Lấy profile dựa trên user_id
-//        if (!$profile) {
-//            return json_encode(['error' => 'Không tìm thấy thông tin hồ sơ.'], JSON_UNESCAPED_UNICODE);
-//        }
-//
-//        $response = new LoginResponseDTO(TokenGenerator::generateAccessToken($user->id,$profile->id), TokenGenerator::generateRefreshToken($user->id,$profile->id));
-//        return json_encode($response);
-//    }
-
-
     public function login(): false|string
     {
         try {
@@ -298,8 +273,27 @@ class AuthController
             $lastName = array_pop($nameParts);
             $firstName = implode(' ', $nameParts);
 
+            // Generate new code for profile
+            $currentMonth = date('m');
+            $currentYear = date('y');
+            $prefix = "NV" . $currentMonth . $currentYear;
+
+            $latestProfile = Profile::query()
+                ->where('code', 'LIKE', $prefix . '%')
+                ->orderBy('code', 'desc')
+                ->first();
+
+            if ($latestProfile) {
+                $sequence = intval(substr($latestProfile->code, -5)) + 1;
+            } else {
+                $sequence = 1;
+            }
+
+            $profileCode = $prefix . str_pad($sequence, 5, '0', STR_PAD_LEFT);
+
             $profileData = [
                 'user_id' => $createdUser->id,
+                'code' => $profileCode,
                 'first_name' => $firstName,
                 'last_name' => $lastName,
                 'phone' => $data['phone'] ?? null,

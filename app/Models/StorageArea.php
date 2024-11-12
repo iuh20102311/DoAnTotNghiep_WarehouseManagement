@@ -42,7 +42,6 @@ class StorageArea extends Model
 
         $rules = [
             'name' => ['required', 'max' => 255],
-            'code' => ['required', 'max' => 50],
             'description' => ['max' => 1000],
             'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE']]
         ];
@@ -94,10 +93,6 @@ class StorageArea extends Model
             'name' => [
                 'required' => 'Tên khu vực kho là bắt buộc.',
                 'max' => 'Tên khu vực kho không được vượt quá :max ký tự.'
-            ],
-            'code' => [
-                'required' => 'Mã khu vực kho là bắt buộc.',
-                'max' => 'Mã khu vực kho không được vượt quá :max ký tự.'
             ],
             'description' => [
                 'max' => 'Mô tả không được vượt quá :max ký tự.'
