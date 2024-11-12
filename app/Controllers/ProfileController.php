@@ -201,6 +201,26 @@ class ProfileController
                 ];
             }
 
+            // Generate new code for provider
+            $currentMonth = date('m');
+            $currentYear = date('y');
+            $prefix = "NCC" . $currentMonth . $currentYear;
+
+            // Get latest provider code with current prefix
+            $latestProfile = Profile::query()
+                ->where('code', 'LIKE', $prefix . '%')
+                ->orderBy('code', 'desc')
+                ->first();
+
+            if ($latestProfile) {
+                $sequence = intval(substr($latestProfile->code, -5)) + 1;
+            } else {
+                $sequence = 1;
+            }
+
+            // Format sequence to 5 digits
+            $data['code'] = $prefix . str_pad($sequence, 5, '0', STR_PAD_LEFT);
+
             $profile->fill($data);
             $profile->save();
 
@@ -234,6 +254,12 @@ class ProfileController
             }
 
             $data = json_decode(file_get_contents('php://input'), true);
+
+            // Remove code from update data to prevent modification
+            if (isset($data['code'])) {
+                unset($data['code']);
+            }
+
             $errors = $profile->validate($data, true);
 
             if ($errors) {

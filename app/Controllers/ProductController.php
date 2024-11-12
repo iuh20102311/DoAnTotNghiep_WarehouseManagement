@@ -70,6 +70,11 @@ class ProductController
                 $product->where('name', 'like', '%' . $name . '%');
             }
 
+            if (isset($_GET['origin'])) {
+                $origin = urldecode($_GET['origin']);
+                $product->where('origin', 'like', '%' . $origin . '%');
+            }
+
             if (isset($_GET['packing'])) {
                 $packing = urldecode($_GET['packing']);
                 $product->where('packing', 'like', '%' . $packing . '%');
@@ -268,11 +273,16 @@ class ProductController
 
             // Validate category_id
             if (empty($data['category_id']) || !is_array($data['category_id'])) {
-                http_response_code(400); // Bad Request
+                http_response_code(400);
                 return [
                     'success' => false,
                     'error' => 'Phải chọn ít nhất một danh mục cho sản phẩm'
                 ];
+            }
+
+            // Unset sku if provided by user
+            if (isset($data['sku'])) {
+                unset($data['sku']);
             }
 
             // Tách category_id ra khỏi data sản phẩm
@@ -286,7 +296,7 @@ class ProductController
             $errors = $product->validate($data);
 
             if ($errors) {
-                http_response_code(422); // Unprocessable Entity
+                http_response_code(422);
                 return [
                     'success' => false,
                     'error' => 'Validation failed',
@@ -294,11 +304,32 @@ class ProductController
                 ];
             }
 
+            // Generate new sku for product
+            $currentMonth = date('m');
+            $currentYear = date('y');
+            $prefix = "SP" . $currentMonth . $currentYear;
+
+            // Get latest product sku with current prefix
+            $latestProduct = Product::query()
+                ->where('sku', 'LIKE', $prefix . '%')
+                ->orderBy('sku', 'desc')
+                ->first();
+
+            if ($latestProduct) {
+                // Extract sequence number and increment
+                $sequence = intval(substr($latestProduct->sku, -5)) + 1;
+            } else {
+                $sequence = 1;
+            }
+
+            // Format sequence to 5 digits
+            $data['sku'] = $prefix . str_pad($sequence, 5, '0', STR_PAD_LEFT);
+
             // Kiểm tra các category tồn tại
             $categories = Category::whereIn('id', $categoryIds)->get();
 
             if ($categories->count() !== count($categoryIds)) {
-                http_response_code(404); // Not Found
+                http_response_code(404);
                 return [
                     'success' => false,
                     'error' => 'Một hoặc nhiều danh mục không tồn tại'
@@ -312,7 +343,7 @@ class ProductController
             // Thêm categories
             $product->categories()->attach($categoryIds);
 
-            http_response_code(201); // Created
+            http_response_code(201);
             return [
                 'success' => true,
                 'data' => $product->fresh()->load(['categories'])->toArray()
@@ -320,7 +351,7 @@ class ProductController
 
         } catch (\Exception $e) {
             error_log("Error in createProduct: " . $e->getMessage());
-            http_response_code(500); // Internal Server Error
+            http_response_code(500);
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
@@ -345,6 +376,11 @@ class ProductController
             }
 
             $data = json_decode(file_get_contents('php://input'), true);
+
+            // Remove sku from update data to prevent modification
+            if (isset($data['sku'])) {
+                unset($data['sku']);
+            }
 
             // Tách category_id ra khỏi data nếu có
             $categoryIds = null;

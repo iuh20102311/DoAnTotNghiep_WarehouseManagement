@@ -37,6 +37,11 @@ class CustomerController
                 $customer->where('name', 'like', '%' . $name . '%');
             }
 
+            if (isset($_GET['code'])) {
+                $code = urldecode($_GET['code']);
+                $customer->where('code', 'like', '%' . $code . '%');
+            }
+
             if (isset($_GET['gender'])) {
                 $gender = urldecode($_GET['gender']);
                 $customer->where('gender', $gender);
@@ -229,6 +234,11 @@ class CustomerController
                 ];
             }
 
+            // Unset code if provided by user
+            if (isset($data['code'])) {
+                unset($data['code']);
+            }
+
             $customer = new Customer();
             $errors = $customer->validate($data);
 
@@ -239,6 +249,27 @@ class CustomerController
                     'details' => $errors
                 ];
             }
+
+            // Generate new code for customer
+            $currentMonth = date('m');
+            $currentYear = date('y');
+            $prefix = "KH" . $currentMonth . $currentYear;
+
+            // Get latest customer code with current prefix
+            $latestCustomer = Customer::query()
+                ->where('code', 'LIKE', $prefix . '%')
+                ->orderBy('code', 'desc')
+                ->first();
+
+            if ($latestCustomer) {
+                // Extract sequence number and increment
+                $sequence = intval(substr($latestCustomer->code, -5)) + 1;
+            } else {
+                $sequence = 1;
+            }
+
+            // Format sequence to 5 digits
+            $data['code'] = $prefix . str_pad($sequence, 5, '0', STR_PAD_LEFT);
 
             $customer->fill($data);
             $customer->save();
@@ -270,6 +301,11 @@ class CustomerController
             }
 
             $data = json_decode(file_get_contents('php://input'), true);
+
+            // Remove code from update data to prevent modification
+            if (isset($data['code'])) {
+                unset($data['code']);
+            }
 
             // Nếu có cập nhật group_customer_id thì kiểm tra storage area tồn tại
             if (!empty($data['group_customer_id'])) {

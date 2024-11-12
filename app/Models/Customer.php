@@ -18,7 +18,7 @@ class Customer extends Model
     use HasFactory;
 
     protected $table = 'customers';
-    protected $fillable = ['group_customer_id', 'name', 'phone', 'gender', 'birthday', 'email', 'address', 'city', 'district', 'ward', 'note', 'status', 'created_at', 'updated_at', 'deleted'];
+    protected $fillable = ['code', 'group_customer_id', 'name', 'phone', 'gender', 'birthday', 'email', 'address', 'city', 'district', 'ward', 'note', 'status', 'created_at', 'updated_at', 'deleted'];
     protected $primaryKey = 'id';
     public $timestamps = true;
 

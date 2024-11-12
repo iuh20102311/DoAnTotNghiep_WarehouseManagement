@@ -103,6 +103,11 @@ class StorageAreaController
         try {
             $data = json_decode(file_get_contents('php://input'), true);
 
+            // Unset code if provided by user
+            if (isset($data['code'])) {
+                unset($data['code']);
+            }
+
             $storage = new StorageArea();
             $errors = $storage->validate($data);
 
@@ -114,6 +119,20 @@ class StorageAreaController
                     'details' => $errors
                 ];
             }
+
+            // Get latest storage area code
+            $latestStorage = StorageArea::query()
+                ->where('code', 'LIKE', 'KVLK%')
+                ->orderBy('code', 'desc')
+                ->first();
+
+            if ($latestStorage) {
+                $sequence = intval(substr($latestStorage->code, -5)) + 1;
+            } else {
+                $sequence = 1;
+            }
+
+            $data['code'] = 'KVLK' . str_pad($sequence, 5, '0', STR_PAD_LEFT);
 
             $storage->fill($data);
             $storage->save();
@@ -148,6 +167,12 @@ class StorageAreaController
             }
 
             $data = json_decode(file_get_contents('php://input'), true);
+
+            // Remove code from update data to prevent modification
+            if (isset($data['code'])) {
+                unset($data['code']);
+            }
+
             $errors = $storage->validate($data, true);
 
             if ($errors) {

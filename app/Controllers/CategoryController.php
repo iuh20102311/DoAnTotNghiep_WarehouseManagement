@@ -166,6 +166,11 @@ class CategoryController
                 $category->where('status', $status);
             }
 
+            if (isset($_GET['code'])) {
+                $code = urldecode($_GET['code']);
+                $category->where('code', 'like', '%' . $code . '%');
+            }
+
             if (isset($_GET['name'])) {
                 $name = urldecode($_GET['name']);
                 $category->where('name', 'like', '%' . $name . '%');
@@ -327,6 +332,11 @@ class CategoryController
                 ];
             }
 
+            // Unset code if provided by user
+            if (isset($data['code'])) {
+                unset($data['code']);
+            }
+
             $category = new Category();
             $errors = $category->validate($data);
 
@@ -338,6 +348,25 @@ class CategoryController
                     'details' => $errors
                 ];
             }
+
+            // Set prefix based on type
+            $prefix = $data['type'] === 'PRODUCT' ? 'DMSP' : 'DMNVL';
+
+            // Get latest category code with the same type
+            $latestCategory = Category::query()
+                ->where('type', $data['type'])
+                ->where('code', 'LIKE', $prefix . '%')
+                ->orderBy('code', 'desc')
+                ->first();
+
+            if ($latestCategory) {
+                $sequence = intval(substr($latestCategory->code, -5)) + 1;
+            } else {
+                $sequence = 1;
+            }
+
+            // Format sequence to 5 digits
+            $data['code'] = $prefix . str_pad($sequence, 5, '0', STR_PAD_LEFT);
 
             $category->fill($data);
             $category->save();
@@ -385,6 +414,11 @@ class CategoryController
                     'success' => false,
                     'error' => 'Invalid JSON data'
                 ];
+            }
+
+            // Remove code from update data to prevent modification
+            if (isset($data['code'])) {
+                unset($data['code']);
             }
 
             $errors = $category->validate($data, true);

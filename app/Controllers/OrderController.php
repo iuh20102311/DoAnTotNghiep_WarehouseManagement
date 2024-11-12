@@ -62,11 +62,16 @@ class OrderController
 
             if (isset($_GET['phone'])) {
                 $phone = urldecode($_GET['phone']);
-                $orders->where(function($query) use ($phone) {
-                    $query->where('phone', 'LIKE', '%'.$phone.'%')
-                        ->orWhere('phone', 'LIKE', $phone.'%')
-                        ->orWhere('phone', 'LIKE', '%'.$phone);
+                $orders->where(function ($query) use ($phone) {
+                    $query->where('phone', 'LIKE', '%' . $phone . '%')
+                        ->orWhere('phone', 'LIKE', $phone . '%')
+                        ->orWhere('phone', 'LIKE', '%' . $phone);
                 });
+            }
+
+            if (isset($_GET['code'])) {
+                $code = urldecode($_GET['code']);
+                $orders->where('code', 'like', '%' . $code . '%');
             }
 
             if (isset($_GET['address'])) {
@@ -242,15 +247,16 @@ class OrderController
             $rawInput = file_get_contents('php://input');
             $data = json_decode($rawInput, true);
 
-            // Loại bỏ total_price nếu có trong request
+            // Remove fields that should not be passed directly
             unset($data['total_price']);
             unset($data['order_date']);
+            unset($data['code']); // Remove code if provided by user
 
             if (json_last_error() !== JSON_ERROR_NONE) {
                 throw new Exception('Invalid JSON data: ' . json_last_error_msg(), 400);
             }
 
-            // Xác thực token và lấy profile ID
+            // Token validation and profile ID retrieval
             $headers = apache_request_headers();
             $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
 
@@ -272,24 +278,42 @@ class OrderController
                 throw new Exception('Profile không tồn tại trong hệ thống', 404);
             }
 
-            // Lấy thông tin khách hàng
+            // Customer validation
             $customer = Customer::where('deleted', false)->find($data['customer_id']);
-
             if (!$customer) {
                 throw new Exception('Khách hàng không tồn tại', 404);
             }
 
-            // Kiểm tra phương thức thanh toán
+            // Payment method validation
             $paymentMethod = $data['payment_method'] ?? null;
             if ($paymentMethod && !in_array($paymentMethod, ['CASH', 'BANK_TRANSFER'])) {
                 throw new Exception('Phương thức thanh toán không hợp lệ', 400);
             }
 
-            // Lấy ngày đặt hàng là ngày hiện tại
+            // Generate new code for order
+            $currentMonth = date('m');
+            $currentYear = date('y');
+            $prefix = "DH" . $currentMonth . $currentYear;
+
+            // Get latest order code with current prefix
+            $latestOrder = Order::query()
+                ->where('code', 'LIKE', $prefix . '%')
+                ->orderBy('code', 'desc')
+                ->first();
+
+            if ($latestOrder) {
+                $sequence = intval(substr($latestOrder->code, -5)) + 1;
+            } else {
+                $sequence = 1;
+            }
+
+            // Format sequence to 5 digits
+            $orderCode = $prefix . str_pad($sequence, 5, '0', STR_PAD_LEFT);
             $orderDate = date('Y-m-d');
 
-            // Tạo đơn hàng
+            // Prepare order data
             $orderData = [
+                'code' => $orderCode,
                 'customer_id' => $customer->id,
                 'created_by' => $profileId,
                 'order_date' => $orderDate,
@@ -305,7 +329,7 @@ class OrderController
                 'total_price' => 0
             ];
 
-            // Kiểm tra dữ liệu với hàm validate
+            // Validate order data
             $order = new Order();
             $order->fill($orderData);
             $errors = $order->validate($orderData);
@@ -320,7 +344,7 @@ class OrderController
 
             $order->save();
 
-            // Xử lý chi tiết đơn hàng
+            // Process order details
             $totalPrice = 0;
 
             foreach ($data['products'] as $item) {
@@ -353,7 +377,7 @@ class OrderController
                 $totalPrice += $price->price * $item['quantity'];
             }
 
-            // Cập nhật tổng tiền
+            // Update total price
             $order->total_price = $totalPrice;
             $order->save();
 
@@ -378,14 +402,16 @@ class OrderController
             $rawInput = file_get_contents('php://input');
             $data = json_decode($rawInput, true);
 
+            // Remove fields that should not be updated
             unset($data['total_price']);
             unset($data['order_date']);
+            unset($data['code']); // Remove code to prevent modification
 
             if (json_last_error() !== JSON_ERROR_NONE) {
                 throw new Exception('Invalid JSON data: ' . json_last_error_msg(), 400);
             }
 
-            // Xác thực token và lấy profile ID
+            // Token validation and profile ID retrieval
             $headers = apache_request_headers();
             $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
 
@@ -407,19 +433,19 @@ class OrderController
                 throw new Exception('Profile không tồn tại trong hệ thống', 404);
             }
 
-            // Tìm đơn hàng cần cập nhật
+            // Find order to update
             $order = Order::where('deleted', false)->find($id);
 
             if (!$order) {
                 throw new Exception('Đơn hàng không tồn tại', 404);
             }
 
-            // Lấy ngày đặt hàng từ đơn hàng hiện tại
+            // Keep original order date and code
             $orderDate = $order->order_date;
 
-            // Cập nhật thông tin đơn hàng
+            // Update order information
             $order->fill($data);
-            $order->order_date = $orderDate; // Đảm bảo ngày đặt hàng không bị thay đổi
+            $order->order_date = $orderDate; // Ensure order date remains unchanged
 
             $errors = $order->validate($order->toArray());
 

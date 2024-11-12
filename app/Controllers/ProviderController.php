@@ -31,6 +31,11 @@ class ProviderController
                 $provider->where('status', $status);
             }
 
+            if (isset($_GET['code'])) {
+                $code = urldecode($_GET['code']);
+                $provider->where('code', 'like', '%' . $code . '%');
+            }
+
             if (isset($_GET['name'])) {
                 $name = urldecode($_GET['name']);
                 $provider->where('name', 'like', '%' . $name . '%');
@@ -385,6 +390,11 @@ class ProviderController
         try {
             $data = json_decode(file_get_contents('php://input'), true);
 
+            // Unset code if provided by user
+            if (isset($data['code'])) {
+                unset($data['code']);
+            }
+
             $provider = new Provider();
             $errors = $provider->validate($data);
 
@@ -396,6 +406,26 @@ class ProviderController
                     'details' => $errors
                 ];
             }
+
+            // Generate new code for provider
+            $currentMonth = date('m');
+            $currentYear = date('y');
+            $prefix = "NCC" . $currentMonth . $currentYear;
+
+            // Get latest provider code with current prefix
+            $latestProvider = Provider::query()
+                ->where('code', 'LIKE', $prefix . '%')
+                ->orderBy('code', 'desc')
+                ->first();
+
+            if ($latestProvider) {
+                $sequence = intval(substr($latestProvider->code, -5)) + 1;
+            } else {
+                $sequence = 1;
+            }
+
+            // Format sequence to 5 digits
+            $data['code'] = $prefix . str_pad($sequence, 5, '0', STR_PAD_LEFT);
 
             $provider->fill($data);
             $provider->save();
@@ -430,6 +460,12 @@ class ProviderController
             }
 
             $data = json_decode(file_get_contents('php://input'), true);
+
+            // Remove code from update data to prevent modification
+            if (isset($data['code'])) {
+                unset($data['code']);
+            }
+
             $errors = $provider->validate($data, true);
 
             if ($errors) {
