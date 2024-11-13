@@ -111,11 +111,11 @@ class CustomerController
         }
     }
 
-    public function getCustomerById($id): array
+    public function getCustomerByCode($code): array
     {
         try {
             $customer = Customer::query()
-                ->where('id', $id)
+                ->where('code', $code)
                 ->where('deleted', false)
                 ->with(['groupCustomer', 'orders'])
                 ->first();

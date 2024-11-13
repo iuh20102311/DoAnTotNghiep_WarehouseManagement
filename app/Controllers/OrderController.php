@@ -142,10 +142,10 @@ class OrderController
         }
     }
 
-    public function getOrderById($id): array
+    public function getOrderByCode($code): array
     {
         try {
-            $order = Order::query()->where('id', $id)
+            $order = Order::query()->where('code', $code)
                 ->with(['customer', 'creator', 'orderDetails', 'giftSets'])
                 ->first();
 

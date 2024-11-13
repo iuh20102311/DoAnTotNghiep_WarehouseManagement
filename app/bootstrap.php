@@ -292,7 +292,7 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
 
             $router->put('/{id}', ['App\Controllers\ProviderController', 'updateProviderById']);
             $router->delete('/{id}', ['App\Controllers\ProviderController', 'deleteProvider']);
-            $router->get('/{id}', ['App\Controllers\ProviderController', 'getProviderById']);
+            $router->get('/{code}', ['App\Controllers\ProviderController', 'getProviderByCode']);
             $router->post('/', ['App\Controllers\ProviderController', 'createProvider']);
             $router->get('/', ['App\Controllers\ProviderController', 'getProviders']);
         });
@@ -366,7 +366,7 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
             $router->get('/{id}/products', ['App\Controllers\OrderController', 'getProductByOrder']);
             $router->put('/{id}', ['App\Controllers\OrderController', 'updateOrder']);
             $router->delete('/{id}', ['App\Controllers\OrderController', 'deleteOrder']);
-            $router->get('/{id}', ['App\Controllers\OrderController', 'getOrderById']);
+            $router->get('/{code}', ['App\Controllers\OrderController', 'getOrderByCode']);
             $router->post('/', ['App\Controllers\OrderController', 'createOrder']);
             $router->get('/', ['App\Controllers\OrderController', 'getOrders']);
         });
@@ -411,7 +411,7 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
             $router->get('/{id}/orders', ['App\Controllers\CustomerController', 'getOrderByCustomer']);
             $router->put('/{id}', ['App\Controllers\CustomerController', 'updateCustomerById']);
             $router->delete('/{id}', ['App\Controllers\CustomerController', 'deleteCustomer']);
-            $router->get('/{id}', ['App\Controllers\CustomerController', 'getCustomerById']);
+            $router->get('/{code}', ['App\Controllers\CustomerController', 'getCustomerByCode']);
             $router->post('/', ['App\Controllers\CustomerController', 'createCustomer']);
             $router->get('/', ['App\Controllers\CustomerController', 'getCustomers']);
         });
