@@ -107,11 +107,11 @@ class ProviderController
         }
     }
 
-    public function getProviderById($id): array
+    public function getProviderByCode($code): array
     {
         try {
             $provider = Provider::query()
-                ->where('id', $id)
+                ->where('code', $code)
                 ->where('deleted', false)
                 ->with(['materials', 'materialImportReceipts'])
                 ->first();
