@@ -181,7 +181,6 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
             $router->put('/{id}/prices/{priceId}', ['App\Controllers\ProductController', 'updateProductPriceByProduct']);
             $router->post('/{id}/prices', ['App\Controllers\ProductController', 'addPriceToProduct']);
             $router->get('/{id}/prices', ['App\Controllers\ProductController', 'getPriceByProduct']);
-
         });
 
         $router->group(array('prefix' => '/v1/product_prices'), function (RouteCollector $router) {
@@ -304,7 +303,6 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
             $router->put('/{id}', ['App\Controllers\MaterialExportReceiptController', 'updateMaterialExportReceiptById']);
             $router->delete('/{id}', ['App\Controllers\MaterialExportReceiptController', 'deleteMaterialExportReceipt']);
             $router->get('/{id}', ['App\Controllers\MaterialExportReceiptController', 'getMaterialExportReceiptById']);
-            $router->post('/', ['App\Controllers\MaterialExportReceiptController', 'createMaterialExportReceipt']);
             $router->get('/', ['App\Controllers\MaterialExportReceiptController', 'getMaterialExportReceipts']);
         });
 
@@ -317,9 +315,7 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
             $router->delete('/{id}', ['App\Controllers\MaterialImportReceiptController', 'deleteMaterialImportReceipt']);
             $router->get('/{id}', ['App\Controllers\MaterialImportReceiptController', 'getMaterialImportReceiptById']);
             $router->patch('/{id}/approve', ['App\Controllers\MaterialImportReceiptController', 'approveImportReceipt']);
-            $router->post('/', ['App\Controllers\MaterialImportReceiptController', 'createMaterialImportReceipt']);
             $router->get('/', ['App\Controllers\MaterialImportReceiptController', 'getMaterialImportReceipts']);
-
         });
 
         $router->group(array('prefix' => '/v1/product_export_receipts'), function (RouteCollector $router) {
@@ -329,7 +325,6 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
             $router->put('/{id}', ['App\Controllers\ProductExportReceiptController', 'updateProductExportReceiptById']);
             $router->delete('/{id}', ['App\Controllers\ProductExportReceiptController', 'deleteProductExportReceipt']);
             $router->get('/{id}', ['App\Controllers\ProductExportReceiptController', 'getProductExportReceiptById']);
-            $router->post('/', ['App\Controllers\ProductExportReceiptController', 'createProductExportReceipt']);
             $router->get('/', ['App\Controllers\ProductExportReceiptController', 'getProductExportReceipts']);
         });
 
@@ -340,7 +335,6 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
             $router->put('/{id}', ['App\Controllers\ProductImportReceiptController', 'updateProductImportReceiptById']);
             $router->delete('/{id}', ['App\Controllers\ProductImportReceiptController', 'deleteProductImportReceipt']);
             $router->get('/{id}', ['App\Controllers\ProductImportReceiptController', 'getProductImportReceiptById']);
-            $router->post('/', ['App\Controllers\ProductImportReceiptController', 'createProductImportReceipt']);
             $router->get('/', ['App\Controllers\ProductImportReceiptController', 'getProductImportReceipts']);
         });
 

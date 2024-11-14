@@ -12,7 +12,7 @@ class MaterialImportReceiptDetail extends Model
 {
     use HasFactory;
     protected $table = 'material_import_receipt_details';
-    protected $fillable = ['material_id', 'material_import_receipt_id', 'storage_area_id', 'quantity', 'price', 'created_at', 'updated_at', 'deleted'];
+    protected $fillable = ['material_id', 'material_import_receipt_id', 'material_storage_location_id', 'quantity', 'price', 'created_at', 'updated_at', 'deleted'];
     protected $primaryKey = 'id';
     public $timestamps = true;
 
@@ -26,8 +26,8 @@ class MaterialImportReceiptDetail extends Model
         return $this->belongsTo(MaterialImportReceipt::class,'material_import_receipt_id');
     }
 
-    public function storageArea(): BelongsTo
+    public function materialStorageLocation(): BelongsTo
     {
-        return $this->belongsTo(StorageArea::class);
+        return $this->belongsTo(MaterialStorageLocation::class, 'material_storage_location_id');
     }
 }

@@ -12,7 +12,7 @@ class ProductExportReceiptDetail extends Model
 {
     use HasFactory;
     protected $table = 'product_export_receipt_details';
-    protected $fillable = ['product_id', 'product_export_receipt_id', 'storage_area_id', 'quantity', 'created_at', 'updated_at', 'deleted'];
+    protected $fillable = ['product_id', 'product_export_receipt_id', 'product_storage_location_id', 'quantity', 'created_at', 'updated_at', 'deleted'];
     protected $primaryKey = 'id';
     public $timestamps = true;
 
@@ -26,8 +26,8 @@ class ProductExportReceiptDetail extends Model
         return $this->belongsTo(ProductExportReceipt::class,'product_export_receipt_id');
     }
 
-    public function storageArea(): BelongsTo
+    public function productStorageLocation(): BelongsTo
     {
-        return $this->belongsTo(StorageArea::class);
+        return $this->belongsTo(ProductStorageLocation::class, 'product_storage_location_id');
     }
 }

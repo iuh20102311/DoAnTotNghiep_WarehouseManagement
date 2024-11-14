@@ -4,6 +4,8 @@ namespace App\Controllers;
 
 use App\Models\Material;
 use App\Models\MaterialExportReceipt;
+use App\Models\MaterialImportReceipt;
+use App\Models\MaterialImportReceiptDetail;
 use App\Models\MaterialStorageLocation;
 use App\Models\StorageArea;
 use App\Utils\PaginationTrait;
@@ -179,39 +181,6 @@ class MaterialExportReceiptController
         }
     }
 
-    public function createMaterialExportReceipt(): array
-    {
-        try {
-            $data = json_decode(file_get_contents('php://input'), true);
-            $materialER = new MaterialExportReceipt();
-
-            $errors = $materialER->validate($data);
-            if ($errors) {
-                return [
-                    'success' => false,
-                    'error' => 'Validation failed',
-                    'details' => $errors
-                ];
-            }
-
-            $materialER->fill($data);
-            $materialER->save();
-
-            return [
-                'success' => true,
-                'data' => $materialER->toArray()
-            ];
-
-        } catch (\Exception $e) {
-            error_log("Error in createMaterialExportReceipt: " . $e->getMessage());
-            return [
-                'success' => false,
-                'error' => 'Database error occurred',
-                'details' => $e->getMessage()
-            ];
-        }
-    }
-
     public function updateMaterialExportReceiptById($id): array
     {
         try {
@@ -288,6 +257,38 @@ class MaterialExportReceiptController
         $data = json_decode(file_get_contents('php://input'), true);
 
         try {
+            // Validate basic required fields
+            if (!isset($data['type']) || !in_array($data['type'], ['NORMAL', 'CANCEL', 'RETURN'])) {
+                throw new \Exception('Type phải là NORMAL, CANCEL hoặc RETURN');
+            }
+
+            // Validate fields based on type
+            $allowedFields = [
+                'NORMAL' => ['type', 'material_storage_location_id', 'note', 'materials'],
+                'CANCEL' => ['type', 'material_storage_location_id', 'note', 'materials'],
+                'RETURN' => ['type', 'material_storage_location_id', 'note', 'materials', 'material_import_receipt_id']
+            ];
+
+            // Check for unexpected fields in main request
+            foreach ($data as $field => $value) {
+                if (!in_array($field, $allowedFields[$data['type']])) {
+                    throw new \Exception("Trường '$field' không được phép với type " . $data['type']);
+                }
+            }
+
+            // Validate required fields based on type
+            if ($data['type'] === 'RETURN') {
+                if (!isset($data['material_import_receipt_id'])) {
+                    throw new \Exception('material_import_receipt_id là bắt buộc với type RETURN');
+                }
+
+                // Kiểm tra phiếu nhập có tồn tại không
+                $importReceipt = MaterialImportReceipt::find($data['material_import_receipt_id']);
+                if (!$importReceipt) {
+                    throw new \Exception('Phiếu nhập không tồn tại');
+                }
+            }
+
             // Lấy token từ header
             $headers = apache_request_headers();
             $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
@@ -301,77 +302,105 @@ class MaterialExportReceiptController
             $parsedToken = $parser->parse($token);
             $createdById = $parsedToken->claims()->get('id');
 
-            // Kiểm tra xem kho cần xuất kho có tồn tại và đang hoạt động không
-            $storageArea = StorageArea::where('id', $data['storage_area_id'])
-                ->where('status', 'ACTIVE')
+            // Validate storage location
+            if (!isset($data['material_storage_location_id'])) {
+                throw new \Exception('material_storage_location_id là bắt buộc');
+            }
+
+            $materialStorageLocation = MaterialStorageLocation::where('id', $data['material_storage_location_id'])
                 ->where('deleted', false)
                 ->first();
 
-            if (!$storageArea) {
-                throw new \Exception('Kho xuất kho không tồn tại hoặc không hoạt động');
+            if (!$materialStorageLocation) {
+                throw new \Exception('Vị trí lưu trữ không tồn tại hoặc không hoạt động');
+            }
+
+            // Kiểm tra và validate materials
+            $materials = $data['materials'] ?? [];
+            if (empty($materials)) {
+                throw new \Exception('Danh sách materials không được để trống');
             }
 
             // Kiểm tra tất cả nguyên vật liệu trước khi tạo hóa đơn
-            $materials = $data['materials'] ?? [];
             $missingMaterials = [];
-
             foreach ($materials as $material) {
-                $materialLocation = MaterialStorageLocation::where('material_id', $material['material_id'])
-                    ->where('storage_area_id', $storageArea->id)
-                    ->where('deleted', false)
-                    ->first();
+                if (!isset($material['material_id']) || !isset($material['quantity'])) {
+                    throw new \Exception('material_id và quantity là bắt buộc cho mỗi nguyên liệu');
+                }
 
-                if (!$materialLocation) {
-                    $materialInfo = Material::find($material['material_id']);
-                    $materialName = $materialInfo ? $materialInfo->name : "Nguyên vật liệu không xác định";
-                    $missingMaterials[] = "{$materialName} (ID: {$material['material_id']}) không tồn tại trong kho";
-                } elseif ($materialLocation->quantity < $material['quantity']) {
-                    $materialInfo = Material::find($material['material_id']);
-                    $materialName = $materialInfo ? $materialInfo->name : "Nguyên vật liệu không xác định";
-                    $missingMaterials[] = "{$materialName} (ID: {$material['material_id']}) không đủ số lượng trong kho. Có sẵn: {$materialLocation->quantity}, Yêu cầu: {$material['quantity']}";
+                $materialModel = Material::find($material['material_id']);
+                if (!$materialModel) {
+                    $missingMaterials[] = "Nguyên vật liệu (ID: {$material['material_id']}) không tồn tại";
+                    continue;
+                }
+
+                // Kiểm tra số lượng trong kho
+                $currentLocation = MaterialStorageLocation::find($data['material_storage_location_id']);
+                if ($currentLocation->quantity < $material['quantity']) {
+                    $missingMaterials[] = "{$materialModel->name} không đủ số lượng trong kho. Có sẵn: {$currentLocation->quantity}, Yêu cầu: {$material['quantity']}";
+                }
+
+                // Kiểm tra thêm cho type RETURN
+                if ($data['type'] === 'RETURN') {
+                    $importDetail = MaterialImportReceiptDetail::where('material_import_receipt_id', $data['material_import_receipt_id'])
+                        ->where('material_id', $material['material_id'])
+                        ->first();
+
+                    if (!$importDetail) {
+                        $missingMaterials[] = "{$materialModel->name} không có trong phiếu nhập được chọn";
+                    } elseif ($material['quantity'] > $importDetail->quantity) {
+                        $missingMaterials[] = "Số lượng trả về của {$materialModel->name} không được lớn hơn số lượng đã nhập ({$importDetail->quantity})";
+                    }
                 }
             }
 
             if (!empty($missingMaterials)) {
-                throw new \Exception("Tạo hóa đơn xuất kho thất bại. " . implode(". ", $missingMaterials));
+                throw new \Exception("Tạo phiếu xuất kho thất bại. " . implode(". ", $missingMaterials));
             }
+
+            // Tạo mã phiếu xuất tự động
+            do {
+                $code = 'EXP' . str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT);
+                $existingReceipt = MaterialExportReceipt::where('code', $code)->exists();
+            } while ($existingReceipt);
 
             // Tạo mới MaterialExportReceipt
             $materialExportReceipt = MaterialExportReceipt::create([
-                'note' => $data['note'] ?? '',
-                'type' => 'NORMAL',
-                'status' => 'PENDING',
-                'created_by' => $createdById,
+                'code' => $code,
+                'note' => $data['note'] ?? null,
+                'type' => $data['type'],
+                'status' => $data['type'] === 'NORMAL' ? 'TEMPORARY' : 'COMPLETED',
+                'created_by' => $createdById
             ]);
 
             // Tạo chi tiết xuất kho và cập nhật số lượng
             foreach ($materials as $material) {
-                $materialLocation = MaterialStorageLocation::where('material_id', $material['material_id'])
-                    ->where('storage_area_id', $storageArea->id)
-                    ->where('deleted', false)
-                    ->first();
-
                 // Tạo chi tiết xuất kho
                 $materialExportReceipt->details()->create([
                     'material_id' => $material['material_id'],
-                    'storage_area_id' => $storageArea->id,
-                    'quantity' => $material['quantity'],
+                    'material_storage_location_id' => $data['material_storage_location_id'],
+                    'quantity' => $material['quantity']
                 ]);
 
                 // Cập nhật số lượng trong kho
-                $materialLocation->quantity -= $material['quantity'];
-                $materialLocation->save();
+                $materialStorageLocation = MaterialStorageLocation::find($data['material_storage_location_id']);
+                $materialStorageLocation->quantity -= $material['quantity'];
+                $materialStorageLocation->save();
 
                 // Cập nhật số lượng trong bảng materials
                 $materialModel = Material::find($material['material_id']);
-                if ($materialModel) {
-                    $materialModel->quantity_available -= $material['quantity'];
-                    $materialModel->save();
-                }
+                $materialModel->quantity_available -= $material['quantity'];
+                $materialModel->save();
             }
 
+            $response = [
+                'message' => 'Xuất kho thành công',
+                'material_export_receipt_id' => $materialExportReceipt->id,
+                'code' => $materialExportReceipt->code
+            ];
+
             header('Content-Type: application/json');
-            echo json_encode(['status' => 'success', 'receipt_id' => $materialExportReceipt->id], JSON_UNESCAPED_UNICODE);
+            echo json_encode($response, JSON_UNESCAPED_UNICODE);
         } catch (\Exception $e) {
             header('Content-Type: application/json');
             http_response_code(400);
