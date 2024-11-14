@@ -146,7 +146,7 @@ class OrderController
     {
         try {
             $order = Order::query()->where('code', $code)
-                ->with(['customer', 'creator', 'orderDetails', 'giftSets'])
+                ->with(['customer', 'creator', 'orderDetails.product', 'giftSets'])
                 ->first();
 
             if (!$order) {

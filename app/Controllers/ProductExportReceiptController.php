@@ -2,6 +2,8 @@
 
 namespace App\Controllers;
 
+use App\Models\Order;
+use App\Models\OrderDetail;
 use App\Models\Product;
 use App\Models\ProductExportReceipt;
 use App\Models\ProductInventory;
@@ -182,39 +184,6 @@ class ProductExportReceiptController
         }
     }
 
-    public function createProductExportReceipt(): array
-    {
-        try {
-            $data = json_decode(file_get_contents('php://input'), true);
-            $productER = new ProductExportReceipt();
-
-            $errors = $productER->validate($data);
-            if ($errors) {
-                return [
-                    'success' => false,
-                    'error' => 'Validation failed',
-                    'details' => $errors
-                ];
-            }
-
-            $productER->fill($data);
-            $productER->save();
-
-            return [
-                'success' => true,
-                'data' => $productER->toArray()
-            ];
-
-        } catch (\Exception $e) {
-            error_log("Error in createProductExportReceipt: " . $e->getMessage());
-            return [
-                'success' => false,
-                'error' => 'Database error occurred',
-                'details' => $e->getMessage()
-            ];
-        }
-    }
-
     public function updateProductExportReceiptById($id): array
     {
         try {
@@ -297,87 +266,196 @@ class ProductExportReceiptController
         $data = json_decode(file_get_contents('php://input'), true);
 
         try {
-            // Lấy token từ header
+            // Basic validation
+            if (!isset($data['type']) || !in_array($data['type'], ['NORMAL', 'CANCEL'])) {
+                throw new \Exception('Type phải là NORMAL hoặc CANCEL');
+            }
+
+            // Allowed fields based on type
+            $allowedFields = [
+                'NORMAL' => ['type', 'order_code', 'note', 'products'],
+                'CANCEL' => ['type', 'note', 'products']
+            ];
+
+            // Check unexpected fields
+            foreach ($data as $field => $value) {
+                if (!in_array($field, $allowedFields[$data['type']])) {
+                    throw new \Exception("Trường '$field' không được phép với type " . $data['type']);
+                }
+            }
+
+            // Token validation
             $headers = apache_request_headers();
             $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
-
             if (!$token) {
                 throw new \Exception('Token không tồn tại');
             }
 
-            // Giải mã token và lấy ID người dùng
             $parser = new Parser(new JoseEncoder());
             $parsedToken = $parser->parse($token);
             $createdById = $parsedToken->claims()->get('id');
 
-            // Kiểm tra xem kho cần xuất kho có tồn tại và đang hoạt động không
-            $storageArea = StorageArea::where('id', $data['storage_area_id'])
-                ->where('status', 'ACTIVE')
-                ->where('deleted', false)
-                ->first();
+            // Type specific validation
+            if ($data['type'] === 'NORMAL') {
+                if (!isset($data['order_code'])) {
+                    throw new \Exception('order_code là bắt buộc với type NORMAL');
+                }
 
-            if (!$storageArea) {
-                throw new \Exception('Kho xuất kho không tồn tại hoặc không hoạt động');
+                $order = Order::where('code', $data['order_code'])
+                    ->where('deleted', false)
+                    ->where('status', 'PROCESSED')
+                    ->first();
+
+                if (!$order) {
+                    throw new \Exception("Đơn hàng {$data['order_code']} không tồn tại hoặc chưa được xử lý");
+                }
+
+                $orderDetails = $order->orderDetails()
+                    ->where('deleted', false)
+                    ->get()
+                    ->keyBy('product_id');
+
+                if ($orderDetails->isEmpty()) {
+                    throw new \Exception('Đơn hàng không có sản phẩm');
+                }
+
+                // Validate và map quantity từ order_details
+                $productsWithQuantity = [];
+                foreach ($data['products'] as $product) {
+                    if (!isset($product['product_id']) || !isset($product['product_storage_location_id'])) {
+                        throw new \Exception('product_id và product_storage_location_id là bắt buộc cho mỗi sản phẩm');
+                    }
+
+                    // Kiểm tra sản phẩm có trong order không
+                    if (!$orderDetails->has($product['product_id'])) {
+                        throw new \Exception("Sản phẩm ID {$product['product_id']} không có trong đơn hàng");
+                    }
+
+                    // Kiểm tra location
+                    $location = ProductStorageLocation::where('id', $product['product_storage_location_id'])
+                        ->where('product_id', $product['product_id'])
+                        ->where('deleted', false)
+                        ->first();
+
+                    if (!$location) {
+                        throw new \Exception("Sản phẩm ID {$product['product_id']} không có trong vị trí lưu trữ đã chọn");
+                    }
+
+                    $orderDetail = $orderDetails[$product['product_id']];
+                    if ($location->quantity < $orderDetail->quantity) {
+                        throw new \Exception("Vị trí lưu trữ không đủ số lượng cho sản phẩm ID {$product['product_id']}. Cần: {$orderDetail->quantity}, Có sẵn: {$location->quantity}");
+                    }
+
+                    // Thêm quantity từ order_detail
+                    $productsWithQuantity[] = [
+                        'product_id' => $product['product_id'],
+                        'product_storage_location_id' => $product['product_storage_location_id'],
+                        'quantity' => $orderDetail->quantity
+                    ];
+                }
+
+                $data['products'] = $productsWithQuantity;
             }
 
-            // Kiểm tra tất cả sản phẩm trước khi tạo hóa đơn
-            $products = $data['products'] ?? [];
-            $missingProducts = [];
+            // Validate products
+            if (!isset($data['products']) || empty($data['products'])) {
+                throw new \Exception('Danh sách sản phẩm không được để trống');
+            }
 
-            foreach ($products as $product) {
-                $productLocation = ProductStorageLocation::where('product_id', $product['product_id'])
-                    ->where('storage_area_id', $storageArea->id)
+            // Check product availability
+            $invalidProducts = [];
+            foreach ($data['products'] as $product) {
+                if (!isset($product['product_id']) || !isset($product['quantity']) || !isset($product['product_storage_location_id'])) {
+                    throw new \Exception('product_id, quantity và product_storage_location_id là bắt buộc cho mỗi sản phẩm');
+                }
+
+                $productLocation = ProductStorageLocation::where('id', $product['product_storage_location_id'])
+                    ->where('product_id', $product['product_id'])
                     ->where('deleted', false)
                     ->first();
 
                 if (!$productLocation) {
                     $productInfo = Product::find($product['product_id']);
                     $productName = $productInfo ? $productInfo->name : "Sản phẩm không xác định";
-                    $missingProducts[] = "{$productName} (ID: {$product['product_id']}) không tồn tại trong kho";
+                    $invalidProducts[] = "{$productName} (ID: {$product['product_id']}) không tồn tại trong vị trí lưu trữ đã chọn";
                 } elseif ($productLocation->quantity < $product['quantity']) {
                     $productInfo = Product::find($product['product_id']);
                     $productName = $productInfo ? $productInfo->name : "Sản phẩm không xác định";
-                    $missingProducts[] = "{$productName} (ID: {$product['product_id']}) không đủ số lượng trong kho. Có sẵn: {$productLocation->quantity}, Yêu cầu: {$product['quantity']}";
+                    $invalidProducts[] = "{$productName} (ID: {$product['product_id']}) không đủ số lượng trong kho. Có sẵn: {$productLocation->quantity}, Yêu cầu: {$product['quantity']}";
                 }
             }
 
-            if (!empty($missingProducts)) {
-                throw new \Exception("Tạo hóa đơn xuất kho thất bại. " . implode(". ", $missingProducts));
+            if (!empty($invalidProducts)) {
+                throw new \Exception("Xuất kho thất bại. " . implode(". ", $invalidProducts));
             }
 
-            // Tạo mới ProductExportReceipt
+            // Generate unique code
+            do {
+                $code = 'EXP' . str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT);
+                $existingReceipt = ProductExportReceipt::where('code', $code)->exists();
+            } while ($existingReceipt);
+
+            // Create export receipt
             $productExportReceipt = ProductExportReceipt::create([
+                'code' => $code,
                 'note' => $data['note'] ?? '',
-                'type' => 'NORMAL',
-                'status' => 'PENDING',
+                'type' => $data['type'],
+                'status' => 'COMPLETED',
                 'created_by' => $createdById,
+                'order_code' => $data['type'] === 'NORMAL' ? $data['order_code'] : null
             ]);
 
-            // Tạo chi tiết xuất kho và cập nhật số lượng
-            foreach ($products as $product) {
-                $productLocation = ProductStorageLocation::where('product_id', $product['product_id'])
-                    ->where('storage_area_id', $storageArea->id)
-                    ->where('deleted', false)
-                    ->first();
+            // Create details and update quantities
+            foreach ($data['products'] as $product) {
+                $productLocation = ProductStorageLocation::find($product['product_storage_location_id']);
 
-                // Tạo chi tiết xuất kho
+                // Create export detail
                 $productExportReceipt->details()->create([
                     'product_id' => $product['product_id'],
-                    'storage_area_id' => $storageArea->id,
-                    'quantity' => $product['quantity'],
+                    'product_storage_location_id' => $product['product_storage_location_id'],
+                    'quantity' => $product['quantity']
                 ]);
 
-                // Cập nhật số lượng trong kho
+                // Update storage location quantity
                 $productLocation->quantity -= $product['quantity'];
                 $productLocation->save();
+
+                // Update product quantity
+                $productModel = Product::find($product['product_id']);
+                $productModel->quantity_available -= $product['quantity'];
+                $productModel->save();
             }
 
             header('Content-Type: application/json');
-            echo json_encode(['status' => 'success', 'receipt_id' => $productExportReceipt->id], JSON_UNESCAPED_UNICODE);
+            echo json_encode([
+                'success' => true,
+                'message' => 'Xuất kho thành công',
+                'data' => [
+                    'product_export_receipt_id' => $productExportReceipt->id,
+                    'code' => $productExportReceipt->code,
+                    'type' => $productExportReceipt->type,
+                    'status' => $productExportReceipt->status,
+                    'details' => $productExportReceipt->details()
+                        ->with(['product:id,name', 'productStorageLocation:id,storage_area_id'])
+                        ->get()
+                        ->map(function($detail) {
+                            return [
+                                'product_id' => $detail->product_id,
+                                'product_name' => $detail->product->name,
+                                'quantity' => $detail->quantity,
+                                'storage_location' => $detail->productStorageLocation
+                            ];
+                        })
+                ]
+            ], JSON_UNESCAPED_UNICODE);
+
         } catch (\Exception $e) {
             header('Content-Type: application/json');
             http_response_code(400);
-            echo json_encode(['error' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], JSON_UNESCAPED_UNICODE);
         }
     }
 }
