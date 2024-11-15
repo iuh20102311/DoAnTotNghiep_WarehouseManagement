@@ -12,7 +12,7 @@ class Product extends Model
 {
     use HasFactory;
     protected $table = 'products';
-    protected $fillable = ['sku', 'name', 'packing', 'unit', 'weight', 'origin', 'image', 'quantity_available', 'minimum_stock_level', 'minimum_stock_level', 'description', 'usage_time', 'status', 'created_at', 'updated_at', 'deleted'];
+    protected $fillable = ['sku', 'name', 'packing', 'unit', 'weight', 'origin', 'image', 'quantity_available', 'minimum_stock_level', 'maximum_stock_level', 'description', 'usage_time', 'status', 'created_at', 'updated_at', 'deleted'];
     protected $primaryKey = 'id';
     public $timestamps = true;
 
@@ -89,6 +89,7 @@ class Product extends Model
             'origin' => ['required', 'string'],
             'image' => ['required', 'string'],
             'minimum_stock_level' => ['nullable', 'integer', 'min' => 0],
+            'maximum_stock_level' => ['nullable', 'integer', 'min' => 100],
             'usage_time' => ['nullable', 'string'],
             'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE', 'OUT_OF_STOCK']]
         ];
@@ -136,6 +137,10 @@ class Product extends Model
             'minimum_stock_level' => [
                 'integer' => 'Mức tồn kho tối thiểu phải là số nguyên.',
                 'min' => 'Mức tồn kho tối thiểu không được âm.'
+            ],
+            'maximum_stock_level' => [
+                'integer' => 'Mức tồn kho tối thiểu phải là số nguyên.',
+                'min' => 'Mức tồn kho tối đa ít nhất là 100.'
             ],
             'status' => [
                 'required' => 'Trạng thái là bắt buộc.',

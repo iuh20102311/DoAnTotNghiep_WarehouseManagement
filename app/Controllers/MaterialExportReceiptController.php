@@ -7,7 +7,6 @@ use App\Models\MaterialExportReceipt;
 use App\Models\MaterialImportReceipt;
 use App\Models\MaterialImportReceiptDetail;
 use App\Models\MaterialStorageLocation;
-use App\Models\StorageArea;
 use App\Utils\PaginationTrait;
 use Lcobucci\JWT\Encoding\JoseEncoder;
 use Lcobucci\JWT\Token\Parser;
@@ -112,11 +111,11 @@ class MaterialExportReceiptController
         }
     }
 
-    public function getMaterialExportReceiptById($id): array
+    public function getMaterialExportReceiptByCode($code): array
     {
         try {
             $materialER = (new MaterialExportReceipt())
-                ->where('id', $id)
+                ->where('code', $code)
                 ->where('deleted', false)
                 ->with([
                     'creator' => function ($productER) {
@@ -125,7 +124,8 @@ class MaterialExportReceiptController
                                 $q->select('user_id', 'first_name', 'last_name');
                             }]);
                     },
-                    'details'
+                    'details.materialStorageLocation',
+                    'details.material'
                 ])
                 ->first();
 
