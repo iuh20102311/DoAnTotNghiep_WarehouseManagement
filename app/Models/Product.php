@@ -82,7 +82,6 @@ class Product extends Model
         $validator = new Validator($data, $this->messages());
 
         $rules = [
-            'sku' => ['required', 'string'],
             'name' => ['required', 'string'],
             'packing' => ['required', 'string'],
             'unit' => ['required', 'string'],
@@ -114,9 +113,6 @@ class Product extends Model
     protected function messages()
     {
         return [
-            'sku' => [
-                'required' => 'Mã sản phẩm là bắt buộc.',
-            ],
             'name' => [
                 'required' => 'Tên sản phẩm là bắt buộc.',
             ],
