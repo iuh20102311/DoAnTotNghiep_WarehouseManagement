@@ -18,10 +18,6 @@ class MaterialStorageLocationController
             $materialStorageLocation = MaterialStorageLocation::query()
                 ->where('deleted', false)
                 ->with(['material', 'provider', 'storageArea'])
-                ->orderByRaw("CASE 
-                WHEN status = 'ACTIVE' THEN 1 
-                ELSE 2 
-                END")  // Sort ACTIVE status first
                 ->orderBy('created_at', 'desc');
 
             if (isset($_GET['material_id'])) {

@@ -18,10 +18,6 @@ class ProductStorageLocationController
             $productStorageLocation = ProductStorageLocation::query()
                 ->where('deleted', false)
                 ->with(['product', 'storageArea'])
-                ->orderByRaw("CASE 
-                WHEN status = 'ACTIVE' THEN 1 
-                ELSE 2 
-                END")  // Sort ACTIVE status first
                 ->orderBy('created_at', 'desc');
 
             if (isset($_GET['product_id'])) {
