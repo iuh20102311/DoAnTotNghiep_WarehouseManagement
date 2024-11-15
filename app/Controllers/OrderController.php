@@ -326,9 +326,10 @@ class OrderController
             }
 
             // Generate new code for order
+            $currentDay = date('d');
             $currentMonth = date('m');
             $currentYear = date('y');
-            $prefix = "DH" . $currentMonth . $currentYear;
+            $prefix = "DH" . $currentDay . $currentMonth . $currentYear;
 
             // Get latest order code with current prefix
             $latestOrder = Order::query()

@@ -122,7 +122,7 @@ class StorageAreaController
 
             // Get latest storage area code
             $latestStorage = StorageArea::query()
-                ->where('code', 'LIKE', 'KVLK%')
+                ->where('code', 'LIKE', 'KVLT%')
                 ->orderBy('code', 'desc')
                 ->first();
 
@@ -132,7 +132,7 @@ class StorageAreaController
                 $sequence = 1;
             }
 
-            $data['code'] = 'KVLK' . str_pad($sequence, 5, '0', STR_PAD_LEFT);
+            $data['code'] = 'KVLT' . str_pad($sequence, 5, '0', STR_PAD_LEFT);
 
             $storage->fill($data);
             $storage->save();
