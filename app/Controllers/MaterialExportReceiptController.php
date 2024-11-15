@@ -359,10 +359,26 @@ class MaterialExportReceiptController
             }
 
             // Tạo mã phiếu xuất tự động
-            do {
-                $code = 'EXP' . str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT);
-                $existingReceipt = MaterialExportReceipt::where('code', $code)->exists();
-            } while ($existingReceipt);
+            $currentDay = date('d');
+            $currentMonth = date('m');
+            $currentYear = date('y');
+            $prefix = "PXNVL" . $currentDay . $currentMonth . $currentYear;
+
+            // Lấy phiếu xuất mới nhất với prefix hiện tại
+            $latestExportReceipt = MaterialExportReceipt::query()
+                ->where('code', 'LIKE', $prefix . '%')
+                ->orderBy('code', 'desc')
+                ->first();
+
+            if ($latestExportReceipt) {
+                // Lấy số thứ tự và tăng lên 1
+                $sequence = intval(substr($latestExportReceipt->code, -5)) + 1;
+            } else {
+                $sequence = 1;
+            }
+
+            // Định dạng số thứ tự thành 5 chữ số
+            $code = $prefix . str_pad($sequence, 5, '0', STR_PAD_LEFT);
 
             // Tạo mới MaterialExportReceipt
             $materialExportReceipt = MaterialExportReceipt::create([
