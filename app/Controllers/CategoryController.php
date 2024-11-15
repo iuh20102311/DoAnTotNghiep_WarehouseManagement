@@ -348,10 +348,13 @@ class CategoryController
                 ];
             }
 
-            // Set prefix based on type
-            $prefix = $data['type'] === 'PRODUCT' ? 'DMSP' : 'DMNVL';
+            // Set prefix based on type and date
+            $currentMonth = date('m');
+            $currentYear = date('y');
+            $prefix = $data['type'] === 'PRODUCT' ? 'DMTP' : 'DMNVL';
+            $prefix .= $currentMonth . $currentYear;
 
-            // Get latest category code with the same type
+            // Get latest category code with the same prefix
             $latestCategory = Category::query()
                 ->where('type', $data['type'])
                 ->where('code', 'LIKE', $prefix . '%')
