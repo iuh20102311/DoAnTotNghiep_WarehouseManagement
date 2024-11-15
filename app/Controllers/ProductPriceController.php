@@ -283,32 +283,25 @@ class ProductPriceController
                 ];
             }
 
-            // Case 1: Status ACTIVE - chỉ được sửa ngày kết thúc
+            // Case 1: Status ACTIVE - chỉ giữ lại date_end
             if ($productPrice->status === 'ACTIVE') {
-                // Kiểm tra xem có đang cố gắng sửa các trường khác không
-                $allowedFields = ['date_end'];
-                $attemptedFields = array_keys($data);
-                $invalidFields = array_diff($attemptedFields, $allowedFields);
-
-                if (!empty($invalidFields)) {
-                    http_response_code(400);
-                    return [
-                        'success' => false,
-                        'error' => 'Chỉ được phép thay đổi ngày kết thúc khi status là ACTIVE'
-                    ];
+                // Chỉ giữ lại date_end, unset tất cả field khác
+                $dateEnd = isset($data['date_end']) ? $data['date_end'] : null;
+                $data = [];
+                if ($dateEnd !== null) {
+                    // Kiểm tra ngày kết thúc mới phải từ ngày hiện tại trở đi
+                    $currentDate = date('Y-m-d');
+                    if ($dateEnd < $currentDate) {
+                        http_response_code(400);
+                        return [
+                            'success' => false,
+                            'error' => 'Ngày kết thúc phải từ ngày hiện tại trở đi'
+                        ];
+                    }
+                    $data['date_end'] = $dateEnd;
                 }
 
-                // Kiểm tra ngày kết thúc mới phải từ ngày hiện tại trở đi
-                $currentDate = date('Y-m-d');
-                if (isset($data['date_end']) && $data['date_end'] < $currentDate) {
-                    http_response_code(400);
-                    return [
-                        'success' => false,
-                        'error' => 'Ngày kết thúc phải từ ngày hiện tại trở đi'
-                    ];
-                }
-
-                $productPrice->date_end = $data['date_end'];
+                $productPrice->fill($data);
                 $productPrice->save();
 
                 return [
