@@ -6,8 +6,6 @@ use App\Models\Category;
 use App\Models\Discount;
 use App\Models\Product;
 use App\Utils\PaginationTrait;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Model;
 
 class DiscountController
 {

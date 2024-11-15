@@ -2,18 +2,11 @@
 
 namespace App\Controllers;
 
-use App\Models\Profile;
 use App\Models\Role;
 use App\Models\User;
 use App\Utils\PaginationTrait;
-use Exception;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Model;
-use Lcobucci\JWT\Encoding\CannotDecodeContent;
 use Lcobucci\JWT\Encoding\JoseEncoder;
-use Lcobucci\JWT\Token\InvalidTokenStructure;
 use Lcobucci\JWT\Token\Parser;
-use Lcobucci\JWT\Token\UnsupportedHeaderFound;
 
 class UserController
 {

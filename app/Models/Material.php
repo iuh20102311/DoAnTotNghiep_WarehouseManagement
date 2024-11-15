@@ -69,7 +69,7 @@ class Material extends Model
             'origin' => ['required', 'max' => 255],
             'packing' => ['required', 'max' => 255],
             'minimum_stock_level' => ['required', 'integer', 'min' => 0],
-            'maximum_stock_level' => ['required', 'integer', 'min' => 0],
+            'maximum_stock_level' => ['required', 'integer', 'min' => 100],
             'status' => ['required', 'enum' => ['ACTIVE','INACTIVE','OUT_OF_STOCK']],
             'note' => ['max' => 1000]
         ];

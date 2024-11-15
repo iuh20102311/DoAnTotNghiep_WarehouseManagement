@@ -2,12 +2,9 @@
 
 namespace App\Controllers;
 
-use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductPrice;
 use App\Utils\PaginationTrait;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Model;
 
 class ProductPriceController
 {

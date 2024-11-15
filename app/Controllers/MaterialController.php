@@ -3,14 +3,9 @@
 namespace App\Controllers;
 
 use App\Models\Category;
-use App\Models\InventoryCheckDetail;
 use App\Models\Material;
-use App\Models\MaterialExportReceiptDetail;
-use App\Models\MaterialImportReceiptDetail;
-use App\Models\MaterialStorageLocation;
 use App\Models\Provider;
 use App\Utils\PaginationTrait;
-use Illuminate\Database\Eloquent\Model;
 
 class MaterialController
 {

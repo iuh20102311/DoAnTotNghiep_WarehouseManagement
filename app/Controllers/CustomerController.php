@@ -5,8 +5,6 @@ namespace App\Controllers;
 use App\Models\Customer;
 use App\Models\GroupCustomer;
 use App\Utils\PaginationTrait;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Model;
 
 class CustomerController
 {

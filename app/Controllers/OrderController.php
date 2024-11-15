@@ -9,9 +9,6 @@ use App\Models\ProductPrice;
 use App\Models\Profile;
 use App\Utils\PaginationTrait;
 use Exception;
-use Lcobucci\JWT\Encoding\CannotDecodeContent;
-use Lcobucci\JWT\Token\InvalidTokenStructure;
-use Lcobucci\JWT\Token\UnsupportedHeaderFound;
 use Lcobucci\JWT\Encoding\JoseEncoder;
 use Lcobucci\JWT\Token\Parser;
 

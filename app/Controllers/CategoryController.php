@@ -7,7 +7,6 @@ use App\Models\Discount;
 use App\Models\Material;
 use App\Models\Product;
 use App\Utils\PaginationTrait;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Capsule\Manager as Capsule;
 
 class CategoryController

@@ -3,16 +3,10 @@
 namespace App\Controllers;
 
 use App\Models\Order;
-use App\Models\OrderDetail;
 use App\Models\Product;
 use App\Models\ProductExportReceipt;
-use App\Models\ProductInventory;
 use App\Models\ProductStorageLocation;
-use App\Models\StorageArea;
 use App\Utils\PaginationTrait;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Model;
-use App\Models\User;
 use Lcobucci\JWT\Encoding\JoseEncoder;
 use Lcobucci\JWT\Token\Parser;
 
@@ -112,11 +106,11 @@ class ProductExportReceiptController
         }
     }
 
-    public function getProductExportReceiptById($id): array
+    public function getProductExportReceiptByCode($code): array
     {
         try {
             $productER = (new ProductExportReceipt())
-                ->where('id', $id)
+                ->where('code', $code)
                 ->where('deleted', false)
                 ->with([
                     'creator' => function ($productER) {
@@ -125,7 +119,8 @@ class ProductExportReceiptController
                                 $q->select('user_id', 'first_name', 'last_name');
                             }]);
                     },
-                    'details'
+                    'details.productStorageLocation',
+                    'details.product'
                 ])
                 ->first();
 

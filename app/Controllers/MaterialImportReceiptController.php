@@ -6,11 +6,8 @@ use App\Models\Material;
 use App\Models\MaterialImportReceipt;
 use App\Models\MaterialStorageLocation;
 use App\Models\Provider;
-use App\Models\StorageArea;
 use App\Models\User;
 use App\Utils\PaginationTrait;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Model;
 use Lcobucci\JWT\Encoding\JoseEncoder;
 use Lcobucci\JWT\Token\Parser;
 
@@ -155,11 +152,11 @@ class MaterialImportReceiptController
         }
     }
 
-    public function getMaterialImportReceiptById($id): array
+    public function getMaterialImportReceiptByCode($code): array
     {
         try {
             $materialIR = (new MaterialImportReceipt())
-                ->where('id', $id)
+                ->where('code', $code)
                 ->where('deleted', false)
                 ->with([
                     'provider',
@@ -181,7 +178,8 @@ class MaterialImportReceiptController
                                 $q->select('user_id', 'first_name', 'last_name');
                             }]);
                     },
-                    'details'
+                    'details.materialStorageLocation',
+                    'details.material'
                 ])->first();
 
             if (!$materialIR) {
