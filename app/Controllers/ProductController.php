@@ -305,9 +305,10 @@ class ProductController
             }
 
             // Generate new sku for product
+            $currentDay = date('d');
             $currentMonth = date('m');
             $currentYear = date('y');
-            $prefix = "SP" . $currentMonth . $currentYear;
+            $prefix = "TP" . $currentDay . $currentMonth . $currentYear;
 
             // Get latest product sku with current prefix
             $latestProduct = Product::query()
