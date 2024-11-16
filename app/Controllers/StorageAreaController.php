@@ -464,4 +464,27 @@ class StorageAreaController
             ];
         }
     }
+
+    public function getStorageContents(): array
+    {
+        try {
+            $storages = StorageArea::query()
+                ->where('deleted', false)
+                ->with([
+                    'productStorageLocations.product:id,name,sku',
+                    'materialStorageLocations.material:id,name,sku'
+                ])
+                ->get();
+
+            return $storages->toArray();
+
+        } catch (\Exception $e) {
+            error_log("Error getting storage contents: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
 }

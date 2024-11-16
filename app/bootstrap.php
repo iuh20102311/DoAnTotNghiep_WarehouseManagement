@@ -339,6 +339,8 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
         });
 
         $router->group(array('prefix' => '/v1/storage_areas'), function (RouteCollector $router) {
+            $router->get('/content', ['App\Controllers\StorageAreaController', 'getStorageContents']);
+
             $router->get('/{id}/material_storage_locations', ['App\Controllers\StorageAreaController', 'getMaterialStorageLocationsByStorageArea']);
             $router->get('/{id}/product_storage_locations', ['App\Controllers\StorageAreaController', 'getProductStorageLocationsByStorageArea']);
             $router->get('/{id}/inventory_history', ['App\Controllers\StorageAreaController', 'getInventoryHistoryByStorageArea']);
