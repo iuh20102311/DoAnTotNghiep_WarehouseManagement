@@ -69,10 +69,20 @@ class GiftSetController
                 $giftSet->where('updated_at', '<=', $updatedTo);
             }
 
-            return $this->paginateResults($giftSet, $perPage, $page)->toArray();
+            $results = $this->paginateResults($giftSet, $perPage, $page);
 
+            if ($results->isEmpty()) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy bộ quà tặng nào',
+                ];
+            }
+
+            return $results->toArray();
         } catch (\Exception $e) {
             error_log("Error in: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
@@ -83,14 +93,24 @@ class GiftSetController
     public function getGiftSetById($id): array
     {
         try {
+            if (empty($id)) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'ID bộ quà tặng không được để trống',
+                ];
+            }
+
             $giftSet = (new GiftSet())
                 ->where('deleted', false)
                 ->with(['products', 'prices'])
                 ->find($id);
 
             if (!$giftSet) {
+                http_response_code(404);
                 return [
-                    'error' => 'Không tìm thấy'
+                    'success' => false,
+                    'error' => 'Không tìm thấy bộ quà tặng với ID: ' . $id,
                 ];
             }
 
@@ -98,6 +118,7 @@ class GiftSetController
 
         } catch (\Exception $e) {
             error_log("Error in: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
@@ -109,12 +130,23 @@ class GiftSetController
     {
         try {
             $data = json_decode(file_get_contents('php://input'), true);
+
+            if (empty($data)) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'Dữ liệu đầu vào không hợp lệ',
+                ];
+            }
+
             $giftSet = new GiftSet();
             $errors = $giftSet->validate($data);
 
             if ($errors) {
+                http_response_code(422);
                 return [
-                    'error' => 'Validation failed',
+                    'success' => false,
+                    'error' => 'Dữ liệu không hợp lệ',
                     'details' => $errors
                 ];
             }
@@ -123,11 +155,13 @@ class GiftSetController
             $giftSet->save();
 
             return [
+                'success' => true,
                 'data' => $giftSet->toArray()
             ];
 
         } catch (\Exception $e) {
             error_log("Error in: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
@@ -138,20 +172,41 @@ class GiftSetController
     public function updateGiftSetById($id): array
     {
         try {
+            if (empty($id)) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'ID bộ quà tặng không được để trống',
+                ];
+            }
+
             $giftSet = (new GiftSet())->find($id);
 
             if (!$giftSet) {
+                http_response_code(404);
                 return [
-                    'error' => 'Không tìm thấy'
+                    'success' => false,
+                    'error' => 'Không tìm thấy bộ quà tặng với ID: ' . $id,
                 ];
             }
 
             $data = json_decode(file_get_contents('php://input'), true);
+
+            if (empty($data)) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'Dữ liệu cập nhật không hợp lệ',
+                ];
+            }
+
             $errors = $giftSet->validate($data, true);
 
             if ($errors) {
+                http_response_code(422);
                 return [
-                    'error' => 'Validation failed',
+                    'success' => false,
+                    'error' => 'Dữ liệu không hợp lệ',
                     'details' => $errors
                 ];
             }
@@ -160,11 +215,13 @@ class GiftSetController
             $giftSet->save();
 
             return [
+                'success' => true,
                 'data' => $giftSet->toArray()
             ];
 
         } catch (\Exception $e) {
             error_log("Error in: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
@@ -175,11 +232,30 @@ class GiftSetController
     public function deleteGiftSet($id): array
     {
         try {
+            if (empty($id)) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'ID bộ quà tặng không được để trống',
+                ];
+            }
+
             $giftSet = (new GiftSet())->find($id);
 
             if (!$giftSet) {
+                http_response_code(404);
                 return [
-                    'error' => 'Không tìm thấy'
+                    'success' => false,
+                    'error' => 'Không tìm thấy bộ quà tặng với ID: ' . $id,
+                ];
+            }
+
+            // Kiểm tra nếu có đơn hàng liên quan
+            if ($giftSet->orders()->where('deleted', false)->exists()) {
+                http_response_code(422);
+                return [
+                    'success' => false,
+                    'error' => 'Không thể xóa bộ quà tặng đang có trong đơn hàng',
                 ];
             }
 
@@ -187,11 +263,13 @@ class GiftSetController
             $giftSet->save();
 
             return [
+                'success' => true,
                 'message' => 'Xóa thành công'
             ];
 
         } catch (\Exception $e) {
             error_log("Error in: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
@@ -202,6 +280,14 @@ class GiftSetController
     public function getProductsByGiftSet($id): array
     {
         try {
+            if (empty($id)) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'ID bộ quà tặng không được để trống',
+                ];
+            }
+
             $perPage = (int)($_GET['per_page'] ?? 10);
             $page = (int)($_GET['page'] ?? 1);
 
@@ -210,9 +296,10 @@ class GiftSetController
                 ->first();
 
             if (!$giftSet) {
+                http_response_code(404);
                 return [
-
-                    'error' => 'Không tìm thấy'
+                    'success' => false,
+                    'error' => 'Không tìm thấy bộ quà tặng với ID: ' . $id,
                 ];
             }
 
@@ -221,11 +308,21 @@ class GiftSetController
                 ->with(['categories', 'discounts', 'prices', 'storageLocations', 'orderDetails'])
                 ->getQuery();
 
-            return $this->paginateResults($productsQuery, $perPage, $page)->toArray();
+            $results = $this->paginateResults($productsQuery, $perPage, $page);
 
+            if ($results->isEmpty()) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy sản phẩm nào trong bộ quà tặng này',
+                ];
+            }
+
+            return $results->toArray();
 
         } catch (\Exception $e) {
             error_log("Error in: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
@@ -239,25 +336,30 @@ class GiftSetController
             $giftSet = (new GiftSet())->find($id);
 
             if (!$giftSet) {
+                http_response_code(404);
                 return [
-                    'error' => 'Không tìm thấy quà tặng'
+                    'success' => false,
+                    'error' => 'Không tìm thấy quà tặng',
                 ];
             }
 
             $data = json_decode(file_get_contents('php://input'), true);
 
-            // Validate input
             if (empty($data['product_id']) || empty($data['quantity'])) {
+                http_response_code(400);
                 return [
-                    'error' => 'Thiếu thông tin sản phẩm hoặc số lượng'
+                    'success' => false,
+                    'error' => 'Thiếu thông tin sản phẩm hoặc số lượng',
                 ];
             }
 
             $product = (new Product())->find($data['product_id']);
 
             if (!$product) {
+                http_response_code(404);
                 return [
-                    'error' => 'Không tìm thấy sản phẩm'
+                    'success' => false,
+                    'error' => 'Không tìm thấy sản phẩm',
                 ];
             }
 
@@ -265,12 +367,15 @@ class GiftSetController
             $giftSet->products()->attach($product->id, ['quantity' => $data['quantity']]);
 
             return [
+                'success' => true,
                 'message' => 'Thêm sản phẩm vào quà tặng thành công'
             ];
 
         } catch (\Exception $e) {
             error_log("Error in: " . $e->getMessage());
+            http_response_code(500);
             return [
+                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -283,24 +388,29 @@ class GiftSetController
             $giftSet = (new GiftSet())->find($id);
 
             if (!$giftSet) {
+                http_response_code(404);
                 return [
-                    'error' => 'Không tìm thấy quà tặng'
+                    'success' => false,
+                    'error' => 'Không tìm thấy quà tặng',
                 ];
             }
-
             $data = json_decode(file_get_contents('php://input'), true);
 
             if (empty($data['product_id'])) {
+                http_response_code(400);
                 return [
-                    'error' => 'Thiếu thông tin sản phẩm'
+                    'success' => false,
+                    'error' => 'Thiếu thông tin sản phẩm',
                 ];
             }
 
             $product = (new Product())->find($data['product_id']);
 
             if (!$product) {
+                http_response_code(404);
                 return [
-                    'error' => 'Không tìm thấy sản phẩm'
+                    'success' => false,
+                    'error' => 'Không tìm thấy sản phẩm',
                 ];
             }
 
@@ -308,12 +418,15 @@ class GiftSetController
             $giftSet->products()->detach($product->id);
 
             return [
+                'success' => true,
                 'message' => 'Xóa sản phẩm khỏi quà tặng thành công'
             ];
 
         } catch (\Exception $e) {
             error_log("Error in: " . $e->getMessage());
+            http_response_code(500);
             return [
+                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -326,24 +439,38 @@ class GiftSetController
             $giftSet = (new GiftSet())->find($id);
 
             if (!$giftSet) {
+                http_response_code(404);
                 return [
-                    'error' => 'Không tìm thấy quà tặng'
+                    'success' => false,
+                    'error' => 'Không tìm thấy quà tặng',
                 ];
             }
 
             $data = json_decode(file_get_contents('php://input'), true);
 
             if (empty($data['product_id']) || !isset($data['quantity'])) {
+                http_response_code(400);
                 return [
-                    'error' => 'Thiếu thông tin sản phẩm hoặc số lượng'
+                    'success' => false,
+                    'error' => 'Thiếu thông tin sản phẩm hoặc số lượng',
+                ];
+            }
+
+            if ($data['quantity'] < 0) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'Số lượng không được âm',
                 ];
             }
 
             $product = (new Product())->find($data['product_id']);
 
             if (!$product) {
+                http_response_code(404);
                 return [
-                    'error' => 'Không tìm thấy sản phẩm'
+                    'success' => false,
+                    'error' => 'Không tìm thấy sản phẩm',
                 ];
             }
 
@@ -353,12 +480,15 @@ class GiftSetController
             ]);
 
             return [
+                'success' => true,
                 'message' => 'Cập nhật số lượng thành công'
             ];
 
         } catch (\Exception $e) {
             error_log("Error in: " . $e->getMessage());
+            http_response_code(500);
             return [
+                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -368,6 +498,14 @@ class GiftSetController
     public function getOrdersByGiftSet($id): array
     {
         try {
+            if (empty($id)) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'ID bộ quà tặng không được để trống',
+                ];
+            }
+
             $perPage = (int)($_GET['per_page'] ?? 10);
             $page = (int)($_GET['page'] ?? 1);
 
@@ -376,9 +514,10 @@ class GiftSetController
                 ->first();
 
             if (!$giftSet) {
+                http_response_code(404);
                 return [
-
-                    'error' => 'Không tìm thấy'
+                    'success' => false,
+                    'error' => 'Không tìm thấy bộ quà tặng',
                 ];
             }
 
@@ -387,12 +526,23 @@ class GiftSetController
                 ->with(['customer', 'creator', 'orderDetails'])
                 ->getQuery();
 
-            return $this->paginateResults($ordersQuery, $perPage, $page)->toArray();
+            $results = $this->paginateResults($ordersQuery, $perPage, $page);
 
+            if ($results->isEmpty()) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy đơn hàng nào',
+                ];
+            }
+
+            return $results->toArray();
 
         } catch (\Exception $e) {
             error_log("Error in: " . $e->getMessage());
+            http_response_code(500);
             return [
+                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -405,24 +555,30 @@ class GiftSetController
             $giftSet = (new GiftSet())->find($id);
 
             if (!$giftSet) {
+                http_response_code(404);
                 return [
-                    'error' => 'Không tìm thấy quà tặng'
+                    'success' => false,
+                    'error' => 'Không tìm thấy quà tặng',
                 ];
             }
 
             $data = json_decode(file_get_contents('php://input'), true);
 
             if (empty($data['order_id']) || empty($data['quantity']) || empty($data['price'])) {
+                http_response_code(400);
                 return [
-                    'error' => 'Thiếu thông tin đơn hàng, số lượng hoặc giá'
+                    'success' => false,
+                    'error' => 'Thiếu thông tin đơn hàng, số lượng hoặc giá',
                 ];
             }
 
             $order = (new Order())->find($data['order_id']);
 
             if (!$order) {
+                http_response_code(404);
                 return [
-                    'error' => 'Không tìm thấy đơn hàng'
+                    'success' => false,
+                    'error' => 'Không tìm thấy đơn hàng',
                 ];
             }
 
@@ -433,12 +589,15 @@ class GiftSetController
             ]);
 
             return [
+                'success' => true,
                 'message' => 'Thêm quà tặng vào đơn hàng thành công'
             ];
 
         } catch (\Exception $e) {
             error_log("Error in: " . $e->getMessage());
+            http_response_code(500);
             return [
+                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -448,27 +607,41 @@ class GiftSetController
     public function removeOrderFromGiftSet($id): array
     {
         try {
+            if (empty($id)) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'ID bộ quà tặng không được để trống',
+                ];
+            }
+
             $giftSet = (new GiftSet())->find($id);
 
             if (!$giftSet) {
+                http_response_code(404);
                 return [
-                    'error' => 'Không tìm thấy quà tặng'
+                    'success' => false,
+                    'error' => 'Không tìm thấy quà tặng',
                 ];
             }
 
             $data = json_decode(file_get_contents('php://input'), true);
 
             if (empty($data['order_id'])) {
+                http_response_code(400);
                 return [
-                    'error' => 'Thiếu thông tin đơn hàng'
+                    'success' => false,
+                    'error' => 'Thiếu thông tin đơn hàng',
                 ];
             }
 
             $order = (new Order())->find($data['order_id']);
 
             if (!$order) {
+                http_response_code(404);
                 return [
-                    'error' => 'Không tìm thấy đơn hàng'
+                    'success' => false,
+                    'error' => 'Không tìm thấy đơn hàng',
                 ];
             }
 
@@ -476,12 +649,15 @@ class GiftSetController
             $giftSet->orders()->detach($data['order_id']);
 
             return [
+                'success' => true,
                 'message' => 'Xóa quà tặng khỏi đơn hàng thành công'
             ];
 
         } catch (\Exception $e) {
             error_log("Error in: " . $e->getMessage());
+            http_response_code(500);
             return [
+                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -491,27 +667,49 @@ class GiftSetController
     public function updateOrderByGiftSet($id): array
     {
         try {
+            if (empty($id)) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'ID bộ quà tặng không được để trống',
+                ];
+            }
+
             $giftSet = (new GiftSet())->find($id);
 
             if (!$giftSet) {
+                http_response_code(404);
                 return [
-                    'error' => 'Không tìm thấy quà tặng'
+                    'success' => false,
+                    'error' => 'Không tìm thấy quà tặng',
                 ];
             }
 
             $data = json_decode(file_get_contents('php://input'), true);
 
             if (empty($data['order_id']) || !isset($data['quantity']) || !isset($data['price'])) {
+                http_response_code(400);
                 return [
-                    'error' => 'Thiếu thông tin cập nhật'
+                    'success' => false,
+                    'error' => 'Thiếu thông tin cập nhật',
                 ];
             }
 
             $order = (new Order())->find($data['order_id']);
 
             if (!$order) {
+                http_response_code(404);
                 return [
-                    'error' => 'Không tìm thấy đơn hàng'
+                    'success' => false,
+                    'error' => 'Không tìm thấy đơn hàng',
+                ];
+            }
+
+            if (!$giftSet->orders()->where('order_id', $data['order_id'])->exists()) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'Đơn hàng không thuộc về bộ quà tặng này',
                 ];
             }
 
@@ -522,12 +720,15 @@ class GiftSetController
             ]);
 
             return [
+                'success' => true,
                 'message' => 'Cập nhật thành công'
             ];
 
         } catch (\Exception $e) {
-            error_log("Error in: " . $e->getMessage());
+            error_log("Error in updateGiftSetPrice: " . $e->getMessage());
+            http_response_code(500);
             return [
+                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -537,14 +738,24 @@ class GiftSetController
     public function getGiftSetPricesByGiftSet($id): array
     {
         try {
+            if (empty($id)) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'ID bộ quà tặng không được để trống',
+                ];
+            }
+
             $perPage = (int)($_GET['per_page'] ?? 10);
             $page = (int)($_GET['page'] ?? 1);
 
             $giftSet = (new GiftSet())->where('deleted', false)->find($id);
 
             if (!$giftSet) {
+                http_response_code(404);
                 return [
-                    'error' => 'Không tìm thấy'
+                    'success' => false,
+                    'error' => 'Không tìm thấy bộ quà tặng',
                 ];
             }
 
@@ -554,13 +765,21 @@ class GiftSetController
 
             $result = $this->paginateResults($pricesQuery, $perPage, $page);
 
-            return [
-                'data' => $result->toArray()
-            ];
+            if ($result->isEmpty()) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy giá nào cho bộ quà tặng này',
+                ];
+            }
+
+            return $result->toArray();
 
         } catch (\Exception $e) {
             error_log("Error in getPricesByGiftSet: " . $e->getMessage());
+            http_response_code(500);
             return [
+                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -570,15 +789,34 @@ class GiftSetController
     public function addGiftSetPricesToGiftSet($id): array
     {
         try {
+            if (empty($id)) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'ID bộ quà tặng không được để trống',
+                ];
+            }
+
             $giftSet = (new GiftSet())->find($id);
 
             if (!$giftSet) {
+                http_response_code(404);
                 return [
-                    'error' => 'Không tìm thấy quà tặng'
+                    'success' => false,
+                    'error' => 'Không tìm thấy quà tặng',
                 ];
             }
 
             $data = json_decode(file_get_contents('php://input'), true);
+
+            if (empty($data)) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'Dữ liệu giá không được để trống',
+                ];
+            }
+
             $data['gift_set_id'] = $id;
 
             // Tạo instance mới của GiftSetPrice
@@ -588,8 +826,10 @@ class GiftSetController
             $errors = $giftSetPrice->validate($data);
 
             if ($errors) {
+                http_response_code(422);
                 return [
-                    'error' => 'Validation failed',
+                    'success' => false,
+                    'error' => 'Dữ liệu không hợp lệ',
                     'details' => $errors
                 ];
             }
@@ -598,12 +838,16 @@ class GiftSetController
             $giftSetPrice->save();
 
             return [
-                'message' => 'Thêm giá cho quà tặng thành công'
+                'success' => true,
+                'message' => 'Thêm giá cho quà tặng thành công',
+                'data' => $giftSetPrice->toArray()
             ];
 
         } catch (\Exception $e) {
             error_log("Error in addPriceToGiftSet: " . $e->getMessage());
+            http_response_code(500);
             return [
+                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -613,22 +857,54 @@ class GiftSetController
     public function removeGiftSetPricesFromGiftSet($id, $priceId): array
     {
         try {
-            $giftSet = (new GiftSet())->find($id);
+            if (empty($id)) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'ID bộ quà tặng không được để trống',
+                ];
+            }
+
+            if (empty($priceId)) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'ID giá không được để trống',
+                ];
+            }
+
+
+            $giftSet = (new GiftSet())
+                ->where('deleted', false)
+                ->find($id);
 
             if (!$giftSet) {
+                http_response_code(404);
                 return [
-                    'error' => 'Không tìm thấy quà tặng'
+                    'success' => false,
+                    'error' => 'Không tìm thấy quà tặng',
                 ];
             }
 
             $giftSetPrice = (new GiftSetPrice())
                 ->where('gift_set_id', $id)
                 ->where('id', $priceId)
+                ->where('deleted', false)
                 ->first();
 
             if (!$giftSetPrice) {
+                http_response_code(404);
                 return [
-                    'error' => 'Không tìm thấy giá của quà tặng'
+                    'success' => false,
+                    'error' => 'Không tìm thấy giá của quà tặng',
+                ];
+            }
+
+            if ($giftSetPrice->orders()->where('deleted', false)->exists()) {
+                http_response_code(422);
+                return [
+                    'success' => false,
+                    'error' => 'Không thể xóa giá đang được sử dụng trong đơn hàng',
                 ];
             }
 
@@ -637,12 +913,15 @@ class GiftSetController
             $giftSetPrice->save();
 
             return [
+                'success' => true,
                 'message' => 'Xóa giá của quà tặng thành công'
             ];
 
         } catch (\Exception $e) {
             error_log("Error in removePriceFromGiftSet: " . $e->getMessage());
+            http_response_code(500);
             return [
+                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
@@ -652,6 +931,22 @@ class GiftSetController
     public function updateGiftSetPriceByGiftSet($id, $priceId): array
     {
         try {
+            if (empty($id)) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'ID bộ quà tặng không được để trống',
+                ];
+            }
+
+            if (empty($priceId)) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'ID giá không được để trống',
+                ];
+            }
+
             // Kiểm tra gift set tồn tại và không bị xóa mềm
             $giftSet = (new GiftSet())
                 ->where('id', $id)
@@ -659,8 +954,10 @@ class GiftSetController
                 ->first();
 
             if (!$giftSet) {
+                http_response_code(404);
                 return [
-                    'error' => 'Không tìm thấy quà tặng'
+                    'success' => false,
+                    'error' => 'Không tìm thấy quà tặng',
                 ];
             }
 
@@ -672,14 +969,17 @@ class GiftSetController
                 ->first();
 
             if (!$giftSetPrice) {
+                http_response_code(404);
                 return [
-                    'error' => 'Không tìm thấy giá của quà tặng'
+                    'success' => false,
+                    'error' => 'Không tìm thấy giá của quà tặng',
                 ];
             }
 
             $data = json_decode(file_get_contents('php://input'), true);
 
             if (!$data) {
+                http_response_code(422);
                 return [
                     'error' => 'Dữ liệu không hợp lệ'
                 ];
@@ -692,8 +992,10 @@ class GiftSetController
             $errors = $giftSetPrice->validate($data, true);
 
             if ($errors) {
+                http_response_code(422);
                 return [
-                    'error' => 'Validation failed',
+                    'success' => false,
+                    'error' => 'Dữ liệu không hợp lệ',
                     'details' => $errors
                 ];
             }
@@ -702,12 +1004,15 @@ class GiftSetController
             $giftSetPrice->save();
 
             return [
+                'success' => true,
                 'data' => $giftSetPrice->toArray()
             ];
 
         } catch (\Exception $e) {
             error_log("Error in updateGiftSetPrice: " . $e->getMessage());
+            http_response_code(500);
             return [
+                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];

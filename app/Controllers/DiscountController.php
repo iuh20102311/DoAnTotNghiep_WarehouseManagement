@@ -67,10 +67,19 @@ class DiscountController
                 }
             }
 
-            return $this->paginateResults($discount, $perPage, $page)->toArray();
+            $results = $this->paginateResults($discount, $perPage, $page);
 
+            if ($results->isEmpty()) {
+                http_response_code(404);
+                return [
+                    'error' => 'Không tìm thấy mã giảm giá nào'
+                ];
+            }
+
+            return $results->toArray();
         } catch (\Exception $e) {
             error_log("Error in getDiscounts: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
@@ -81,21 +90,29 @@ class DiscountController
     public function getDiscountById($id): array
     {
         try {
+            if (empty($id)) {
+                http_response_code(404);
+                return [
+                    'error' => 'ID mã giảm giá không được để trống'
+                ];
+            }
+
             $discount = Discount::query()->where('id', $id)
                 ->where('deleted', false)
                 ->with(['categories', 'products'])
                 ->first();
 
             if (!$discount) {
+                http_response_code(404);
                 return [
-                    'error' => 'Không tìm thấy mã giảm giá'
+                    'error' => 'Không tìm thấy mã giảm giá với ID: ' . $id
                 ];
             }
 
             return $discount->toArray();
-
         } catch (\Exception $e) {
             error_log("Error in getDiscountById: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
@@ -107,11 +124,20 @@ class DiscountController
     {
         try {
             $data = json_decode(file_get_contents('php://input'), true);
-            $discount = new Discount();
 
+            if (empty($data)) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'Dữ liệu đầu vào không hợp lệ'
+                ];
+            }
+
+            $discount = new Discount();
             $errors = $discount->validate($data);
 
             if ($errors) {
+                http_response_code(422);
                 return [
                     'success' => false,
                     'errors' => $errors
@@ -125,6 +151,7 @@ class DiscountController
 
         } catch (\Exception $e) {
             error_log("Error in createDiscount: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
@@ -136,19 +163,38 @@ class DiscountController
     public function updateDiscountById($id): array
     {
         try {
+            if (empty($id)) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'ID mã giảm giá không được để trống'
+                ];
+            }
+
             $discount = Discount::find($id);
 
             if (!$discount) {
+                http_response_code(404);
                 return [
                     'success' => false,
-                    'error' => 'Không tìm thấy mã giảm giá'
+                    'error' => 'Không tìm thấy mã giảm giá với ID: ' . $id
                 ];
             }
 
             $data = json_decode(file_get_contents('php://input'), true);
+
+            if (empty($data)) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'Dữ liệu cập nhật không hợp lệ'
+                ];
+            }
+
             $errors = $discount->validate($data, true);
 
             if ($errors) {
+                http_response_code(422);
                 return [
                     'success' => false,
                     'errors' => $errors
@@ -161,6 +207,7 @@ class DiscountController
             return $discount->toArray();
         } catch (\Exception $e) {
             error_log("Error in updateDiscountById: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
@@ -172,16 +219,26 @@ class DiscountController
     public function deleteDiscount($id): array
     {
         try {
+            if (empty($id)) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'ID mã giảm giá không được để trống'
+                ];
+            }
+
             $discount = Discount::find($id);
 
             if (!$discount) {
+                http_response_code(404);
                 return [
                     'success' => false,
-                    'error' => 'Không tìm thấy mã giảm giá'
+                    'error' => 'Không tìm thấy mã giảm giá với ID: ' . $id
                 ];
             }
 
             if ($discount->status == 'ACTIVE') {
+                http_response_code(422);
                 return [
                     'success' => false,
                     'error' => 'Không thể xóa mã giảm giá đang ở trạng thái Active'
@@ -197,6 +254,7 @@ class DiscountController
             ];
         } catch (\Exception $e) {
             error_log("Error in deleteDiscountById: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
@@ -208,18 +266,43 @@ class DiscountController
     public function getProductByDiscount($id): array
     {
         try {
+            if (empty($id)) {
+                http_response_code(404);
+                return [
+                    'error' => 'ID mã giảm giá không được để trống'
+                ];
+            }
+
             $perPage = (int)($_GET['per_page'] ?? 10);
             $page = (int)($_GET['page'] ?? 1);
 
             $discount = Discount::query()->where('id', $id)->firstOrFail();
+
+            if (!$discount) {
+                http_response_code(404);
+                return [
+                    'error' => 'Không tìm thấy mã giảm giá với ID: ' . $id
+                ];
+            }
+
             $productsQuery = $discount->products()
                 ->where('products.deleted', false)
                 ->with(['discounts'])
                 ->getQuery();
 
-            return $this->paginateResults($productsQuery, $perPage, $page)->toArray();
+            $results = $this->paginateResults($productsQuery, $perPage, $page);
+
+            if ($results->isEmpty()) {
+                http_response_code(404);
+                return [
+                    'error' => 'Không tìm thấy sản phẩm nào áp dụng mã giảm giá này'
+                ];
+            }
+
+            return $results->toArray();
         } catch (\Exception $e) {
             error_log("Error in getProductByDiscount: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
@@ -230,14 +313,31 @@ class DiscountController
     public function addProductToDiscount($id): array
     {
         try {
+            if (empty($id)) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'ID mã giảm giá không được để trống'
+                ];
+            }
+
             $discount = Discount::query()
                 ->where('deleted', false)
                 ->where('id', $id)
                 ->first();
 
+            if (!$discount) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy mã giảm giá với ID: ' . $id
+                ];
+            }
+
             $data = json_decode(file_get_contents('php://input'), true);
 
             if (empty($data['product_id'])) {
+                http_response_code(400);
                 return [
                     'success' => false,
                     'error' => 'Product ID là bắt buộc'
@@ -250,9 +350,10 @@ class DiscountController
                 ->first();
 
             if (!$product) {
+                http_response_code(404);
                 return [
                     'success' => false,
-                    'error' => 'Không tìm thấy sản phẩm'
+                    'error' => 'Không tìm thấy sản phẩm với ID: ' . $data['product_id']
                 ];
             }
 
@@ -260,7 +361,9 @@ class DiscountController
                 ->where('deleted', false)
                 ->where('product_id', $product->id)
                 ->exists();
+
             if ($exists) {
+                http_response_code(422);
                 return [
                     'success' => false,
                     'error' => 'Sản phẩm đã được áp dụng mã giảm giá này'
@@ -275,6 +378,7 @@ class DiscountController
             ];
         } catch (\Exception $e) {
             error_log("Error in addProductToDiscount: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
@@ -286,24 +390,43 @@ class DiscountController
     public function removeProductFromDiscount($id, $productId): array
     {
         try {
-            $discount = Discount::find($id);
-            if (!$discount) {
+            if (empty($id)) {
+                http_response_code(404);
                 return [
                     'success' => false,
-                    'error' => 'Không tìm thấy mã giảm giá'
+                    'error' => 'ID mã giảm giá không được để trống'
+                ];
+            }
+
+            if (empty($productId)) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'ID sản phẩm không được để trống'
+                ];
+            }
+
+            $discount = Discount::find($id);
+            if (!$discount) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy mã giảm giá với ID: ' . $id
                 ];
             }
 
             $product = Product::find($productId);
             if (!$product) {
+                http_response_code(404);
                 return [
                     'success' => false,
-                    'error' => 'Không tìm thấy sản phẩm'
+                    'error' => 'Không tìm thấy sản phẩm với ID: ' . $productId
                 ];
             }
 
             $exists = $discount->products()->where('product_id', $product->id)->exists();
             if (!$exists) {
+                http_response_code(404);
                 return [
                     'success' => false,
                     'error' => 'Sản phẩm chưa được áp dụng mã giảm giá này'
@@ -319,6 +442,7 @@ class DiscountController
             ];
         } catch (\Exception $e) {
             error_log("Error in removeProductFromDiscount: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
@@ -333,15 +457,40 @@ class DiscountController
             $perPage = (int)($_GET['per_page'] ?? 10);
             $page = (int)($_GET['page'] ?? 1);
 
+            if (empty($id)) {
+                http_response_code(404);
+                return [
+                    'error' => 'ID mã giảm giá không được để trống'
+                ];
+            }
+
             $discount = Discount::query()->where('id', $id)->firstOrFail();
+
+            if (!$discount) {
+                http_response_code(404);
+                return [
+                    'error' => 'Không tìm thấy mã giảm giá với ID: ' . $id
+                ];
+            }
+
             $categoriesQuery = $discount->categories()
                 ->where('categories.deleted', false)
                 ->with(['discounts'])
                 ->getQuery();
 
-            return $this->paginateResults($categoriesQuery, $perPage, $page)->toArray();
+            $results = $this->paginateResults($categoriesQuery, $perPage, $page);
+
+            if ($results->isEmpty()) {
+                http_response_code(404);
+                return [
+                    'error' => 'Không tìm thấy danh mục nào áp dụng mã giảm giá này'
+                ];
+            }
+
+            return $results->toArray();
         } catch (\Exception $e) {
             error_log("Error in getCategoryByDiscount: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
@@ -352,10 +501,28 @@ class DiscountController
     public function addCategoryToDiscount($id): array
     {
         try {
-            $discount = Discount::query()->where('id', $id)->first();
+            if (empty($id)) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'ID mã giảm giá không được để trống'
+                ];
+            }
+
+            $discount = Discount::query()->where('deleted', false)->where('id', $id)->first();
+
+            if (!$discount) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy mã giảm giá với ID: ' . $id
+                ];
+            }
+
             $data = json_decode(file_get_contents('php://input'), true);
 
             if (empty($data['category_id'])) {
+                http_response_code(400);
                 return [
                     'success' => false,
                     'error' => 'Category ID là bắt buộc'
@@ -364,6 +531,7 @@ class DiscountController
 
             $category = Category::query()->where('id', $data['category_id'])->first();
             if (!$category) {
+                http_response_code(404);
                 return [
                     'success' => false,
                     'error' => 'Không tìm thấy danh mục'
@@ -386,6 +554,7 @@ class DiscountController
             ];
         } catch (\Exception $e) {
             error_log("Error in addCategoryToDiscount: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
@@ -398,7 +567,9 @@ class DiscountController
     {
         try {
             $discount = Discount::find($id);
+
             if (!$discount) {
+                http_response_code(404);
                 return [
                     'success' => false,
                     'error' => 'Không tìm thấy mã giảm giá'
@@ -407,6 +578,7 @@ class DiscountController
 
             $category = Category::find($categoryId);
             if (!$category) {
+                http_response_code(404);
                 return [
                     'success' => false,
                     'error' => 'Không tìm thấy danh mục'
@@ -415,6 +587,7 @@ class DiscountController
 
             $exists = $discount->categories()->where('category_id', $category->id)->exists();
             if (!$exists) {
+                http_response_code(422);
                 return [
                     'success' => false,
                     'error' => 'Danh mục chưa được áp dụng mã giảm giá này'
@@ -430,6 +603,7 @@ class DiscountController
             ];
         } catch (\Exception $e) {
             error_log("Error in removeCategoryFromDiscount: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
