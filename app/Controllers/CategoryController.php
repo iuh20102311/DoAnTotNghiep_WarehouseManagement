@@ -19,9 +19,10 @@ class CategoryController
             $categories = Category::where('deleted', false)->get();
 
             if ($categories->isEmpty()) {
+                http_response_code(404);
                 return [
                     'success' => false,
-                    'error' => 'Không có danh mục nào'
+                    'error' => 'Không tìm thấy danh mục nào'
                 ];
             }
 
@@ -62,6 +63,10 @@ class CategoryController
                         ->where('material_categories.deleted', false);
 
                     $totalItems = $query->count();
+                    if ($totalItems === 0) {
+                        continue;
+                    }
+
                     $availableCount = $query->sum('quantity_available');
                     $belowMinimumStock = $query->whereRaw('quantity_available < minimum_stock_level')->count();
                     $outOfStock = $query->where('quantity_available', 0)->count();
@@ -81,6 +86,10 @@ class CategoryController
                             Capsule::raw('SUM(material_storage_locations.quantity) as total_quantity')
                         )
                         ->get();
+                }
+
+                if ($stockByArea->isEmpty()) {
+                    $stockByArea = [];
                 }
 
                 $result[] = [
@@ -107,6 +116,14 @@ class CategoryController
                             'in_stock' => (int)$inStock
                         ]
                     ]
+                ];
+            }
+
+            if (empty($result)) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy dữ liệu thống kê cho danh mục nào'
                 ];
             }
 
@@ -231,23 +248,27 @@ class CategoryController
                 $category->orderBy('created_at', 'desc');
             }
 
-            $results = $this->paginateResults($category, $perPage, $page)->toArray();
+            $results = $this->paginateResults($category, $perPage, $page);
 
-            // Đếm số lượng sản phẩm và nguyên liệu cho mỗi category
-            $data = collect($results['data'])->map(function ($category) {
-                // Đếm số lượng products
+            if ($results->isEmpty()) {
+                http_response_code(404);
+                return [
+                    'error' => 'Không tìm thấy danh mục nào'
+                ];
+            }
+
+            // Đếm số lượng nguyên vật liệu
+            $data = collect($results->toArray()['data'])->map(function ($category) {
                 $total_product = count($category['products'] ?? []);
-
-                // Đếm số lượng materials
                 $total_material = count($category['materials'] ?? []);
 
-                // Thêm totals vào dữ liệu hiện tại
                 $category['total_product'] = $total_product;
                 $category['total_material'] = $total_material;
 
                 return $category;
             })->all();
 
+            $results = $results->toArray();
             $results['data'] = $data;
 
             return $results;
@@ -265,6 +286,13 @@ class CategoryController
     public function getCategoryById($id): array
     {
         try {
+            if (empty($id)) {
+                http_response_code(404);
+                return [
+                    'error' => 'ID danh mục không được để trống'
+                ];
+            }
+
             $category = Category::query()
                 ->where('deleted', false)
                 ->where('status', 'ACTIVE')
@@ -274,12 +302,20 @@ class CategoryController
             if (!$category) {
                 http_response_code(404);
                 return [
-                    'error' => 'Không tìm thấy danh mục'
+                    'error' => 'Không tìm thấy danh mục với ID: ' . $id
                 ];
             }
 
-            return $category->toArray();
+            $data = $category->toArray();
 
+            if (empty($data['products']) && empty($data['materials'])) {
+                http_response_code(404);
+                return [
+                    'error' => 'Danh mục không có sản phẩm hoặc nguyên liệu nào'
+                ];
+            }
+
+            return $data;
         } catch (\Exception $e) {
             error_log("Error in getCategoryById: " . $e->getMessage());
             http_response_code(500);
@@ -301,10 +337,23 @@ class CategoryController
 
             if (isset($_GET['type'])) {
                 $type = urldecode($_GET['type']);
+                if (!in_array($type, ['PRODUCT', 'MATERIAL'])) {
+                    http_response_code(400);
+                    return [
+                        'error' => 'Loại danh mục không hợp lệ'
+                    ];
+                }
                 $categoryQuery->where('type', $type);
             }
 
             $categories = $categoryQuery->get();
+
+            if ($categories->isEmpty()) {
+                http_response_code(404);
+                return [
+                    'error' => 'Không tìm thấy danh mục nào'
+                ];
+            }
 
             return $categories->toArray();
 

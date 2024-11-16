@@ -52,10 +52,10 @@ class CustomerController
 
             if (isset($_GET['phone'])) {
                 $phone = urldecode($_GET['phone']);
-                $customer->where(function($query) use ($phone) {
-                    $query->where('phone', 'LIKE', '%'.$phone.'%')
-                        ->orWhere('phone', 'LIKE', $phone.'%')
-                        ->orWhere('phone', 'LIKE', '%'.$phone);
+                $customer->where(function ($query) use ($phone) {
+                    $query->where('phone', 'LIKE', '%' . $phone . '%')
+                        ->orWhere('phone', 'LIKE', $phone . '%')
+                        ->orWhere('phone', 'LIKE', '%' . $phone);
                 });
             }
 
@@ -99,9 +99,19 @@ class CustomerController
                 $customer->where('updated_at', '<=', $updatedTo);
             }
 
-            return $this->paginateResults($customer, $perPage, $page)->toArray();
+            $results = $this->paginateResults($customer, $perPage, $page);
+
+            if ($results->isEmpty()) {
+                http_response_code(404);
+                return [
+                    'error' => 'Không tìm thấy khách hàng nào'
+                ];
+            }
+
+            return $results->toArray();
         } catch (\Exception $e) {
             error_log("Error in getCustomers: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
@@ -119,6 +129,7 @@ class CustomerController
                 ->first();
 
             if (!$customer) {
+                http_response_code(404);
                 return [
                     'error' => 'Không tìm thấy khách hàng'
                 ];
@@ -127,6 +138,7 @@ class CustomerController
             return $customer->toArray();
         } catch (\Exception $e) {
             error_log("Error in getCustomerById: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
@@ -140,15 +152,40 @@ class CustomerController
             $perPage = (int)($_GET['per_page'] ?? 10);
             $page = (int)($_GET['page'] ?? 1);
 
-            $customer = Customer::query()->where('id', $id)->firstOrFail();
+            if (empty($id)) {
+                http_response_code(404);
+                return [
+                    'error' => 'ID khách hàng không được để trống'
+                ];
+            }
+
+            $customer = Customer::query()->where('deleted', false)->where('id', $id)->firstOrFail();
+
+            if (!$customer) {
+                http_response_code(404);
+                return [
+                    'error' => 'Không tìm thấy khách hàng với ID: ' . $id
+                ];
+            }
+
             $ordersQuery = $customer->orders()
                 ->where('orders.deleted', false)
                 ->with(['customer', 'creator'])
                 ->getQuery();
 
-            return $this->paginateResults($ordersQuery, $perPage, $page)->toArray();
+            $results = $this->paginateResults($ordersQuery, $perPage, $page);
+
+            if ($results->isEmpty()) {
+                http_response_code(404);
+                return [
+                    'error' => 'Không tìm thấy đơn hàng nào của khách hàng này'
+                ];
+            }
+
+            return $results->toArray();
         } catch (\Exception $e) {
             error_log("Error in getOrderByCustomer: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
@@ -162,15 +199,40 @@ class CustomerController
             $perPage = (int)($_GET['per_page'] ?? 10);
             $page = (int)($_GET['page'] ?? 1);
 
-            $customer = Customer::query()->where('id', $id)->firstOrFail();
+            if (empty($id)) {
+                http_response_code(404);
+                return [
+                    'error' => 'ID khách hàng không được để trống'
+                ];
+            }
+
+            $customer = Customer::query()->where('deleted', false)->where('id', $id)->firstOrFail();
+
+            if (!$customer) {
+                http_response_code(404);
+                return [
+                    'error' => 'Không tìm thấy khách hàng với ID: ' . $id
+                ];
+            }
+
             $groupCustomersQuery = $customer->groupCustomer()
                 ->where('group_customers.deleted', false)
                 ->with(['customers'])
                 ->getQuery();
 
-            return $this->paginateResults($groupCustomersQuery, $perPage, $page)->toArray();
+            $results = $this->paginateResults($groupCustomersQuery, $perPage, $page);
+
+            if ($results->isEmpty()) {
+                http_response_code(404);
+                return [
+                    'error' => 'Không tìm thấy nhóm khách hàng nào'
+                ];
+            }
+
+            return $results->toArray();
         } catch (\Exception $e) {
             error_log("Error in getGroupCustomerByCustomer: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
@@ -181,24 +243,42 @@ class CustomerController
     public function addGroupCustomerForCustomer($id): array
     {
         try {
+            if (empty($id)) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'ID khách hàng không được để trống'
+                ];
+            }
+
             $customer = Customer::where('deleted', false)->find($id);
 
             if (!$customer) {
+                http_response_code(404);
                 return [
                     'success' => false,
-                    'error' => 'Không tìm thấy khách hàng'
+                    'error' => 'Không tìm thấy khách hàng với ID: ' . $id
                 ];
             }
 
             $data = json_decode(file_get_contents('php://input'), true);
 
+            if (empty($data['group_customer_id'])) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'ID nhóm khách hàng không được để trống'
+                ];
+            }
+
             $groupCustomerId = $data['group_customer_id'];
             $groupCustomer = GroupCustomer::find($groupCustomerId);
 
             if (!$groupCustomer) {
+                http_response_code(404);
                 return [
                     'success' => false,
-                    'error' => 'Không tìm thấy nhóm khách hàng'
+                    'error' => 'Không tìm thấy nhóm khách hàng với ID: ' . $groupCustomerId
                 ];
             }
 
@@ -211,6 +291,7 @@ class CustomerController
             ];
         } catch (\Exception $e) {
             error_log("Error in addGroupCustomerForCustomer: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
@@ -224,11 +305,21 @@ class CustomerController
         try {
             $data = json_decode(file_get_contents('php://input'), true);
 
-            $groupCustomer = (new GroupCustomer())->find($data['group_customer_id']);
-            if (!$groupCustomer) {
+            if (empty($data['group_customer_id'])) {
+                http_response_code(404);
                 return [
                     'success' => false,
-                    'error' => 'Không tìm thấy nhóm khách hàng'
+                    'error' => 'ID nhóm khách hàng không được để trống'
+                ];
+            }
+
+            $groupCustomer = (new GroupCustomer())->find($data['group_customer_id']);
+
+            if (!$groupCustomer) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy nhóm khách hàng với ID: ' . $data['group_customer_id']
                 ];
             }
 
@@ -241,6 +332,7 @@ class CustomerController
             $errors = $customer->validate($data);
 
             if ($errors) {
+                http_response_code(422);
                 return [
                     'success' => false,
                     'errors' => 'Validation failed',
@@ -278,6 +370,7 @@ class CustomerController
             ];
         } catch (\Exception $e) {
             error_log("Error in createCustomer: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
@@ -289,12 +382,21 @@ class CustomerController
     public function updateCustomerById($id): array
     {
         try {
+            if (empty($id)) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'ID khách hàng không được để trống'
+                ];
+            }
+
             $customer = (new Customer())->find($id);
 
             if (!$customer) {
+                http_response_code(404);
                 return [
                     'success' => false,
-                    'error' => 'Không tìm thấy khách hàng'
+                    'error' => 'Không tìm thấy khách hàng với ID: ' . $id
                 ];
             }
 
@@ -309,9 +411,10 @@ class CustomerController
             if (!empty($data['group_customer_id'])) {
                 $groupCustomer = (new GroupCustomer())->find($data['group_customer_id']);
                 if (!$groupCustomer) {
+                    http_response_code(404);
                     return [
                         'success' => false,
-                        'error' => 'Không tìm thấy khu vực kho'
+                        'error' => 'Không tìm thấy nhóm khách hàng với ID: ' . $data['group_customer_id']
                     ];
                 }
             }
@@ -319,6 +422,7 @@ class CustomerController
             $errors = $customer->validate($data, true);
 
             if ($errors) {
+                http_response_code(422);
                 return [
                     'success' => false,
                     'error' => 'Validation failed',
@@ -335,6 +439,7 @@ class CustomerController
             ];
         } catch (\Exception $e) {
             error_log("Error in updateCustomerById: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
@@ -346,16 +451,26 @@ class CustomerController
     public function deleteCustomer($id): array
     {
         try {
+            if (empty($id)) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'ID khách hàng không được để trống'
+                ];
+            }
+
             $customer = Customer::find($id);
 
             if (!$customer) {
+                http_response_code(404);
                 return [
                     'success' => false,
-                    'error' => 'Không tìm thấy khách hàng'
+                    'error' => 'Không tìm thấy khách hàng với ID: ' . $id
                 ];
             }
 
             if ($customer->status == 'ACTIVE') {
+                http_response_code(422);
                 return [
                     'success' => false,
                     'error' => 'Không thể xóa khách hàng đang ở trạng thái Active'
@@ -371,6 +486,7 @@ class CustomerController
             ];
         } catch (\Exception $e) {
             error_log("Error in deleteCustomer: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'success' => false,
                 'error' => 'Database error occurred',

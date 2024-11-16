@@ -55,10 +55,22 @@ class GroupCustomerController
                 $groupcustomer->where('updated_at', '<=', $updatedTo);
             }
 
-            return $this->paginateResults($groupcustomer, $perPage, $page)->toArray();
+            $results = $this->paginateResults($groupcustomer, $perPage, $page);
+
+            if ($results->isEmpty()) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy nhóm khách hàng nào',
+                    'error_code' => 'GROUP_CUSTOMERS_NOT_FOUND'
+                ];
+            }
+
+            return $results->toArray();
 
         } catch (\Exception $e) {
             error_log("Error in: " . $e->getMessage());
+            http_response_code(500);
             return [
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
@@ -66,86 +78,255 @@ class GroupCustomerController
         }
     }
 
-    public function getGroupCustomerById($id): string
+    public function getGroupCustomerById($id): array
     {
-        $groupcustomer = GroupCustomer::query()
-            ->where('deleted', false)
-            ->where('id', $id)
-            ->with(['customers'])
-            ->first();
+        try {
+            if (empty($id)) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'ID nhóm khách hàng không được để trống',
+                ];
+            }
 
-        if (!$groupcustomer) {
-            return json_encode(['error' => 'Không tìm thấy']);
+            $groupcustomer = GroupCustomer::query()
+                ->where('deleted', false)
+                ->where('id', $id)
+                ->with(['customers'])
+                ->first();
+
+            if (!$groupcustomer) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy nhóm khách hàng',
+                ];
+            }
+
+            return $groupcustomer->toArray();
+
+        } catch (\Exception $e) {
+            error_log("Error in: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
         }
-
-        return json_encode($groupcustomer->toArray());
     }
 
     public function getCustomerByGroupCustomer($id): array
     {
-        $perPage = $_GET['per_page'] ?? 10;
-        $page = $_GET['page'] ?? 1;
+        try {
+            if (empty($id)) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'ID nhóm khách hàng không được để trống',
+                ];
+            }
 
-        $groupcustomer = GroupCustomer::where('deleted', false)->findOrFail($id);
+            $perPage = (int)($_GET['per_page'] ?? 10);
+            $page = (int)($_GET['page'] ?? 1);
 
-        $customersQuery = $groupcustomer->customers()
-            ->where('deleted', false)
-            ->with('groupCustomer')
-            ->getQuery();
+            $groupcustomer = GroupCustomer::where('deleted', false)->find($id);
 
-        return $this->paginateResults($customersQuery, $perPage, $page)->toArray();
+            if (!$groupcustomer) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy nhóm khách hàng',
+                ];
+            }
+
+            $customersQuery = $groupcustomer->customers()
+                ->where('deleted', false)
+                ->with('groupCustomer')
+                ->getQuery();
+
+            $results = $this->paginateResults($customersQuery, $perPage, $page);
+
+            if ($results->isEmpty()) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy khách hàng nào trong nhóm này',
+                ];
+            }
+
+            return $results->toArray();
+
+        } catch (\Exception $e) {
+            error_log("Error in: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
     }
 
-    public function createGroupCustomer(): Model|string
+    public function createGroupCustomer(): array
     {
-        $data = json_decode(file_get_contents('php://input'), true);
-        $groupcustomer = new GroupCustomer();
-        $error = $groupcustomer->validate($data);
-        if ($error != "") {
-            http_response_code(404);
-            error_log($error);
-            return json_encode(["error" => $error]);
-        }
-        $groupcustomer->fill($data);
-        $groupcustomer->save();
-        return $groupcustomer;
-    }
+        try {
+            $data = json_decode(file_get_contents('php://input'), true);
 
-    public function updateGroupCustomerById($id): bool|int|string
-    {
-        $groupcustomer = GroupCustomer::find($id);
+            if (empty($data)) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'Dữ liệu đầu vào không hợp lệ',
+                ];
+            }
 
-        if (!$groupcustomer) {
-            http_response_code(404);
-            return json_encode(["error" => "Provider not found"]);
-        }
+            $groupcustomer = new GroupCustomer();
+            $errors = $groupcustomer->validate($data);
 
-        $data = json_decode(file_get_contents('php://input'), true);
-        $error = $groupcustomer->validate($data, true);
+            if ($errors) {
+                http_response_code(422);
+                return [
+                    'success' => false,
+                    'error' => 'Validation failed',
+                    'details' => $errors
+                ];
+            }
 
-        if ($error != "") {
-            http_response_code(404);
-            error_log($error);
-            return json_encode(["error" => $error]);
-        }
-
-        $groupcustomer->fill($data);
-        $groupcustomer->save();
-
-        return $groupcustomer;
-    }
-
-    public function deleteGroupCustomer($id): string
-    {
-        $groupcustomer = GroupCustomer::find($id);
-
-        if ($groupcustomer) {
-            $groupcustomer->status = 'DISABLE';
+            $groupcustomer->fill($data);
             $groupcustomer->save();
-            return "Xóa thành công";
-        } else {
-            http_response_code(404);
-            return "Không tìm thấy";
+
+            return [
+                'success' => true,
+                'message' => 'Tạo nhóm khách hàng thành công',
+                'data' => $groupcustomer->toArray()
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function updateGroupCustomerById($id): array
+    {
+        try {
+            if (empty($id)) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'ID nhóm khách hàng không được để trống',
+                ];
+            }
+
+            $groupcustomer = GroupCustomer::where('deleted', false)->find($id);
+
+            if (!$groupcustomer) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy nhóm khách hàng',
+                ];
+            }
+
+            $data = json_decode(file_get_contents('php://input'), true);
+
+            if (empty($data)) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'Dữ liệu cập nhật không hợp lệ',
+                ];
+            }
+
+            $errors = $groupcustomer->validate($data, true);
+
+            if ($errors) {
+                http_response_code(422);
+                return [
+                    'success' => false,
+                    'error' => 'Validation failed',
+                    'details' => $errors
+                ];
+            }
+
+            $groupcustomer->fill($data);
+            $groupcustomer->save();
+
+            return [
+                'success' => true,
+                'message' => 'Cập nhật nhóm khách hàng thành công',
+                'data' => $groupcustomer->toArray()
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function deleteGroupCustomer($id): array
+    {
+        try {
+            if (empty($id)) {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'ID nhóm khách hàng không được để trống',
+                    'error_code' => 'EMPTY_GROUP_CUSTOMER_ID'
+                ];
+            }
+
+            $groupcustomer = GroupCustomer::where('deleted', false)->find($id);
+
+            if (!$groupcustomer) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy nhóm khách hàng',
+                    'error_code' => 'GROUP_CUSTOMER_NOT_FOUND'
+                ];
+            }
+
+            // Check if group has active customers
+            if ($groupcustomer->customers()->where('deleted', false)->exists()) {
+                http_response_code(422);
+                return [
+                    'success' => false,
+                    'error' => 'Không thể xóa nhóm đang có khách hàng',
+                    'error_code' => 'GROUP_HAS_ACTIVE_CUSTOMERS'
+                ];
+            }
+
+            $groupcustomer->status = 'DISABLE';
+            $groupcustomer->deleted = true;
+            $groupcustomer->save();
+
+            http_response_code(200);
+            return [
+                'success' => true,
+                'message' => 'Xóa nhóm khách hàng thành công'
+            ];
+
+        } catch (\Exception $e) {
+            error_log("Error in: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'error_code' => 'DATABASE_ERROR',
+                'details' => $e->getMessage()
+            ];
         }
     }
 }
