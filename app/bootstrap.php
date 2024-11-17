@@ -153,10 +153,10 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
 
             $router->get('/{id}/product_export_receipt_details', ['App\Controllers\ProductController', 'getProductExportReceiptDetailsByProduct']);
 
-            $router->put('/{id}/product_storage_locations/{locationId}', ['App\Controllers\ProductController', 'updateProductStorageLocationByProduct']);
-            $router->get('/{id}/product_storage_locations', ['App\Controllers\ProductController', 'getProductStorageLocationByProduct']);
-            $router->post('/{id}/product_storage_locations', ['App\Controllers\ProductController', 'addStorageLocationToProduct']);
-            $router->delete('/{id}/product_storage_locations/{locationId}', ['App\Controllers\ProductController', 'deleteStorageLocationFromProduct']);
+            $router->put('/{id}/product_storage_history/{locationId}', ['App\Controllers\ProductController', 'updateProductStorageHistoryByProduct']);
+            $router->delete('/{id}/product_storage_history/{locationId}', ['App\Controllers\ProductController', 'deleteStorageHistoryFromProduct']);
+            $router->get('/{id}/product_storage_history', ['App\Controllers\ProductController', 'getProductStorageHistoryByProduct']);
+            $router->post('/{id}/product_storage_history', ['App\Controllers\ProductController', 'addStorageHistoryToProduct']);
 
             $router->get('/{id}/inventory_check_details', ['App\Controllers\ProductController', 'getInventoryCheckDetailsByProduct']);
 
@@ -192,14 +192,14 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
             $router->get('/', ['App\Controllers\ProductPriceController', 'getProductPrices']);
         });
 
-        $router->group(array('prefix' => '/v1/product_storage_locations'), function (RouteCollector $router) {
-            $router->get('/{id}/storage_areas', ['App\Controllers\ProductStorageLocationController', 'getStorageAreasByProductStorageLocation']);
-            $router->get('/{id}/products', ['App\Controllers\ProductStorageLocationController', 'getProductsByProductStorageLocation']);
-            $router->put('/{id}', ['App\Controllers\ProductStorageLocationController', 'updateProductStorageLocationById']);
-            $router->delete('/{id}', ['App\Controllers\ProductStorageLocationController', 'deleteProductStorageLocation']);
-            $router->post('/', ['App\Controllers\ProductStorageLocationController', 'createProductStorageLocation']);
-            $router->get('/{id}', ['App\Controllers\ProductStorageLocationController', 'getProductStorageLocationById']);
-            $router->get('/', ['App\Controllers\ProductStorageLocationController', 'getProductStorageLocations']);
+        $router->group(array('prefix' => '/v1/product_storage_history'), function (RouteCollector $router) {
+            $router->get('/{id}/storage_areas', ['App\Controllers\ProductStorageHistoryController', 'getStorageAreasByProductStorageHistory']);
+            $router->get('/{id}/products', ['App\Controllers\ProductStorageHistoryController', 'getProductsByProductStorageHistory']);
+            $router->put('/{id}', ['App\Controllers\ProductStorageHistoryController', 'updateProductStorageHistoryById']);
+            $router->delete('/{id}', ['App\Controllers\ProductStorageHistoryController', 'deleteProductStorageHistory']);
+            $router->post('/', ['App\Controllers\ProductStorageHistoryController', 'createProductStorageHistory']);
+            $router->get('/{id}', ['App\Controllers\ProductStorageHistoryController', 'getProductStorageHistoryById']);
+            $router->get('/', ['App\Controllers\ProductStorageHistoryController', 'getProductStorageHistory']);
         });
 
         $router->group(array('prefix' => '/v1/categories'), function (RouteCollector $router) {
@@ -247,7 +247,7 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
         $router->group(array('prefix' => '/v1/materials'), function (RouteCollector $router) {
             $router->get('/count', ['App\Controllers\MaterialController', 'countMaterials']);
 
-            $router->get('/{id}/material_storage_locations', ['App\Controllers\MaterialController', 'getMaterialStorageLocationsByMaterial']);
+            $router->get('/{id}/material_storage_history', ['App\Controllers\MaterialController', 'getMaterialStorageHistoryByMaterial']);
             $router->get('/{id}/inventory_check_details', ['App\Controllers\MaterialController', 'getInventoryCheckDetailsByMaterial']);
             $router->get('/{id}/export_receipt_details', ['App\Controllers\MaterialController', 'getExportReceiptDetailsByMaterial']);
             $router->get('/{id}/import_receipt_details', ['App\Controllers\MaterialController', 'getImportReceiptDetailsByMaterial']);
@@ -270,15 +270,15 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
             $router->get('/', ['App\Controllers\MaterialController', 'getMaterials']);
         });
 
-        $router->group(array('prefix' => '/v1/material_storage_locations'), function (RouteCollector $router) {
-            $router->get('/{id}/storage_areas', ['App\Controllers\MaterialStorageLocationController', 'getStorageAreaByMaterialStorageLocation']);
-            $router->get('/{id}/providers', ['App\Controllers\MaterialStorageLocationController', 'getProvidersByMaterialStorageLocation']);
-            $router->get('/{id}/materials', ['App\Controllers\MaterialStorageLocationController', 'getMaterialByMaterialStorageLocation']);
-            $router->put('/{id}', ['App\Controllers\MaterialStorageLocationController', 'updateMaterialStorageLocationById']);
-            $router->delete('/{id}', ['App\Controllers\MaterialStorageLocationController', 'deleteMaterialStorageLocation']);
-            $router->get('/{id}', ['App\Controllers\MaterialStorageLocationController', 'getMaterialStorageLocationById']);
-            $router->post('/', ['App\Controllers\MaterialStorageLocationController', 'createMaterialStorageLocation']);
-            $router->get('/', ['App\Controllers\MaterialStorageLocationController', 'getMaterialStorageLocations']);
+        $router->group(array('prefix' => '/v1/material_storage_history'), function (RouteCollector $router) {
+            $router->get('/{id}/storage_areas', ['App\Controllers\MaterialStorageHistoryController', 'getStorageAreaByMaterialStorageHistory']);
+            $router->get('/{id}/providers', ['App\Controllers\MaterialStorageHistoryController', 'getProvidersByMaterialStorageHistory']);
+            $router->get('/{id}/materials', ['App\Controllers\MaterialStorageHistoryController', 'getMaterialByMaterialStorageHistory']);
+            $router->put('/{id}', ['App\Controllers\MaterialStorageHistoryController', 'updateMaterialStorageHistoryById']);
+            $router->delete('/{id}', ['App\Controllers\MaterialStorageHistoryController', 'deleteMaterialStorageHistory']);
+            $router->get('/{id}', ['App\Controllers\MaterialStorageHistoryController', 'getMaterialStorageHistoryById']);
+            $router->post('/', ['App\Controllers\MaterialStorageHistoryController', 'createMaterialStorageHistory']);
+            $router->get('/', ['App\Controllers\MaterialStorageHistoryController', 'getMaterialStorageHistory']);
         });
 
         $router->group(array('prefix' => '/v1/providers'), function (RouteCollector $router) {
@@ -341,8 +341,8 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
         $router->group(array('prefix' => '/v1/storage_areas'), function (RouteCollector $router) {
             $router->get('/content', ['App\Controllers\StorageAreaController', 'getStorageContents']);
 
-            $router->get('/{id}/material_storage_locations', ['App\Controllers\StorageAreaController', 'getMaterialStorageLocationsByStorageArea']);
-            $router->get('/{id}/product_storage_locations', ['App\Controllers\StorageAreaController', 'getProductStorageLocationsByStorageArea']);
+            $router->get('/{id}/material_storage_history', ['App\Controllers\StorageAreaController', 'getProductStorageHistoryByStorageArea']);
+            $router->get('/{id}/product_storage_history', ['App\Controllers\StorageAreaController', 'getMaterialStorageHistoryByStorageArea']);
             $router->get('/{id}/inventory_history', ['App\Controllers\StorageAreaController', 'getInventoryHistoryByStorageArea']);
             $router->post('/{id}/inventory_checks', ['App\Controllers\StorageAreaController', 'addInventoryCheckToStorageArea']);
             $router->get('/{id}/inventory_checks', ['App\Controllers\StorageAreaController', 'getInventoryChecksByStorageArea']);

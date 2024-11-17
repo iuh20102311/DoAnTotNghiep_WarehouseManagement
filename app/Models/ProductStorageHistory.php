@@ -7,11 +7,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class ProductStorageLocation extends Model
+class ProductStorageHistory extends Model
 {
     use HasFactory;
 
-    protected $table = 'product_storage_locations';
+    protected $table = 'product_storage_history';
     protected $fillable = ['product_id', 'storage_area_id', 'quantity', 'created_at', 'updated_at', 'deleted'];
     protected $primaryKey = 'id';
     public $timestamps = true;

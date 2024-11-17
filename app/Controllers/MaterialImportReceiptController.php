@@ -4,7 +4,7 @@ namespace App\Controllers;
 
 use App\Models\Material;
 use App\Models\MaterialImportReceipt;
-use App\Models\MaterialStorageLocation;
+use App\Models\MaterialStorageHistory;
 use App\Models\Provider;
 use App\Models\User;
 use App\Utils\PaginationTrait;
@@ -454,7 +454,7 @@ class MaterialImportReceiptController
                 throw new \Exception('material_storage_location_id là bắt buộc');
             }
 
-            $storageLocationExists = MaterialStorageLocation::where('id', $data['material_storage_location_id'])->exists();
+            $storageLocationExists = MaterialStorageHistory::where('id', $data['material_storage_location_id'])->exists();
             if (!$storageLocationExists) {
                 throw new \Exception('Vị trí lưu trữ không tồn tại');
             }
@@ -559,7 +559,7 @@ class MaterialImportReceiptController
                 ]);
 
                 // Cập nhật số lượng trong material storage location
-                $materialStorageLocation = MaterialStorageLocation::find($data['material_storage_location_id']);
+                $materialStorageLocation = MaterialStorageHistory::find($data['material_storage_location_id']);
                 $materialStorageLocation->quantity += $quantity;
                 $materialStorageLocation->save();
 

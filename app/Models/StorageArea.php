@@ -16,14 +16,14 @@ class StorageArea extends Model
     protected $primaryKey = 'id';
     public $timestamps = true;
 
-    public function productStorageLocations(): HasMany
+    public function productStorageHistories(): HasMany
     {
-        return $this->hasMany(ProductStorageLocation::class);
+        return $this->hasMany(ProductStorageHistory::class);
     }
 
-    public function materialStorageLocations(): HasMany
+    public function materialStorageHistories(): HasMany
     {
-        return $this->hasMany(MaterialStorageLocation::class);
+        return $this->hasMany(MaterialStorageHistory::class);
     }
 
     public function inventoryChecks(): HasMany

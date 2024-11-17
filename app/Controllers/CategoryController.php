@@ -575,7 +575,7 @@ class CategoryController
             }
 
             $productsQuery = $category->products()
-                ->with(['categories', 'prices', 'storageLocations'])
+                ->with(['categories', 'prices', 'storageHistories'])
                 ->getQuery();
 
             return $this->paginateResults($productsQuery, $perPage, $page)->toArray();

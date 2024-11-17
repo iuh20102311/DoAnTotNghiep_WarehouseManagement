@@ -166,7 +166,7 @@ class ProductController
 
             if (isset($_GET['storage_area_id'])) {
                 $storage_area_id = urldecode($_GET['storage_area_id']);
-                $product->whereHas('storageLocations', function ($query) use ($storage_area_id) {
+                $product->whereHas('storageHistories', function ($query) use ($storage_area_id) {
                     $query->where('storage_area_id', $storage_area_id);
                 });
             }
@@ -921,7 +921,7 @@ class ProductController
         }
     }
 
-    public function getProductStorageLocationByProduct($id): array
+    public function getProductStorageHistoryByProduct($id): array
     {
         try {
             $perPage = (int)($_GET['per_page'] ?? 10);
@@ -937,14 +937,14 @@ class ProductController
                 ];
             }
 
-            $storageLocationsQuery = $product->storageLocations()
+            $storageHistoryQuery = $product->storageHistories()
                 ->with(['product', 'storageArea'])
                 ->getQuery();
 
-            return $this->paginateResults($storageLocationsQuery, $perPage, $page)->toArray();
+            return $this->paginateResults($storageHistoryQuery, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
-            error_log("Error in getProductStorageLocationByProduct: " . $e->getMessage());
+            error_log("Error in getProductStorageHistoryByProduct: " . $e->getMessage());
             return [
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
@@ -952,7 +952,7 @@ class ProductController
         }
     }
 
-    public function addStorageLocationToProduct($id): array
+    public function addStorageHistoryToProduct($id): array
     {
         try {
             $data = json_decode(file_get_contents('php://input'), true);
@@ -976,7 +976,7 @@ class ProductController
             }
 
             // Kiểm tra xem đã có location này chưa
-            $exists = $product->storageLocations()
+            $exists = $product->storageHistories()
                 ->where('storage_area_id', $data['storage_area_id'])
                 ->exists();
 
@@ -987,7 +987,7 @@ class ProductController
                 ];
             }
 
-            $product->storageLocations()->create([
+            $product->storageHistories()->create([
                 'storage_area_id' => $data['storage_area_id'],
                 'quantity' => $data['quantity'],
                 'note' => $data['note'] ?? null
@@ -995,11 +995,11 @@ class ProductController
 
             return [
                 'success' => true,
-                'data' => $product->fresh()->load(['storageLocations.storageArea'])->toArray()
+                'data' => $product->fresh()->load(['storageHistories.storageArea'])->toArray()
             ];
 
         } catch (\Exception $e) {
-            error_log("Error in addStorageLocationToProduct: " . $e->getMessage());
+            error_log("Error in addStorageHistoryToProduct: " . $e->getMessage());
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
@@ -1008,7 +1008,7 @@ class ProductController
         }
     }
 
-    public function updateProductStorageLocationByProduct($id, $locationId): array
+    public function updateProductStorageHistoryByProduct($id, $locationId): array
     {
         try {
             $product = Product::query()
@@ -1022,7 +1022,7 @@ class ProductController
                 ];
             }
 
-            $location = $product->storageLocations()->find($locationId);
+            $location = $product->storageHistories()->find($locationId);
             if (!$location) {
                 return [
                     'success' => false,
@@ -1043,11 +1043,11 @@ class ProductController
 
             return [
                 'success' => true,
-                'data' => $product->fresh()->load(['storageLocations.storageArea'])->toArray()
+                'data' => $product->fresh()->load(['storageHistories.storageArea'])->toArray()
             ];
 
         } catch (\Exception $e) {
-            error_log("Error in updateProductStorageLocationByProduct: " . $e->getMessage());
+            error_log("Error in updateProductStorageHistoryByProduct: " . $e->getMessage());
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
@@ -1056,7 +1056,7 @@ class ProductController
         }
     }
 
-    public function deleteStorageLocationFromProduct($id, $locationId): array
+    public function deleteStorageHistoryFromProduct($id, $locationId): array
     {
         try {
             $product = Product::query()
@@ -1070,7 +1070,7 @@ class ProductController
                 ];
             }
 
-            $location = $product->storageLocations()->find($locationId);
+            $location = $product->storageHistories()->find($locationId);
             if (!$location) {
                 return [
                     'success' => false,
@@ -1086,7 +1086,7 @@ class ProductController
             ];
 
         } catch (\Exception $e) {
-            error_log("Error in deleteStorageLocationFromProduct: " . $e->getMessage());
+            error_log("Error in deleteStorageHistoryFromProduct: " . $e->getMessage());
             return [
                 'success' => false,
                 'error' => 'Database error occurred',

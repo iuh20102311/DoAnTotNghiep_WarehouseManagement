@@ -31,9 +31,9 @@ class Product extends Model
         return $this->hasMany(ProductPrice::class);
     }
 
-    public function storageLocations(): HasMany
+    public function storageHistories(): HasMany
     {
-        return $this->hasMany(ProductStorageLocation::class);
+        return $this->hasMany(ProductStorageHistory::class);
     }
 
     public function orderDetails(): HasMany

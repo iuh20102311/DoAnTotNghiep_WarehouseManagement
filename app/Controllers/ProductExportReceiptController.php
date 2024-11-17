@@ -5,7 +5,7 @@ namespace App\Controllers;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductExportReceipt;
-use App\Models\ProductStorageLocation;
+use App\Models\ProductStorageHistory;
 use App\Utils\PaginationTrait;
 use Lcobucci\JWT\Encoding\JoseEncoder;
 use Lcobucci\JWT\Token\Parser;
@@ -327,7 +327,7 @@ class ProductExportReceiptController
                     }
 
                     // Kiểm tra location
-                    $location = ProductStorageLocation::where('id', $product['product_storage_location_id'])
+                    $location = ProductStorageHistory::where('id', $product['product_storage_location_id'])
                         ->where('product_id', $product['product_id'])
                         ->where('deleted', false)
                         ->first();
@@ -364,7 +364,7 @@ class ProductExportReceiptController
                     throw new \Exception('product_id, quantity và product_storage_location_id là bắt buộc cho mỗi sản phẩm');
                 }
 
-                $productLocation = ProductStorageLocation::where('id', $product['product_storage_location_id'])
+                $productLocation = ProductStorageHistory::where('id', $product['product_storage_location_id'])
                     ->where('product_id', $product['product_id'])
                     ->where('deleted', false)
                     ->first();
@@ -418,7 +418,7 @@ class ProductExportReceiptController
 
             // Create details and update quantities
             foreach ($data['products'] as $product) {
-                $productLocation = ProductStorageLocation::find($product['product_storage_location_id']);
+                $productLocation = ProductStorageHistory::find($product['product_storage_location_id']);
 
                 // Create export detail
                 $productExportReceipt->details()->create([

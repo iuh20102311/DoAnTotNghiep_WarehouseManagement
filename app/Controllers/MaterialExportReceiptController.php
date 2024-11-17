@@ -6,7 +6,7 @@ use App\Models\Material;
 use App\Models\MaterialExportReceipt;
 use App\Models\MaterialImportReceipt;
 use App\Models\MaterialImportReceiptDetail;
-use App\Models\MaterialStorageLocation;
+use App\Models\MaterialStorageHistory;
 use App\Utils\PaginationTrait;
 use Lcobucci\JWT\Encoding\JoseEncoder;
 use Lcobucci\JWT\Token\Parser;
@@ -307,7 +307,7 @@ class MaterialExportReceiptController
                 throw new \Exception('material_storage_location_id là bắt buộc');
             }
 
-            $materialStorageLocation = MaterialStorageLocation::where('id', $data['material_storage_location_id'])
+            $materialStorageLocation = MaterialStorageHistory::where('id', $data['material_storage_location_id'])
                 ->where('deleted', false)
                 ->first();
 
@@ -335,7 +335,7 @@ class MaterialExportReceiptController
                 }
 
                 // Kiểm tra số lượng trong kho
-                $currentLocation = MaterialStorageLocation::find($data['material_storage_location_id']);
+                $currentLocation = MaterialStorageHistory::find($data['material_storage_location_id']);
                 if ($currentLocation->quantity < $material['quantity']) {
                     $missingMaterials[] = "{$materialModel->name} không đủ số lượng trong kho. Có sẵn: {$currentLocation->quantity}, Yêu cầu: {$material['quantity']}";
                 }
@@ -399,7 +399,7 @@ class MaterialExportReceiptController
                 ]);
 
                 // Cập nhật số lượng trong kho
-                $materialStorageLocation = MaterialStorageLocation::find($data['material_storage_location_id']);
+                $materialStorageLocation = MaterialStorageHistory::find($data['material_storage_location_id']);
                 $materialStorageLocation->quantity -= $material['quantity'];
                 $materialStorageLocation->save();
 

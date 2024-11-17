@@ -18,7 +18,7 @@ class StorageAreaController
 
             $storage = StorageArea::query()
                 ->where('deleted', false)
-                ->with(['productStorageLocations', 'materialStorageLocations', 'inventoryChecks', 'inventoryHistory'])
+                ->with(['productStorageHistories', 'materialStorageHistories', 'inventoryChecks', 'inventoryHistory'])
                 ->orderByRaw("CASE 
                 WHEN status = 'ACTIVE' THEN 1 
                 ELSE 2 
@@ -68,7 +68,7 @@ class StorageAreaController
             $storage = StorageArea::query()
                 ->where('code', $code)
                 ->where('deleted', false)
-                ->with(['productStorageLocations', 'materialStorageLocations', 'inventoryChecks', 'inventoryHistory'])
+                ->with(['productStorageHistories', 'materialStorageHistories', 'inventoryChecks', 'inventoryHistory'])
                 ->first();
 
             if (!$storage) {
@@ -217,8 +217,8 @@ class StorageAreaController
             }
 
             // Kiểm tra xem có sản phẩm hoặc vật liệu trong kho không
-            if ($storage->productStorageLocations()->where('deleted', false)->exists() ||
-                $storage->materialStorageLocations()->where('deleted', false)->exists()) {
+            if ($storage->productStorageHistories()->where('deleted', false)->exists() ||
+                $storage->materialStorageHistories()->where('deleted', false)->exists()) {
                 http_response_code(400);
                 return [
                     'success' => false,
@@ -245,7 +245,7 @@ class StorageAreaController
         }
     }
 
-    public function getProductStorageLocationsByStorageArea($id): array
+    public function getProductStorageHistoryByStorageArea($id): array
     {
         try {
             $perPage = (int)($_GET['per_page'] ?? 10);
@@ -260,7 +260,7 @@ class StorageAreaController
                 ];
             }
 
-            $query = $storage->productStorageLocations()
+            $query = $storage->productStorageHistories()
                 ->where('deleted', false)
                 ->with(['product'])
                 ->getQuery();
@@ -278,7 +278,7 @@ class StorageAreaController
             return $this->paginateResults($query, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
-            error_log("Error in getProductStorageLocationsByStorageArea: " . $e->getMessage());
+            error_log("Error in getProductStorageHistoryByStorageArea: " . $e->getMessage());
             http_response_code(500);
             return [
                 'error' => 'Database error occurred',
@@ -287,7 +287,7 @@ class StorageAreaController
         }
     }
 
-    public function getMaterialStorageLocationsByStorageArea($id): array
+    public function getMaterialStorageHistoryByStorageArea($id): array
     {
         try {
             $perPage = (int)($_GET['per_page'] ?? 10);
@@ -302,7 +302,7 @@ class StorageAreaController
                 ];
             }
 
-            $query = $storage->materialStorageLocations()
+            $query = $storage->materialStorageHistories()
                 ->where('deleted', false)
                 ->with(['material', 'provider'])
                 ->getQuery();
@@ -320,7 +320,7 @@ class StorageAreaController
             return $this->paginateResults($query, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
-            error_log("Error in getMaterialStorageLocationsByStorageArea: " . $e->getMessage());
+            error_log("Error in getMaterialStorageHistoryByStorageArea: " . $e->getMessage());
             http_response_code(500);
             return [
                 'error' => 'Database error occurred',
@@ -471,8 +471,8 @@ class StorageAreaController
             $storages = StorageArea::query()
                 ->where('deleted', false)
                 ->with([
-                    'productStorageLocations.product:id,name,sku',
-                    'materialStorageLocations.material:id,name,sku'
+                    'productStorageHistories.product:id,name,sku',
+                    'materialStorageHistories.material:id,name,sku'
                 ])
                 ->get();
 
