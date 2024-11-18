@@ -30,4 +30,5 @@ class MaterialImportReceiptDetail extends Model
     {
         return $this->belongsTo(StorageArea::class, 'storage_area_id');
     }
+
 }

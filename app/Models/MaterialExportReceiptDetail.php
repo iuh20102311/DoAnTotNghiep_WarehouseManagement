@@ -30,4 +30,11 @@ class MaterialExportReceiptDetail extends Model
     {
         return $this->belongsTo(StorageArea::class, 'storage_area_id');
     }
+
+    public function materialStorageHistory()
+    {
+        return $this->belongsTo(MaterialStorageHistory::class, 'storage_area_id', 'storage_area_id')
+            ->where('material_id', $this->material_id)
+            ->where('expiry_date', $this->expiry_date);
+    }
 }

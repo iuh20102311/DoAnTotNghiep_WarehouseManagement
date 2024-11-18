@@ -12,7 +12,7 @@ class ProductStorageHistory extends Model
     use HasFactory;
 
     protected $table = 'product_storage_history';
-    protected $fillable = ['product_id', 'storage_area_id', 'quantity', 'created_at', 'updated_at', 'deleted'];
+    protected $fillable = ['product_id', 'storage_area_id', 'quantity', 'expiry_date', 'created_at', 'updated_at', 'deleted'];
     protected $primaryKey = 'id';
     public $timestamps = true;
 
