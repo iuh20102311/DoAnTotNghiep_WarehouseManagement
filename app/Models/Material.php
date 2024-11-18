@@ -27,9 +27,9 @@ class Material extends Model
         return $this->belongsToMany(Provider::class, 'provider_materials');
     }
 
-    public function storageLocations(): HasMany
+    public function storageHistories(): HasMany
     {
-        return $this->hasMany(MaterialStorageLocation::class);
+        return $this->hasMany(MaterialStorageHistory::class);
     }
 
     public function exportReceiptDetails(): HasMany

@@ -220,7 +220,7 @@ class InventoryCheckDetailController
             return $detail->product()->with([
                 'categories',
                 'prices',
-                'storageLocations'
+                'storageHistories'
             ])->get()->toArray();
 
         } catch (\Exception $e) {
@@ -248,7 +248,7 @@ class InventoryCheckDetailController
 
             return $detail->material()->with([
                 'providers',
-                'storageLocations'
+                'storageHistories'
             ])->get()->toArray();
 
         } catch (\Exception $e) {

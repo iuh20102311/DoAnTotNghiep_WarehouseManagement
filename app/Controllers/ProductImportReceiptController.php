@@ -5,7 +5,7 @@ namespace App\Controllers;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductImportReceipt;
-use App\Models\ProductStorageLocation;
+use App\Models\ProductStorageHistory;
 use App\Models\User;
 use App\Utils\PaginationTrait;
 use Lcobucci\JWT\Encoding\JoseEncoder;
@@ -328,7 +328,7 @@ class ProductImportReceiptController
             $createdById = $parsedToken->claims()->get('id');
 
             // Validate storage location
-            $storageLocationExists = ProductStorageLocation::where('id', $data['product_storage_location_id'])
+            $storageLocationExists = ProductStorageHistory::where('id', $data['product_storage_location_id'])
                 ->exists();
             if (!$storageLocationExists) {
                 throw new \Exception('Vị trí lưu trữ không tồn tại');
@@ -485,7 +485,7 @@ class ProductImportReceiptController
                 ]);
 
                 // Cập nhật số lượng trong kho
-                $productStorageLocation = ProductStorageLocation::find($data['product_storage_location_id']);
+                $productStorageLocation = ProductStorageHistory::find($data['product_storage_location_id']);
                 $productStorageLocation->quantity += $quantity;
                 $productStorageLocation->save();
 

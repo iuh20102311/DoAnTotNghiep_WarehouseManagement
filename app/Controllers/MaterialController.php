@@ -360,7 +360,7 @@ class MaterialController
     public function deleteMaterial($id): array
     {
         try {
-            $material = Material::where('deleted', false)->where('deleted', false)->find($id);
+            $material = Material::where('deleted', false)->find($id);
 
             if (!$material) {
                 http_response_code(404);
@@ -403,7 +403,7 @@ class MaterialController
             $perPage = (int)($_GET['per_page'] ?? 10);
             $page = (int)($_GET['page'] ?? 1);
 
-            $material = Material::where('deleted', false)->where('deleted', false)->find($id);
+            $material = Material::where('deleted', false)->find($id);
 
             if (!$material) {
                 http_response_code(404);
@@ -413,7 +413,6 @@ class MaterialController
             }
 
             $providersQuery = $material->providers()
-                ->where('deleted', false)
                 ->with('materials')
                 ->getQuery();
 
@@ -610,7 +609,7 @@ class MaterialController
             $perPage = (int)($_GET['per_page'] ?? 10);
             $page = (int)($_GET['page'] ?? 1);
 
-            $material = Material::where('deleted', false)->where('deleted', false)->find($id);
+            $material = Material::where('deleted', false)->find($id);
 
             if (!$material) {
                 http_response_code(404);
@@ -620,7 +619,6 @@ class MaterialController
             }
 
             $categoriesQuery = $material->categories()
-                ->where('deleted', false)
                 ->with('materials')
                 ->getQuery();
 
@@ -638,7 +636,7 @@ class MaterialController
     public function addCategoryToMaterial($id): array
     {
         try {
-            $material = Material::where('deleted', false)->where('deleted', false)->find($id);
+            $material = Material::where('deleted', false)->find($id);
 
             if (!$material) {
                 http_response_code(404);
@@ -818,7 +816,7 @@ class MaterialController
             $perPage = (int)($_GET['per_page'] ?? 10);
             $page = (int)($_GET['page'] ?? 1);
 
-            $material = Material::where('deleted', false)->where('deleted', false)->find($id);
+            $material = Material::where('deleted', false)->find($id);
 
             if (!$material) {
                 http_response_code(404);
@@ -848,7 +846,7 @@ class MaterialController
             $perPage = (int)($_GET['per_page'] ?? 10);
             $page = (int)($_GET['page'] ?? 1);
 
-            $material = Material::where('deleted', false)->where('deleted', false)->find($id);
+            $material = Material::where('deleted', false)->find($id);
 
             if (!$material) {
                 http_response_code(404);
@@ -872,7 +870,7 @@ class MaterialController
         }
     }
 
-    public function getMaterialStorageLocationsByMaterial($id): array
+    public function getMaterialStorageHistoryByMaterial($id): array
     {
         try {
             $perPage = (int)($_GET['per_page'] ?? 10);
@@ -887,14 +885,14 @@ class MaterialController
                 ];
             }
 
-            $materialStorageLocationsQuery = $material->storageLocations()
+            $materialStorageHistoryQuery = $material->storageHistories()
                 ->with(['material', 'storageArea', 'provider'])
                 ->getQuery();
 
-            return $this->paginateResults($materialStorageLocationsQuery, $perPage, $page)->toArray();
+            return $this->paginateResults($materialStorageHistoryQuery, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
-            error_log("Error in getMaterialStorageLocationsByMaterial: " . $e->getMessage());
+            error_log("Error in getMaterialStorageHistoryByMaterial: " . $e->getMessage());
             return [
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
@@ -908,7 +906,7 @@ class MaterialController
             $perPage = (int)($_GET['per_page'] ?? 10);
             $page = (int)($_GET['page'] ?? 1);
 
-            $material = Material::where('deleted', false)->where('deleted', false)->find($id);
+            $material = Material::where('deleted', false)->find($id);
 
             if (!$material) {
                 http_response_code(404);
@@ -939,7 +937,7 @@ class MaterialController
             $perPage = (int)($_GET['per_page'] ?? 10);
             $page = (int)($_GET['page'] ?? 1);
 
-            $material = Material::where('deleted', false)->where('deleted', false)->find($id);
+            $material = Material::where('deleted', false)->find($id);
 
             if (!$material) {
                 http_response_code(404);

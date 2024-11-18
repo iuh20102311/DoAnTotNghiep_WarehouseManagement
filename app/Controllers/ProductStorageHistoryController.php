@@ -2,73 +2,73 @@
 
 namespace App\Controllers;
 
-use App\Models\ProductStorageLocation;
+use App\Models\ProductStorageHistory;
 use App\Utils\PaginationTrait;
 
-class ProductStorageLocationController
+class ProductStorageHistoryController
 {
     use PaginationTrait;
 
-    public function getProductStorageLocations(): array
+    public function getProductStorageHistory(): array
     {
         try {
             $perPage = (int)($_GET['per_page'] ?? 10);
             $page = (int)($_GET['page'] ?? 1);
 
-            $productStorageLocation = ProductStorageLocation::query()
+            $productStorageHistory = ProductStorageHistory::query()
                 ->where('deleted', false)
                 ->with(['product', 'storageArea'])
                 ->orderBy('created_at', 'desc');
 
             if (isset($_GET['product_id'])) {
                 $productId = urldecode($_GET['product_id']);
-                $productStorageLocation->where('product_id', $productId);
+                $productStorageHistory->where('product_id', $productId);
             }
 
             if (isset($_GET['storage_area_id'])) {
                 $storageAreaId = urldecode($_GET['storage_area_id']);
-                $productStorageLocation->where('storage_area_id', $storageAreaId);
+                $productStorageHistory->where('storage_area_id', $storageAreaId);
             }
 
             if (isset($_GET['quantity'])) {
                 $quantity = urldecode($_GET['quantity']);
-                $productStorageLocation->where('quantity', $quantity);
+                $productStorageHistory->where('quantity', $quantity);
             }
 
             if (isset($_GET['quantity_min'])) {
                 $quantityMin = urldecode($_GET['quantity_min']);
-                $productStorageLocation->where('quantity', '>=', $quantityMin);
+                $productStorageHistory->where('quantity', '>=', $quantityMin);
             }
 
             if (isset($_GET['quantity_max'])) {
                 $quantityMax = urldecode($_GET['quantity_max']);
-                $productStorageLocation->where('quantity', '<=', $quantityMax);
+                $productStorageHistory->where('quantity', '<=', $quantityMax);
             }
 
             if (isset($_GET['created_from'])) {
                 $createdFrom = urldecode($_GET['created_from']);
-                $productStorageLocation->where('created_at', '>=', $createdFrom);
+                $productStorageHistory->where('created_at', '>=', $createdFrom);
             }
 
             if (isset($_GET['created_to'])) {
                 $createdTo = urldecode($_GET['created_to']);
-                $productStorageLocation->where('created_at', '<=', $createdTo);
+                $productStorageHistory->where('created_at', '<=', $createdTo);
             }
 
             if (isset($_GET['updated_from'])) {
                 $updatedFrom = urldecode($_GET['updated_from']);
-                $productStorageLocation->where('updated_at', '>=', $updatedFrom);
+                $productStorageHistory->where('updated_at', '>=', $updatedFrom);
             }
 
             if (isset($_GET['updated_to'])) {
                 $updatedTo = urldecode($_GET['updated_to']);
-                $productStorageLocation->where('updated_at', '<=', $updatedTo);
+                $productStorageHistory->where('updated_at', '<=', $updatedTo);
             }
 
-            return $this->paginateResults($productStorageLocation, $perPage, $page)->toArray();
+            return $this->paginateResults($productStorageHistory, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
-            error_log("Error in getProductStorageLocations: " . $e->getMessage());
+            error_log("Error in getProductStorageHistory: " . $e->getMessage());
             http_response_code(500);
             return [
                 'error' => 'Database error occurred',
@@ -77,26 +77,26 @@ class ProductStorageLocationController
         }
     }
 
-    public function getProductStorageLocationById($id): array
+    public function getProductStorageHistoryById($id): array
     {
         try {
-            $productStorageLocation = ProductStorageLocation::query()
+            $productStorageHistory = ProductStorageHistory::query()
                 ->where('id', $id)
                 ->where('deleted', false)
                 ->with(['product', 'storageArea'])
                 ->first();
 
-            if (!$productStorageLocation) {
+            if (!$productStorageHistory) {
                 http_response_code(404);
                 return [
                     'error' => 'Không tìm thấy vị trí lưu trữ sản phẩm'
                 ];
             }
 
-            return $productStorageLocation->toArray();
+            return $productStorageHistory->toArray();
 
         } catch (\Exception $e) {
-            error_log("Error in getProductStorageLocationById: " . $e->getMessage());
+            error_log("Error in getProductStorageHistoryById: " . $e->getMessage());
             http_response_code(500);
             return [
                 'error' => 'Database error occurred',
@@ -105,29 +105,29 @@ class ProductStorageLocationController
         }
     }
 
-    public function getProductsByProductStorageLocation($id): array
+    public function getProductsByProductStorageHistory($id): array
     {
         try {
             $perPage = (int)($_GET['per_page'] ?? 10);
             $page = (int)($_GET['page'] ?? 1);
 
-            $productStorageLocation = ProductStorageLocation::where('deleted', false)->find($id);
+            $productStorageHistory = ProductStorageHistory::where('deleted', false)->find($id);
 
-            if (!$productStorageLocation) {
+            if (!$productStorageHistory) {
                 http_response_code(404);
                 return [
                     'error' => 'Không tìm thấy vị trí lưu trữ sản phẩm'
                 ];
             }
 
-            $productsQuery = $productStorageLocation->product()
+            $productsQuery = $productStorageHistory->product()
                 ->with(['categories', 'prices'])
                 ->getQuery();
 
             return $this->paginateResults($productsQuery, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
-            error_log("Error in getProductsByProductStorageLocation: " . $e->getMessage());
+            error_log("Error in getProductsByProductStorageHistory: " . $e->getMessage());
             http_response_code(500);
             return [
                 'error' => 'Database error occurred',
@@ -136,29 +136,29 @@ class ProductStorageLocationController
         }
     }
 
-    public function getStorageAreasByProductStorageLocation($id): array
+    public function getStorageAreasByProductStorageHistory($id): array
     {
         try {
             $perPage = (int)($_GET['per_page'] ?? 10);
             $page = (int)($_GET['page'] ?? 1);
 
-            $productStorageLocation = ProductStorageLocation::where('deleted', false)->find($id);
+            $productStorageHistory = ProductStorageHistory::where('deleted', false)->find($id);
 
-            if (!$productStorageLocation) {
+            if (!$productStorageHistory) {
                 http_response_code(404);
                 return [
                     'error' => 'Không tìm thấy vị trí lưu trữ sản phẩm'
                 ];
             }
 
-            $storageAreasQuery = $productStorageLocation->storageArea()
-                ->with(['productStorageLocations', 'materialStorageLocations', 'inventoryChecks', 'inventoryHistory'])
+            $storageAreasQuery = $productStorageHistory->storageArea()
+                ->with(['productStorageHistories', 'materialStorageHistories', 'inventoryChecks', 'inventoryHistory'])
                 ->getQuery();
 
             return $this->paginateResults($storageAreasQuery, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
-            error_log("Error in getStorageAreasByProductStorageLocation: " . $e->getMessage());
+            error_log("Error in getStorageAreasByProductStorageHistory: " . $e->getMessage());
             http_response_code(500);
             return [
                 'error' => 'Database error occurred',
@@ -167,13 +167,13 @@ class ProductStorageLocationController
         }
     }
 
-    public function createProductStorageLocation(): array
+    public function createProductStorageHistory(): array
     {
         try {
             $data = json_decode(file_get_contents('php://input'), true);
 
-            $productStorageLocation = new ProductStorageLocation();
-            $errors = $productStorageLocation->validate($data);
+            $productStorageHistory = new ProductStorageHistory();
+            $errors = $productStorageHistory->validate($data);
 
             if ($errors) {
                 http_response_code(400);
@@ -184,16 +184,16 @@ class ProductStorageLocationController
                 ];
             }
 
-            $productStorageLocation->fill($data);
-            $productStorageLocation->save();
+            $productStorageHistory->fill($data);
+            $productStorageHistory->save();
 
             return [
                 'success' => true,
-                'data' => $productStorageLocation->toArray()
+                'data' => $productStorageHistory->toArray()
             ];
 
         } catch (\Exception $e) {
-            error_log("Error in createProductStorageLocation: " . $e->getMessage());
+            error_log("Error in createProductStorageHistory: " . $e->getMessage());
             http_response_code(500);
             return [
                 'success' => false,
@@ -203,12 +203,12 @@ class ProductStorageLocationController
         }
     }
 
-    public function updateProductStorageLocationById($id): array
+    public function updateProductStorageHistoryById($id): array
     {
         try {
-            $productStorageLocation = ProductStorageLocation::where('deleted', false)->find($id);
+            $productStorageHistory = ProductStorageHistory::where('deleted', false)->find($id);
 
-            if (!$productStorageLocation) {
+            if (!$productStorageHistory) {
                 http_response_code(404);
                 return [
                     'success' => false,
@@ -217,7 +217,7 @@ class ProductStorageLocationController
             }
 
             $data = json_decode(file_get_contents('php://input'), true);
-            $errors = $productStorageLocation->validate($data, true);
+            $errors = $productStorageHistory->validate($data, true);
 
             if ($errors) {
                 http_response_code(400);
@@ -228,16 +228,16 @@ class ProductStorageLocationController
                 ];
             }
 
-            $productStorageLocation->fill($data);
-            $productStorageLocation->save();
+            $productStorageHistory->fill($data);
+            $productStorageHistory->save();
 
             return [
                 'success' => true,
-                'data' => $productStorageLocation->toArray()
+                'data' => $productStorageHistory->toArray()
             ];
 
         } catch (\Exception $e) {
-            error_log("Error in updateProductStorageLocationById: " . $e->getMessage());
+            error_log("Error in updateProductStorageHistoryById: " . $e->getMessage());
             http_response_code(500);
             return [
                 'success' => false,
@@ -247,12 +247,12 @@ class ProductStorageLocationController
         }
     }
 
-    public function deleteProductStorageLocation($id): array
+    public function deleteProductStorageHistory($id): array
     {
         try {
-            $productStorageLocation = ProductStorageLocation::where('deleted', false)->find($id);
+            $productStorageHistory = ProductStorageHistory::where('deleted', false)->find($id);
 
-            if (!$productStorageLocation) {
+            if (!$productStorageHistory) {
                 http_response_code(404);
                 return [
                     'success' => false,
@@ -260,8 +260,8 @@ class ProductStorageLocationController
                 ];
             }
 
-            $productStorageLocation->deleted = true;
-            $productStorageLocation->save();
+            $productStorageHistory->deleted = true;
+            $productStorageHistory->save();
 
             return [
                 'success' => true,
@@ -269,7 +269,7 @@ class ProductStorageLocationController
             ];
 
         } catch (\Exception $e) {
-            error_log("Error in deleteProductStorageLocation: " . $e->getMessage());
+            error_log("Error in deleteProductStorageHistory: " . $e->getMessage());
             http_response_code(500);
             return [
                 'success' => false,

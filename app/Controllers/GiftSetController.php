@@ -305,7 +305,7 @@ class GiftSetController
 
             $productsQuery = $giftSet->products()
                 ->where('products.deleted', false)
-                ->with(['categories', 'discounts', 'prices', 'storageLocations', 'orderDetails'])
+                ->with(['categories', 'discounts', 'prices', 'storageHistories', 'orderDetails'])
                 ->getQuery();
 
             $results = $this->paginateResults($productsQuery, $perPage, $page);

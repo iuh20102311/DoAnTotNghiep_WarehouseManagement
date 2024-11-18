@@ -12,7 +12,7 @@ class MaterialExportReceiptDetail extends Model
 {
     use HasFactory;
     protected $table = 'material_export_receipt_details';
-    protected $fillable = ['material_id', 'material_export_receipt_id', 'material_storage_location_id', 'quantity', 'created_at', 'updated_at', 'deleted'];
+    protected $fillable = ['material_id', 'material_export_receipt_id', 'storage_area_id', 'quantity', 'expiry_date', 'created_at', 'updated_at', 'deleted'];
     protected $primaryKey = 'id';
     public $timestamps = true;
 
@@ -26,8 +26,15 @@ class MaterialExportReceiptDetail extends Model
         return $this->belongsTo(MaterialExportReceipt::class, 'material_export_receipt_id');
     }
 
-    public function materialStorageLocation(): BelongsTo
+    public function storageArea(): BelongsTo
     {
-        return $this->belongsTo(MaterialStorageLocation::class, 'material_storage_location_id');
+        return $this->belongsTo(StorageArea::class, 'storage_area_id');
+    }
+
+    public function materialStorageHistory()
+    {
+        return $this->belongsTo(MaterialStorageHistory::class, 'storage_area_id', 'storage_area_id')
+            ->where('material_id', $this->material_id)
+            ->where('expiry_date', $this->expiry_date);
     }
 }

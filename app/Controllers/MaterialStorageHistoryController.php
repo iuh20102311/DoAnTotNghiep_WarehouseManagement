@@ -2,78 +2,78 @@
 
 namespace App\Controllers;
 
-use App\Models\MaterialStorageLocation;
+use App\Models\MaterialStorageHistory;
 use App\Utils\PaginationTrait;
 
-class MaterialStorageLocationController
+class MaterialStorageHistoryController
 {
     use PaginationTrait;
 
-    public function getMaterialStorageLocations(): array
+    public function getMaterialStorageHistory(): array
     {
         try {
             $perPage = (int)($_GET['per_page'] ?? 10);
             $page = (int)($_GET['page'] ?? 1);
 
-            $materialStorageLocation = MaterialStorageLocation::query()
+            $materialStorageHistory = MaterialStorageHistory::query()
                 ->where('deleted', false)
                 ->with(['material', 'provider', 'storageArea'])
                 ->orderBy('created_at', 'desc');
 
             if (isset($_GET['material_id'])) {
                 $materialId = urldecode($_GET['material_id']);
-                $materialStorageLocation->where('material_id', $materialId);
+                $materialStorageHistory->where('material_id', $materialId);
             }
 
             if (isset($_GET['provider_id'])) {
                 $providerId = urldecode($_GET['provider_id']);
-                $materialStorageLocation->where('provider_id', $providerId);
+                $materialStorageHistory->where('provider_id', $providerId);
             }
 
             if (isset($_GET['storage_area_id'])) {
                 $storageAreaId = urldecode($_GET['storage_area_id']);
-                $materialStorageLocation->where('storage_area_id', $storageAreaId);
+                $materialStorageHistory->where('storage_area_id', $storageAreaId);
             }
 
             if (isset($_GET['quantity'])) {
                 $quantity = urldecode($_GET['quantity']);
-                $materialStorageLocation->where('quantity', $quantity);
+                $materialStorageHistory->where('quantity', $quantity);
             }
 
             if (isset($_GET['quantity_min'])) {
                 $quantityMin = urldecode($_GET['quantity_min']);
-                $materialStorageLocation->where('quantity', '>=', $quantityMin);
+                $materialStorageHistory->where('quantity', '>=', $quantityMin);
             }
 
             if (isset($_GET['quantity_max'])) {
                 $quantityMax = urldecode($_GET['quantity_max']);
-                $materialStorageLocation->where('quantity', '<=', $quantityMax);
+                $materialStorageHistory->where('quantity', '<=', $quantityMax);
             }
 
             if (isset($_GET['created_from'])) {
                 $createdFrom = urldecode($_GET['created_from']);
-                $materialStorageLocation->where('created_at', '>=', $createdFrom);
+                $materialStorageHistory->where('created_at', '>=', $createdFrom);
             }
 
             if (isset($_GET['created_to'])) {
                 $createdTo = urldecode($_GET['created_to']);
-                $materialStorageLocation->where('created_at', '<=', $createdTo);
+                $materialStorageHistory->where('created_at', '<=', $createdTo);
             }
 
             if (isset($_GET['updated_from'])) {
                 $updatedFrom = urldecode($_GET['updated_from']);
-                $materialStorageLocation->where('updated_at', '>=', $updatedFrom);
+                $materialStorageHistory->where('updated_at', '>=', $updatedFrom);
             }
 
             if (isset($_GET['updated_to'])) {
                 $updatedTo = urldecode($_GET['updated_to']);
-                $materialStorageLocation->where('updated_at', '<=', $updatedTo);
+                $materialStorageHistory->where('updated_at', '<=', $updatedTo);
             }
 
-            return $this->paginateResults($materialStorageLocation, $perPage, $page)->toArray();
+            return $this->paginateResults($materialStorageHistory, $perPage, $page)->toArray();
 
         } catch (\Exception $e) {
-            error_log("Error in getMaterialStorageLocations: " . $e->getMessage());
+            error_log("Error in getMaterialStorageHistory: " . $e->getMessage());
             http_response_code(500);
             return [
                 'error' => 'Database error occurred',
@@ -82,26 +82,26 @@ class MaterialStorageLocationController
         }
     }
 
-    public function getMaterialStorageLocationById($id): array
+    public function getMaterialStorageHistoryById($id): array
     {
         try {
-            $materialStorageLocation = MaterialStorageLocation::query()
+            $materialStorageHistory = MaterialStorageHistory::query()
                 ->where('id', $id)
                 ->where('deleted', false)
                 ->with(['material', 'provider', 'storageArea'])
                 ->first();
 
-            if (!$materialStorageLocation) {
+            if (!$materialStorageHistory) {
                 http_response_code(404);
                 return [
                     'error' => 'Không tìm thấy vị trí lưu trữ vật liệu'
                 ];
             }
 
-            return $materialStorageLocation->toArray();
+            return $materialStorageHistory->toArray();
 
         } catch (\Exception $e) {
-            error_log("Error in getMaterialStorageLocationById: " . $e->getMessage());
+            error_log("Error in getMaterialStorageHistoryById: " . $e->getMessage());
             http_response_code(500);
             return [
                 'error' => 'Database error occurred',
@@ -110,30 +110,30 @@ class MaterialStorageLocationController
         }
     }
 
-    public function getMaterialByMaterialStorageLocation($id): array
+    public function getMaterialByMaterialStorageHistory($id): array
     {
         try {
             $perPage = (int)($_GET['per_page'] ?? 10);
             $page = (int)($_GET['page'] ?? 1);
 
-            $materialStorageLocation = MaterialStorageLocation::where('deleted', false)->find($id);
+            $materialStorageHistory = MaterialStorageHistory::where('deleted', false)->find($id);
 
-            if (!$materialStorageLocation) {
+            if (!$materialStorageHistory) {
                 http_response_code(404);
                 return [
                     'error' => 'Không tìm thấy vị trí lưu trữ vật liệu'
                 ];
             }
 
-            $materialsDetailsQuery = $materialStorageLocation->material()
-                ->with(['categories', 'providers', 'storageLocations', 'exportReceiptDetails', 'importReceiptDetails', 'inventoryCheckDetails', 'inventoryHistory'])
+            $materialsDetailsQuery = $materialStorageHistory->material()
+                ->with(['categories', 'providers', 'storageHistories', 'exportReceiptDetails', 'importReceiptDetails', 'inventoryCheckDetails', 'inventoryHistory'])
                 ->getQuery();
 
             $result = $this->paginateResults($materialsDetailsQuery, $perPage, $page);
             return $result->toArray();
 
         } catch (\Exception $e) {
-            error_log("Error in getMaterialByMaterialStorageLocation: " . $e->getMessage());
+            error_log("Error in getMaterialByMaterialStorageHistory: " . $e->getMessage());
             http_response_code(500);
             return [
                 'error' => 'Database error occurred',
@@ -142,22 +142,22 @@ class MaterialStorageLocationController
         }
     }
 
-    public function getProvidersByMaterialStorageLocation($id): array
+    public function getProvidersByMaterialStorageHistory($id): array
     {
         try {
             $perPage = (int)($_GET['per_page'] ?? 10);
             $page = (int)($_GET['page'] ?? 1);
 
-            $materialStorageLocation = MaterialStorageLocation::where('deleted', false)->find($id);
+            $materialStorageHistory = MaterialStorageHistory::where('deleted', false)->find($id);
 
-            if (!$materialStorageLocation) {
+            if (!$materialStorageHistory) {
                 http_response_code(404);
                 return [
                     'error' => 'Không tìm thấy vị trí lưu trữ vật liệu'
                 ];
             }
 
-            $providersDetailsQuery = $materialStorageLocation->provider()
+            $providersDetailsQuery = $materialStorageHistory->provider()
                 ->with(['materials', 'materialImportReceipts'])
                 ->getQuery();
 
@@ -165,7 +165,7 @@ class MaterialStorageLocationController
             return $result->toArray();
 
         } catch (\Exception $e) {
-            error_log("Error in getProvidersByMaterialStorageLocation: " . $e->getMessage());
+            error_log("Error in getProvidersByMaterialStorageHistory: " . $e->getMessage());
             http_response_code(500);
             return [
                 'error' => 'Database error occurred',
@@ -174,30 +174,30 @@ class MaterialStorageLocationController
         }
     }
 
-    public function getStorageAreaByMaterialStorageLocation($id): array
+    public function getStorageAreaByMaterialStorageHistory($id): array
     {
         try {
             $perPage = (int)($_GET['per_page'] ?? 10);
             $page = (int)($_GET['page'] ?? 1);
 
-            $materialStorageLocation = MaterialStorageLocation::where('deleted', false)->find($id);
+            $materialStorageHistory = MaterialStorageHistory::where('deleted', false)->find($id);
 
-            if (!$materialStorageLocation) {
+            if (!$materialStorageHistory) {
                 http_response_code(404);
                 return [
                     'error' => 'Không tìm thấy vị trí lưu trữ vật liệu'
                 ];
             }
 
-            $materialsDetailsQuery = $materialStorageLocation->storageArea()
-                ->with(['productStorageLocations', 'materialStorageLocations', 'inventoryChecks', 'inventoryHistory'])
+            $materialsDetailsQuery = $materialStorageHistory->storageArea()
+                ->with(['productStorageHistories', 'materialStorageHistories', 'inventoryChecks', 'inventoryHistory'])
                 ->getQuery();
 
             $result = $this->paginateResults($materialsDetailsQuery, $perPage, $page);
             return $result->toArray();
 
         } catch (\Exception $e) {
-            error_log("Error in getStorageAreaByMaterialStorageLocation: " . $e->getMessage());
+            error_log("Error in getStorageAreaByMaterialStorageHistory: " . $e->getMessage());
             http_response_code(500);
             return [
                 'error' => 'Database error occurred',
@@ -206,13 +206,13 @@ class MaterialStorageLocationController
         }
     }
 
-    public function createMaterialStorageLocation(): array
+    public function createMaterialStorageHistory(): array
     {
         try {
             $data = json_decode(file_get_contents('php://input'), true);
 
-            $materialStorageLocation = new MaterialStorageLocation();
-            $errors = $materialStorageLocation->validate($data);
+            $materialStorageHistory = new MaterialStorageHistory();
+            $errors = $materialStorageHistory->validate($data);
 
             if ($errors) {
                 http_response_code(400);
@@ -223,16 +223,16 @@ class MaterialStorageLocationController
                 ];
             }
 
-            $materialStorageLocation->fill($data);
-            $materialStorageLocation->save();
+            $materialStorageHistory->fill($data);
+            $materialStorageHistory->save();
 
             return [
                 'success' => true,
-                'data' => $materialStorageLocation->toArray()
+                'data' => $materialStorageHistory->toArray()
             ];
 
         } catch (\Exception $e) {
-            error_log("Error in createMaterialStorageLocation: " . $e->getMessage());
+            error_log("Error in createMaterialStorageHistory: " . $e->getMessage());
             http_response_code(500);
             return [
                 'success' => false,
@@ -242,12 +242,12 @@ class MaterialStorageLocationController
         }
     }
 
-    public function updateMaterialStorageLocationById($id): array
+    public function updateMaterialStorageHistoryById($id): array
     {
         try {
-            $materialStorageLocation = MaterialStorageLocation::where('deleted', false)->find($id);
+            $materialStorageHistory = MaterialStorageHistory::where('deleted', false)->find($id);
 
-            if (!$materialStorageLocation) {
+            if (!$materialStorageHistory) {
                 http_response_code(404);
                 return [
                     'success' => false,
@@ -256,7 +256,7 @@ class MaterialStorageLocationController
             }
 
             $data = json_decode(file_get_contents('php://input'), true);
-            $errors = $materialStorageLocation->validate($data, true);
+            $errors = $materialStorageHistory->validate($data, true);
 
             if ($errors) {
                 http_response_code(400);
@@ -267,16 +267,16 @@ class MaterialStorageLocationController
                 ];
             }
 
-            $materialStorageLocation->fill($data);
-            $materialStorageLocation->save();
+            $materialStorageHistory->fill($data);
+            $materialStorageHistory->save();
 
             return [
                 'success' => true,
-                'data' => $materialStorageLocation->toArray()
+                'data' => $materialStorageHistory->toArray()
             ];
 
         } catch (\Exception $e) {
-            error_log("Error in updateMaterialStorageLocationById: " . $e->getMessage());
+            error_log("Error in updateMaterialStorageHistoryById: " . $e->getMessage());
             http_response_code(500);
             return [
                 'success' => false,
@@ -286,12 +286,12 @@ class MaterialStorageLocationController
         }
     }
 
-    public function deleteMaterialStorageLocation($id): array
+    public function deleteMaterialStorageHistory($id): array
     {
         try {
-            $materialStorageLocation = MaterialStorageLocation::where('deleted', false)->find($id);
+            $materialStorageHistory = MaterialStorageHistory::where('deleted', false)->find($id);
 
-            if (!$materialStorageLocation) {
+            if (!$materialStorageHistory) {
                 http_response_code(404);
                 return [
                     'success' => false,
@@ -299,8 +299,8 @@ class MaterialStorageLocationController
                 ];
             }
 
-            $materialStorageLocation->deleted = true;
-            $materialStorageLocation->save();
+            $materialStorageHistory->deleted = true;
+            $materialStorageHistory->save();
 
             return [
                 'success' => true,
@@ -308,7 +308,7 @@ class MaterialStorageLocationController
             ];
 
         } catch (\Exception $e) {
-            error_log("Error in deleteMaterialStorageLocation: " . $e->getMessage());
+            error_log("Error in deleteMaterialStorageHistory: " . $e->getMessage());
             http_response_code(500);
             return [
                 'success' => false,

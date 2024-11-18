@@ -151,7 +151,7 @@ class ProviderController
             }
 
             $materialsQuery = $provider->materials()
-                ->with(['categories', 'providers', 'storageLocations'])
+                ->with(['categories', 'providers', 'storageHistories'])
                 ->getQuery();
 
             return $this->paginateResults($materialsQuery, $perPage, $page)->toArray();
