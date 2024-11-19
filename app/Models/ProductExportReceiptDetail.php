@@ -12,7 +12,7 @@ class ProductExportReceiptDetail extends Model
 {
     use HasFactory;
     protected $table = 'product_export_receipt_details';
-    protected $fillable = ['product_id', 'product_export_receipt_id', 'storage_area_id', 'quantity', 'created_at', 'updated_at', 'deleted'];
+    protected $fillable = ['product_id', 'product_export_receipt_id', 'storage_area_id', 'quantity', 'expiry_date', 'created_at', 'updated_at', 'deleted'];
     protected $primaryKey = 'id';
     public $timestamps = true;
 
