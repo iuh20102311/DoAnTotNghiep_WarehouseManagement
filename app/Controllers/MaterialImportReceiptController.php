@@ -180,7 +180,7 @@ class MaterialImportReceiptController
                                 $q->select('user_id', 'first_name', 'last_name');
                             }]);
                     },
-                    'details.materialStorageLocation',
+                    'details.storageArea',
                     'details.material'
                 ])->first();
 
@@ -406,7 +406,7 @@ class MaterialImportReceiptController
         $exportReceipt = null;
 
         try {
-            // Validate basic required fields
+            // [BƯỚC 1] - Validate basic required fields
             if (!isset($data['type']) || !in_array($data['type'], ['NORMAL', 'RETURN'])) {
                 throw new \Exception('Type phải là NORMAL hoặc RETURN');
             }
@@ -415,62 +415,22 @@ class MaterialImportReceiptController
                 throw new \Exception('receiver_id là bắt buộc');
             }
 
-            // Validate fields based on type
+            // [BƯỚC 2] - Validate allowed fields
             $allowedFields = [
                 'NORMAL' => ['type', 'provider_id', 'receiver_id', 'note', 'materials'],
                 'RETURN' => ['type', 'material_export_receipt_id', 'receiver_id', 'note', 'materials']
             ];
 
-            // Check for unexpected fields
             foreach ($data as $field => $value) {
                 if (!in_array($field, $allowedFields[$data['type']])) {
                     throw new \Exception("Trường '$field' không được phép với type " . $data['type']);
                 }
             }
 
-            // Validate based on type
-            if ($data['type'] === 'NORMAL') {
-                if (!isset($data['provider_id'])) {
-                    throw new \Exception('provider_id là bắt buộc với type NORMAL');
-                }
-
-                $provider = Provider::where('id', $data['provider_id'])
-                    ->where('deleted', false)
-                    ->first();
-                if (!$provider) {
-                    throw new \Exception('Nhà cung cấp không tồn tại hoặc không hoạt động');
-                }
-            } else { // RETURN type
-                if (!isset($data['material_export_receipt_id'])) {
-                    throw new \Exception('material_export_receipt_id là bắt buộc với type RETURN');
-                }
-
-                $exportReceipt = MaterialExportReceipt::with(['details.material', 'details.storageArea', 'details.materialStorageHistory'])
-                    ->where('id', $data['material_export_receipt_id'])
-                    ->where('type', 'NORMAL')
-                    ->first();
-                if (!$exportReceipt) {
-                    throw new \Exception('Phiếu xuất không tồn tại hoặc không phải loại NORMAL');
-                }
-            }
-
-            // Validate receiver
-            $receiver = User::where('id', $data['receiver_id'])
-                ->where('status', 'ACTIVE')
-                ->where('deleted', false)
-                ->first();
-            if (!$receiver) {
-                throw new \Exception('Người nhận không tồn tại hoặc không hoạt động');
-            }
-
-            // Validate materials array
-            if (!isset($data['materials']) || empty($data['materials'])) {
-                throw new \Exception('Danh sách materials không được để trống');
-            }
-
-            // Get user from token
+            // [BƯỚC 3] - Validate JWT token
             $headers = apache_request_headers();
             $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
+
             if (!$token) {
                 throw new \Exception('Token không tồn tại');
             }
@@ -479,23 +439,61 @@ class MaterialImportReceiptController
             $parsedToken = $parser->parse($token);
             $createdById = $parsedToken->claims()->get('id');
 
-            // Validate materials and prepare data
-            $validatedMaterials = [];
-            foreach ($data['materials'] as $material) {
-                if (!isset($material['material_id']) || !isset($material['quantity'])) {
-                    throw new \Exception('material_id và quantity là bắt buộc cho mỗi nguyên liệu');
+            // [BƯỚC 4] - Validate receiver
+            $receiver = User::where('id', $data['receiver_id'])
+                ->where('status', 'ACTIVE')
+                ->where('deleted', false)
+                ->first();
+
+            if (!$receiver) {
+                throw new \Exception('Người nhận không tồn tại hoặc không hoạt động');
+            }
+
+            // [BƯỚC 5] - Validate based on type
+            if ($data['type'] === 'NORMAL') {
+                if (!isset($data['provider_id'])) {
+                    throw new \Exception('provider_id là bắt buộc với type NORMAL');
                 }
 
-                if (!isset($material['storage_area_id'])) {
-                    throw new \Exception('storage_area_id là bắt buộc cho mỗi nguyên liệu');
-                }
-
-                // Validate storage area
-                $storageArea = StorageArea::where('id', $material['storage_area_id'])
+                $provider = Provider::where('id', $data['provider_id'])
                     ->where('deleted', false)
                     ->first();
-                if (!$storageArea) {
-                    throw new \Exception('Khu vực lưu trữ không tồn tại hoặc không hoạt động');
+
+                if (!$provider) {
+                    throw new \Exception('Nhà cung cấp không tồn tại hoặc không hoạt động');
+                }
+            } else { // RETURN type
+                if (!isset($data['material_export_receipt_id'])) {
+                    throw new \Exception('material_export_receipt_id là bắt buộc với type RETURN');
+                }
+
+                $exportReceipt = MaterialExportReceipt::with(['details.material', 'details.storageArea'])
+                    ->where('id', $data['material_export_receipt_id'])
+                    ->where('type', 'NORMAL')
+                    ->where('status', 'COMPLETED')
+                    ->where('deleted', false)
+                    ->first();
+
+                if (!$exportReceipt) {
+                    throw new \Exception('Phiếu xuất không tồn tại hoặc không hợp lệ');
+                }
+            }
+
+            // [BƯỚC 6] - Validate materials array
+            if (!isset($data['materials']) || empty($data['materials'])) {
+                throw new \Exception('Danh sách materials không được để trống');
+            }
+
+            // [BƯỚC 7] - Validate materials và chuẩn bị dữ liệu
+            $validatedMaterials = [];
+            foreach ($data['materials'] as $material) {
+                if (!isset($material['material_id']) || !isset($material['quantity']) ||
+                    !isset($material['storage_area_id'])) {
+                    throw new \Exception('material_id, quantity và storage_area_id là bắt buộc cho mỗi nguyên liệu');
+                }
+
+                if ($material['quantity'] <= 0) {
+                    throw new \Exception('Số lượng phải lớn hơn 0');
                 }
 
                 $materialModel = Material::find($material['material_id']);
@@ -503,18 +501,27 @@ class MaterialImportReceiptController
                     throw new \Exception("Nguyên liệu (ID: {$material['material_id']}) không tồn tại");
                 }
 
+                $storageArea = StorageArea::where('id', $material['storage_area_id'])
+                    ->where('deleted', false)
+                    ->first();
+
+                if (!$storageArea) {
+                    throw new \Exception('Khu vực lưu trữ không tồn tại hoặc không hoạt động');
+                }
+
                 if ($data['type'] === 'NORMAL') {
                     if (!isset($material['price'])) {
-                        throw new \Exception('price là bắt buộc cho mỗi nguyên liệu với type NORMAL');
+                        throw new \Exception('price là bắt buộc với type NORMAL');
                     }
+
                     if (!isset($material['expiry_date'])) {
-                        throw new \Exception('expiry_date là bắt buộc cho mỗi nguyên liệu với type NORMAL');
+                        throw new \Exception('expiry_date là bắt buộc với type NORMAL');
                     }
+
                     if (!strtotime($material['expiry_date']) || strtotime($material['expiry_date']) <= time()) {
                         throw new \Exception('expiry_date phải là ngày trong tương lai và đúng định dạng');
                     }
                 } else { // RETURN type
-                    // Check if material exists in export receipt and get its details
                     $exportDetail = $exportReceipt->details
                         ->where('material_id', $material['material_id'])
                         ->first();
@@ -522,24 +529,22 @@ class MaterialImportReceiptController
                     if (!$exportDetail) {
                         throw new \Exception("Nguyên liệu {$materialModel->name} không có trong phiếu xuất");
                     }
+
                     if ($material['quantity'] > $exportDetail->quantity) {
-                        throw new \Exception("Số lượng trả về của {$materialModel->name} ({$material['quantity']}) không được lớn hơn số lượng đã xuất ({$exportDetail->quantity})");
+                        throw new \Exception(
+                            "Số lượng trả về của {$materialModel->name} ({$material['quantity']}) " .
+                            "không được lớn hơn số lượng đã xuất ({$exportDetail->quantity})"
+                        );
                     }
 
-                    // Lấy thông tin từ chi tiết phiếu xuất
                     $material['expiry_date'] = $exportDetail->expiry_date;
-
-                    if (!$material['expiry_date']) {
-                        throw new \Exception("Không tìm thấy hạn sử dụng cho nguyên liệu {$materialModel->name}");
-                    }
-
                     $material['price'] = 0; // Giá = 0 với type RETURN
                 }
 
                 $validatedMaterials[] = $material;
             }
 
-            // Generate receipt code
+            // [BƯỚC 8] - Generate receipt code
             $currentDay = date('d');
             $currentMonth = date('m');
             $currentYear = date('y');
@@ -549,10 +554,10 @@ class MaterialImportReceiptController
                 ->orderBy('code', 'desc')
                 ->first();
 
-            $sequence = $latestImportReceipt ? (intval(substr($latestImportReceipt->code, -5)) + 1) : 1;
+            $sequence = $latestImportReceipt ? intval(substr($latestImportReceipt->code, -5)) + 1 : 1;
             $code = $prefix . str_pad($sequence, 5, '0', STR_PAD_LEFT);
 
-            // Create import receipt
+            // [BƯỚC 9] - Create import receipt
             $importReceipt = MaterialImportReceipt::create([
                 'code' => $code,
                 'type' => $data['type'],
@@ -564,15 +569,16 @@ class MaterialImportReceiptController
                 'receiver_id' => $data['receiver_id']
             ]);
 
+            // [BƯỚC 10] - Create import details and update inventory
             $totalPrice = 0;
+            $importDetails = []; // Mảng lưu chi tiết import và history tương ứng
 
-            // Create import details and update inventory
             foreach ($validatedMaterials as $material) {
                 $price = $material['price'] ?? 0;
                 $totalPrice += $price * $material['quantity'];
 
-                // Create import receipt detail
-                $importDetail = $importReceipt->details()->create([
+                // Create import detail
+                $detail = $importReceipt->details()->create([
                     'material_id' => $material['material_id'],
                     'storage_area_id' => $material['storage_area_id'],
                     'quantity' => $material['quantity'],
@@ -580,31 +586,43 @@ class MaterialImportReceiptController
                     'expiry_date' => $material['expiry_date']
                 ]);
 
-                // Find existing storage history
-                $existingHistory = MaterialStorageHistory::where([
+                // Kiểm tra history cũ
+                $previousActiveRecord = MaterialStorageHistory::where([
                     'material_id' => $material['material_id'],
                     'storage_area_id' => $material['storage_area_id'],
                     'expiry_date' => $material['expiry_date'],
+                    'status' => 'ACTIVE',
                     'deleted' => false
                 ])->first();
 
-                if ($existingHistory) {
-                    // Update quantity if exists
-                    $existingHistory->quantity += $material['quantity'];
-                    $existingHistory->save();
-                } else {
-                    // Create new if not exists
-                    MaterialStorageHistory::create([
-                        'material_id' => $material['material_id'],
-                        'storage_area_id' => $material['storage_area_id'],
-                        'provider_id' => $data['type'] === 'NORMAL' ? $data['provider_id'] : 1,
-                        'expiry_date' => $material['expiry_date'],
-                        'quantity' => $material['quantity'],
-                        'deleted' => false
-                    ]);
+                // Tính toán quantity_available mới
+                $newQuantityAvailable = $material['quantity'];
+                if ($previousActiveRecord) {
+                    $newQuantityAvailable += $previousActiveRecord->quantity_available;
+                    // Set previous record to INACTIVE
+                    $previousActiveRecord->status = 'INACTIVE';
+                    $previousActiveRecord->save();
                 }
 
-                // Update total quantity in materials table
+                // Create new storage history record
+                $historyRecord = new MaterialStorageHistory();
+                $historyRecord->material_id = $material['material_id'];
+                $historyRecord->storage_area_id = $material['storage_area_id'];
+                $historyRecord->expiry_date = $material['expiry_date'];
+                $historyRecord->quantity = $material['quantity'];
+                $historyRecord->quantity_available = $newQuantityAvailable;
+                $historyRecord->provider_id = $data['type'] === 'NORMAL' ? $data['provider_id'] : 1;
+                $historyRecord->status = 'ACTIVE';
+                $historyRecord->deleted = false;
+                $historyRecord->save();
+
+                // Lưu detail và history vào mảng
+                $importDetails[] = [
+                    'detail' => $detail,
+                    'history' => $historyRecord
+                ];
+
+                // Update material quantity
                 $materialModel = Material::find($material['material_id']);
                 $materialModel->quantity_available += $material['quantity'];
                 $materialModel->save();
@@ -616,7 +634,7 @@ class MaterialImportReceiptController
                 $importReceipt->save();
             }
 
-            // Load relationships for response
+            // [BƯỚC 11] - Load relationships for response
             $importReceipt->load([
                 'details.material',
                 'details.storageArea',
@@ -625,7 +643,7 @@ class MaterialImportReceiptController
                 'provider'
             ]);
 
-            // Response
+            // [BƯỚC 12] - Prepare and send response
             $response = [
                 'message' => 'Nhập kho thành công',
                 'data' => [
@@ -659,7 +677,10 @@ class MaterialImportReceiptController
                         'name' => $importReceipt->provider->name,
                         'code' => $importReceipt->provider->code,
                     ] : null,
-                    'details' => $importReceipt->details->map(function ($detail) use ($data, $exportReceipt) {
+                    'details' => array_map(function ($item) use ($data, $exportReceipt) {
+                        $detail = $item['detail'];
+                        $history = $item['history'];
+
                         $result = [
                             'id' => $detail->id,
                             'material' => [
@@ -675,10 +696,13 @@ class MaterialImportReceiptController
                             'quantity' => $detail->quantity,
                             'price' => $detail->price,
                             'expiry_date' => $detail->expiry_date,
-                            'created_at' => $detail->created_at
+                            'created_at' => $detail->created_at,
+                            'history' => [
+                                'quantity_available' => $history->quantity_available,
+                                'status' => $history->status
+                            ]
                         ];
 
-                        // Chỉ thêm thông tin export_detail khi type là RETURN và $exportReceipt tồn tại
                         if ($data['type'] === 'RETURN' && isset($exportReceipt)) {
                             $exportDetail = $exportReceipt->details
                                 ->where('material_id', $detail->material_id)
@@ -699,16 +723,20 @@ class MaterialImportReceiptController
                         }
 
                         return $result;
-                    })
+                    }, $importDetails)
                 ]
             ];
 
             header('Content-Type: application/json');
             echo json_encode($response, JSON_UNESCAPED_UNICODE);
+
         } catch (\Exception $e) {
             header('Content-Type: application/json');
             http_response_code(400);
-            echo json_encode(['error' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], JSON_UNESCAPED_UNICODE);
         }
     }
 }
