@@ -417,7 +417,7 @@ class MaterialImportReceiptController
 
             // Validate fields based on type
             $allowedFields = [
-                'NORMAL' => ['type', 'provider_id', 'storage_area_id', 'receiver_id', 'note', 'materials'],
+                'NORMAL' => ['type', 'provider_id', 'receiver_id', 'note', 'materials'],
                 'RETURN' => ['type', 'material_export_receipt_id', 'receiver_id', 'note', 'materials']
             ];
 
@@ -433,22 +433,12 @@ class MaterialImportReceiptController
                 if (!isset($data['provider_id'])) {
                     throw new \Exception('provider_id là bắt buộc với type NORMAL');
                 }
-                if (!isset($data['storage_area_id'])) {
-                    throw new \Exception('storage_area_id là bắt buộc với type NORMAL');
-                }
 
                 $provider = Provider::where('id', $data['provider_id'])
                     ->where('deleted', false)
                     ->first();
                 if (!$provider) {
                     throw new \Exception('Nhà cung cấp không tồn tại hoặc không hoạt động');
-                }
-
-                $storageArea = StorageArea::where('id', $data['storage_area_id'])
-                    ->where('deleted', false)
-                    ->first();
-                if (!$storageArea) {
-                    throw new \Exception('Khu vực lưu trữ không tồn tại hoặc không hoạt động');
                 }
             } else { // RETURN type
                 if (!isset($data['material_export_receipt_id'])) {
@@ -496,6 +486,18 @@ class MaterialImportReceiptController
                     throw new \Exception('material_id và quantity là bắt buộc cho mỗi nguyên liệu');
                 }
 
+                if (!isset($material['storage_area_id'])) {
+                    throw new \Exception('storage_area_id là bắt buộc cho mỗi nguyên liệu');
+                }
+
+                // Validate storage area
+                $storageArea = StorageArea::where('id', $material['storage_area_id'])
+                    ->where('deleted', false)
+                    ->first();
+                if (!$storageArea) {
+                    throw new \Exception('Khu vực lưu trữ không tồn tại hoặc không hoạt động');
+                }
+
                 $materialModel = Material::find($material['material_id']);
                 if (!$materialModel) {
                     throw new \Exception("Nguyên liệu (ID: {$material['material_id']}) không tồn tại");
@@ -511,8 +513,6 @@ class MaterialImportReceiptController
                     if (!strtotime($material['expiry_date']) || strtotime($material['expiry_date']) <= time()) {
                         throw new \Exception('expiry_date phải là ngày trong tương lai và đúng định dạng');
                     }
-
-                    $material['storage_area_id'] = $data['storage_area_id'];
                 } else { // RETURN type
                     // Check if material exists in export receipt and get its details
                     $exportDetail = $exportReceipt->details
@@ -527,7 +527,6 @@ class MaterialImportReceiptController
                     }
 
                     // Lấy thông tin từ chi tiết phiếu xuất
-                    $material['storage_area_id'] = $exportDetail->storage_area_id;
                     $material['expiry_date'] = $exportDetail->expiry_date;
 
                     if (!$material['expiry_date']) {

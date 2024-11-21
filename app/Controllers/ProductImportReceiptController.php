@@ -298,18 +298,14 @@ class ProductImportReceiptController
                 throw new \Exception('Type phải là NORMAL hoặc RETURN');
             }
 
-            if (!isset($data['storage_area_id'])) {
-                throw new \Exception('storage_area_id là bắt buộc');
-            }
-
             if (!isset($data['receiver_id'])) {
                 throw new \Exception('receiver_id là bắt buộc');
             }
 
             // [BƯỚC 2] - Validate allowed fields
             $allowedFields = [
-                'NORMAL' => ['type', 'storage_area_id', 'receiver_id', 'note', 'products'],
-                'RETURN' => ['type', 'storage_area_id', 'receiver_id', 'note', 'order_code', 'export_receipt_id', 'products']
+                'NORMAL' => ['type', 'receiver_id', 'note', 'products'],
+                'RETURN' => ['type', 'receiver_id', 'note', 'order_id', 'export_receipt_id', 'products']
             ];
 
             foreach ($data as $field => $value) {
@@ -330,16 +326,7 @@ class ProductImportReceiptController
             $parsedToken = $parser->parse($token);
             $createdById = $parsedToken->claims()->get('id');
 
-            // [BƯỚC 4] - Validate storage area
-            $storageArea = StorageArea::where('id', $data['storage_area_id'])
-                ->where('deleted', false)
-                ->first();
-
-            if (!$storageArea) {
-                throw new \Exception('Khu vực lưu trữ không tồn tại hoặc không hoạt động');
-            }
-
-            // [BƯỚC 5] - Validate receiver
+            // [BƯỚC 4] - Validate receiver
             $receiver = User::where('id', $data['receiver_id'])
                 ->where('status', 'ACTIVE')
                 ->where('deleted', false)
@@ -349,7 +336,7 @@ class ProductImportReceiptController
                 throw new \Exception('Người nhận không tồn tại hoặc không hoạt động');
             }
 
-            // [BƯỚC 6] - Validate based on type
+            // [BƯỚC 5] - Validate based on type
             if ($data['type'] === 'RETURN') {
                 if (!isset($data['export_receipt_id'])) {
                     throw new \Exception('export_receipt_id là bắt buộc với type RETURN');
@@ -365,74 +352,46 @@ class ProductImportReceiptController
                 if (!$exportReceipt) {
                     throw new \Exception('Phiếu xuất không tồn tại hoặc không hợp lệ');
                 }
-
-                $exportDetails = $exportReceipt->details()
-                    ->where('deleted', false)
-                    ->get()
-                    ->keyBy('product_id');
-
-                if ($exportDetails->isEmpty()) {
-                    throw new \Exception('Phiếu xuất không có sản phẩm');
-                }
             }
 
-            // [BƯỚC 7] - Validate products array
+            // [BƯỚC 6] - Validate products array
             if (!isset($data['products']) || empty($data['products'])) {
                 throw new \Exception('Danh sách products không được để trống');
             }
 
-            // [BƯỚC 8] - Validate products và chuẩn bị dữ liệu
+            // [BƯỚC 7] - Validate products và chuẩn bị dữ liệu
             $validatedProducts = [];
             foreach ($data['products'] as $product) {
-                if (!isset($product['product_id']) || !isset($product['quantity'])) {
-                    throw new \Exception('product_id và quantity là bắt buộc cho mỗi sản phẩm');
+                if (!isset($product['product_id']) || !isset($product['quantity']) ||
+                    !isset($product['storage_area_id']) || !isset($product['expiry_date'])) {
+                    throw new \Exception('product_id, quantity, storage_area_id và expiry_date là bắt buộc cho mỗi sản phẩm');
+                }
+
+                if ($product['quantity'] <= 0) {
+                    throw new \Exception("Số lượng nhập phải lớn hơn 0");
                 }
 
                 $productModel = Product::find($product['product_id']);
                 if (!$productModel) {
-                    throw new \Exception("Sản phẩm (ID: {$product['product_id']}) không tồn tại");
+                    throw new \Exception("Sản phẩm không tồn tại");
                 }
 
-                if ($data['type'] === 'NORMAL') {
-                    if (!isset($product['expiry_date'])) {
-                        throw new \Exception('expiry_date là bắt buộc với type NORMAL');
-                    }
+                $storageArea = StorageArea::where('id', $product['storage_area_id'])
+                    ->where('deleted', false)
+                    ->first();
 
-                    if (!strtotime($product['expiry_date']) || strtotime($product['expiry_date']) <= time()) {
-                        throw new \Exception('expiry_date phải là ngày trong tương lai và đúng định dạng');
-                    }
+                if (!$storageArea) {
+                    throw new \Exception('Khu vực lưu trữ không tồn tại hoặc không hoạt động');
+                }
 
-                    if ($product['quantity'] <= 0) {
-                        throw new \Exception("Số lượng nhập của {$productModel->name} phải lớn hơn 0");
-                    }
-
-                    $product['storage_area_id'] = $data['storage_area_id'];
-
-                } else { // RETURN type
-                    $exportDetail = $exportDetails->get($product['product_id']);
-                    if (!$exportDetail) {
-                        throw new \Exception("Sản phẩm {$productModel->name} không có trong phiếu xuất");
-                    }
-
-                    if ($product['quantity'] > $exportDetail->quantity) {
-                        throw new \Exception(
-                            "Số lượng trả về của {$productModel->name} ({$product['quantity']}) " .
-                            "không được lớn hơn số lượng đã xuất ({$exportDetail->quantity})"
-                        );
-                    }
-
-                    if ($product['quantity'] <= 0) {
-                        throw new \Exception("Số lượng trả về của {$productModel->name} phải lớn hơn 0");
-                    }
-
-                    $product['storage_area_id'] = $exportDetail->storage_area_id;
-                    $product['expiry_date'] = $exportDetail->expiry_date;
+                if (!strtotime($product['expiry_date']) || strtotime($product['expiry_date']) <= time()) {
+                    throw new \Exception('expiry_date phải là ngày trong tương lai và đúng định dạng');
                 }
 
                 $validatedProducts[] = $product;
             }
 
-            // [BƯỚC 9] - Generate receipt code
+            // [BƯỚC 8] - Generate receipt code
             $currentDay = date('d');
             $currentMonth = date('m');
             $currentYear = date('y');
@@ -445,7 +404,7 @@ class ProductImportReceiptController
             $sequence = $latestImportReceipt ? intval(substr($latestImportReceipt->code, -5)) + 1 : 1;
             $code = $prefix . str_pad($sequence, 5, '0', STR_PAD_LEFT);
 
-            // [BƯỚC 10] - Create import receipt
+            // [BƯỚC 9] - Create import receipt
             $importReceipt = ProductImportReceipt::create([
                 'code' => $code,
                 'type' => $data['type'],
@@ -453,13 +412,15 @@ class ProductImportReceiptController
                 'created_by' => $createdById,
                 'receiver_id' => $receiver->id,
                 'status' => 'COMPLETED',
-                'order_code' => $data['type'] === 'RETURN' ? ($exportReceipt->order_code ?? null) : null
+                'order_id' => $data['order_id'] ?? null
             ]);
 
-            // [BƯỚC 11] - Create import details and update inventory
-            $importDetailIds = [];
+
+            // [BƯỚC 10] - Create import details and update inventory
+            $importDetails = []; // Mảng lưu chi tiết import và history tương ứng
+
             foreach ($validatedProducts as $product) {
-                // Create import detail
+                // Tạo import detail
                 $detail = $importReceipt->details()->create([
                     'product_id' => $product['product_id'],
                     'storage_area_id' => $product['storage_area_id'],
@@ -467,28 +428,39 @@ class ProductImportReceiptController
                     'expiry_date' => $product['expiry_date']
                 ]);
 
-                $importDetailIds[] = $detail->id;
-
-                // Update storage history
-                $storageHistory = ProductStorageHistory::where([
+                // Kiểm tra history cũ
+                $previousActiveRecord = ProductStorageHistory::where([
                     'product_id' => $product['product_id'],
                     'storage_area_id' => $product['storage_area_id'],
                     'expiry_date' => $product['expiry_date'],
+                    'status' => 'ACTIVE',
                     'deleted' => false
                 ])->first();
 
-                if ($storageHistory) {
-                    $storageHistory->quantity += $product['quantity'];
-                    $storageHistory->save();
-                } else {
-                    ProductStorageHistory::create([
-                        'product_id' => $product['product_id'],
-                        'storage_area_id' => $product['storage_area_id'],
-                        'expiry_date' => $product['expiry_date'],
-                        'quantity' => $product['quantity'],
-                        'deleted' => false
-                    ]);
+                // Tính toán quantity_available mới
+                $newQuantityAvailable = $product['quantity'];
+                if ($previousActiveRecord) {
+                    $newQuantityAvailable += $previousActiveRecord->quantity_available;
+                    $previousActiveRecord->status = 'INACTIVE';
+                    $previousActiveRecord->save();
                 }
+
+                // Tạo history mới
+                $historyRecord = new ProductStorageHistory();
+                $historyRecord->product_id = $product['product_id'];
+                $historyRecord->storage_area_id = $product['storage_area_id'];
+                $historyRecord->expiry_date = $product['expiry_date'];
+                $historyRecord->quantity = $product['quantity'];
+                $historyRecord->quantity_available = $newQuantityAvailable;
+                $historyRecord->status = 'ACTIVE';
+                $historyRecord->deleted = false;
+                $historyRecord->save();
+
+                // Lưu detail và history vào mảng
+                $importDetails[] = [
+                    'detail' => $detail,
+                    'history' => $historyRecord
+                ];
 
                 // Update product quantity
                 $productModel = Product::find($product['product_id']);
@@ -496,18 +468,16 @@ class ProductImportReceiptController
                 $productModel->save();
             }
 
-            // [BƯỚC 12] - Load relationships for response
+            // [BƯỚC 11] - Load relationships for response
             $importReceipt->load([
-                'details' => function($query) use ($importDetailIds) {
-                    $query->whereIn('id', $importDetailIds);
-                },
                 'details.product',
                 'details.storageArea',
                 'creator.profile',
-                'receiver.profile'
+                'receiver.profile',
+                'order'
             ]);
 
-            // [BƯỚC 13] - Prepare and send response
+            // [BƯỚC 12] - Prepare and send response
             $response = [
                 'message' => 'Nhập kho thành công',
                 'data' => [
@@ -516,6 +486,10 @@ class ProductImportReceiptController
                     'type' => $importReceipt->type,
                     'status' => $importReceipt->status,
                     'note' => $importReceipt->note,
+                    'order' => $importReceipt->order ? [
+                        'id' => $importReceipt->order->id,
+                        'code' => $importReceipt->order->code
+                    ] : null,
                     'created_at' => $importReceipt->created_at,
                     'creator' => [
                         'id' => $importReceipt->creator->id,
@@ -535,7 +509,10 @@ class ProductImportReceiptController
                             'last_name' => $importReceipt->receiver->profile->last_name,
                         ]
                     ],
-                    'details' => $importReceipt->details->map(function ($detail) {
+                    'details' => array_map(function ($item) {
+                        $detail = $item['detail'];
+                        $history = $item['history'];
+
                         return [
                             'id' => $detail->id,
                             'product' => [
@@ -550,9 +527,13 @@ class ProductImportReceiptController
                             ],
                             'quantity' => $detail->quantity,
                             'expiry_date' => $detail->expiry_date,
-                            'created_at' => $detail->created_at
+                            'created_at' => $detail->created_at,
+                            'history' => [
+                                'quantity_available' => $history->quantity_available,
+                                'status' => $history->status
+                            ]
                         ];
-                    })->values()->toArray()
+                    }, $importDetails)
                 ]
             ];
 
