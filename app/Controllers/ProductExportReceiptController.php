@@ -120,7 +120,7 @@ class ProductExportReceiptController
                                 $q->select('user_id', 'first_name', 'last_name');
                             }]);
                     },
-                    'details.productStorageLocation',
+                    'details.storageArea',
                     'details.product'
                 ])
                 ->first();

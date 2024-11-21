@@ -12,7 +12,7 @@ class ProductImportReceipt extends Model
 {
     use HasFactory;
     protected $table = 'product_import_receipts';
-    protected $fillable = ['code', 'type', 'receipt_date', 'note', 'status', 'image', 'created_at', 'updated_at', 'deleted', 'created_by', 'receiver_id'];
+    protected $fillable = ['code', 'type', 'receipt_date', 'note', 'status', 'image', 'created_at', 'updated_at', 'deleted', 'created_by', 'receiver_id', 'order_id'];
     protected $primaryKey = 'id';
     public $timestamps = true;
 
@@ -29,6 +29,11 @@ class ProductImportReceipt extends Model
     public function details(): HasMany
     {
         return $this->hasMany(ProductImportReceiptDetail::class);
+    }
+
+    public function order(): BelongsTo
+    {
+        return $this->belongsTo(Order::class, 'order_id');
     }
 
     public function validate(array $data, $isUpdate = false)
