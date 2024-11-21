@@ -12,7 +12,7 @@ class MaterialStorageHistory extends Model
     use HasFactory;
 
     protected $table = 'material_storage_history';
-    protected $fillable = ['material_id', 'provider_id','storage_area_id', 'quantity', 'expiry_date', 'created_at', 'updated_at', 'deleted'];
+    protected $fillable = ['material_id', 'provider_id','storage_area_id', 'quantity', 'quantity_available', 'expiry_date', 'status', 'created_at', 'updated_at', 'deleted'];
     protected $primaryKey = 'id';
     public $timestamps = true;
 
