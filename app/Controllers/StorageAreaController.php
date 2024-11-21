@@ -487,4 +487,36 @@ class StorageAreaController
             ];
         }
     }
+
+    public function getStorageContentByCode(string $code): array
+    {
+        try {
+            $storage = StorageArea::query()
+                ->where('code', $code)
+                ->where('deleted', false)
+                ->with([
+                    'productStorageHistories.product:id,name,sku',
+                    'materialStorageHistories.material:id,name,sku'
+                ])
+                ->first();
+
+            if (!$storage) {
+                http_response_code(404);
+                return [
+                    'error' => 'Storage not found',
+                    'message' => "Storage with code '{$code}' does not exist"
+                ];
+            }
+
+            return $storage->toArray();
+
+        } catch (\Exception $e) {
+            error_log("Error getting storage contents for code {$code}: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
 }
