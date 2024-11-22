@@ -68,19 +68,48 @@ class ProductExportReceiptController
                 ->orderByRaw("CASE 
                 WHEN status = 'ACTIVE' THEN 1 
                 ELSE 2 
-                END")  // Sort ACTIVE status first
+                END")
                 ->orderBy('created_at', 'desc');
 
-            if (isset($_GET['note'])) {
-                $note = urldecode($_GET['note']);
-                $productER->where('note', '%' . $note . '%');
+            // Code filter
+            if (isset($_GET['code'])) {
+                $code = urldecode($_GET['code']);
+                $productER->where('code', 'LIKE', '%' . $code . '%');
             }
 
+            // Creator filter
+            if (isset($_GET['created_by'])) {
+                $createdBy = urldecode($_GET['created_by']);
+                $productER->where('created_by', $createdBy);
+            }
+
+            // Receipt Date filters
+            if (isset($_GET['receipt_date'])) {
+                $receiptDate = urldecode($_GET['receipt_date']);
+                $productER->whereDate('receipt_date', $receiptDate);
+            }
+            if (isset($_GET['receipt_date_from'])) {
+                $receiptDateFrom = urldecode($_GET['receipt_date_from']);
+                $productER->whereDate('receipt_date', '>=', $receiptDateFrom);
+            }
+            if (isset($_GET['receipt_date_to'])) {
+                $receiptDateTo = urldecode($_GET['receipt_date_to']);
+                $productER->whereDate('receipt_date', '<=', $receiptDateTo);
+            }
+
+            // Note filter
+            if (isset($_GET['note'])) {
+                $note = urldecode($_GET['note']);
+                $productER->where('note', 'LIKE', '%' . $note . '%');
+            }
+
+            // Type filter
             if (isset($_GET['type'])) {
                 $type = urldecode($_GET['type']);
                 $productER->where('type', $type);
             }
 
+            // Status filter
             if (isset($_GET['status'])) {
                 $status = urldecode($_GET['status']);
                 $productER->where('status', $status);

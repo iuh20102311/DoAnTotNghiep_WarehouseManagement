@@ -80,51 +80,102 @@ class MaterialImportReceiptController
                     'details'
                 ])
                 ->orderByRaw("CASE 
-                WHEN status = 'COMPLETED' THEN 1 
-                WHEN status = 'PENDING_APPROVED' THEN 2
-                WHEN status = 'APPROVED' THEN 3 
-                WHEN status = 'REJECTED' THEN 4 
+                    WHEN status = 'COMPLETED' THEN 1 
+                    WHEN status = 'PENDING_APPROVED' THEN 2
+                    WHEN status = 'APPROVED' THEN 3 
+                    WHEN status = 'REJECTED' THEN 4 
                 END")
                 ->orderByRaw("CASE 
-                WHEN status = 'RETURN' THEN 1 
-                WHEN status = 'NORMAL' THEN 2
-                WHEN status = 'OTHER' THEN 3 
+                    WHEN status = 'RETURN' THEN 1 
+                    WHEN status = 'NORMAL' THEN 2
+                    WHEN status = 'OTHER' THEN 3 
                 END")
                 ->orderBy('created_at', 'desc');
 
+            // Code filter
+            if (isset($_GET['code'])) {
+                $code = urldecode($_GET['code']);
+                $materialIR->where('code', 'LIKE', '%' . $code . '%');
+            }
+
+            // Provider filter
             if (isset($_GET['provider_id'])) {
                 $providerId = urldecode($_GET['provider_id']);
                 $materialIR->where('provider_id', $providerId);
             }
 
-            if (isset($_GET['code'])) {
-                $code = urldecode($_GET['code']);
-                $materialIR->where('code', 'like', '%' . $code . '%');
+            // Creator filter
+            if (isset($_GET['created_by'])) {
+                $createdBy = urldecode($_GET['created_by']);
+                $materialIR->where('created_by', $createdBy);
             }
 
+            // Approver filter
+            if (isset($_GET['approved_by'])) {
+                $approvedBy = urldecode($_GET['approved_by']);
+                $materialIR->where('approved_by', $approvedBy);
+            }
+
+            // Receiver filter
+            if (isset($_GET['receiver_id'])) {
+                $receiverId = urldecode($_GET['receiver_id']);
+                $materialIR->where('receiver_id', $receiverId);
+            }
+
+            // Receipt Date filters
+            if (isset($_GET['receipt_date'])) {
+                $receiptDate = urldecode($_GET['receipt_date']);
+                $materialIR->whereDate('receipt_date', $receiptDate);
+            }
+            if (isset($_GET['receipt_date_from'])) {
+                $receiptDateFrom = urldecode($_GET['receipt_date_from']);
+                $materialIR->whereDate('receipt_date', '>=', $receiptDateFrom);
+            }
+            if (isset($_GET['receipt_date_to'])) {
+                $receiptDateTo = urldecode($_GET['receipt_date_to']);
+                $materialIR->whereDate('receipt_date', '<=', $receiptDateTo);
+            }
+
+            // Type filter
             if (isset($_GET['type'])) {
-                $materialIR->where('type', urldecode($_GET['type']));
+                $type = urldecode($_GET['type']);
+                $materialIR->where('type', $type);
             }
 
+            // Status filter
             if (isset($_GET['status'])) {
-                $materialIR->where('status', urldecode($_GET['status']));
+                $status = urldecode($_GET['status']);
+                $materialIR->where('status', $status);
             }
 
+            // Total Price filters
             if (isset($_GET['total_price'])) {
-                $materialIR->where('total_price', urldecode($_GET['total_price']));
+                $totalPrice = urldecode($_GET['total_price']);
+                $materialIR->where('total_price', $totalPrice);
             }
-
             if (isset($_GET['total_price_min'])) {
-                $materialIR->where('total_price', '>=', urldecode($_GET['total_price_min']));
+                $totalPriceMin = urldecode($_GET['total_price_min']);
+                $materialIR->where('total_price', '>=', $totalPriceMin);
             }
-
             if (isset($_GET['total_price_max'])) {
-                $materialIR->where('total_price', '<=', urldecode($_GET['total_price_max']));
+                $totalPriceMax = urldecode($_GET['total_price_max']);
+                $materialIR->where('total_price', '<=', $totalPriceMax);
             }
 
+            // Note filter
             if (isset($_GET['note'])) {
                 $note = urldecode($_GET['note']);
-                $materialIR->where('note', '%' . $note . '%');
+                $materialIR->where('note', 'LIKE', '%' . $note . '%');
+            }
+
+            // Created At filters
+            if (isset($_GET['created_from'])) {
+                $createdFrom = urldecode($_GET['created_from']);
+                $materialIR->whereDate('created_at', '>=', $createdFrom);
+            }
+            if (isset($_GET['created_to'])) {
+                $createdTo = urldecode($_GET['created_to']);
+                $materialIR->whereDate('created_at', '<=', $createdTo);
             }
 
             $result = $this->paginateResults($materialIR, $perPage, $page)->toArray();

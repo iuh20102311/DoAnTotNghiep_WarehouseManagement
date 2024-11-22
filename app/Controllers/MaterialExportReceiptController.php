@@ -77,19 +77,58 @@ class MaterialExportReceiptController
                 END")
                 ->orderBy('created_at', 'desc');
 
+            // Code filter
+            if (isset($_GET['code'])) {
+                $code = urldecode($_GET['code']);
+                $materialER->where('code', 'LIKE', '%' . $code . '%');
+            }
+
+            // Creator filter
+            if (isset($_GET['created_by'])) {
+                $createdBy = urldecode($_GET['created_by']);
+                $materialER->where('created_by', $createdBy);
+            }
+
+            // Receipt Date filters
+            if (isset($_GET['receipt_date'])) {
+                $receiptDate = urldecode($_GET['receipt_date']);
+                $materialER->whereDate('receipt_date', $receiptDate);
+            }
+            if (isset($_GET['receipt_date_from'])) {
+                $receiptDateFrom = urldecode($_GET['receipt_date_from']);
+                $materialER->whereDate('receipt_date', '>=', $receiptDateFrom);
+            }
+            if (isset($_GET['receipt_date_to'])) {
+                $receiptDateTo = urldecode($_GET['receipt_date_to']);
+                $materialER->whereDate('receipt_date', '<=', $receiptDateTo);
+            }
+
+            // Type filter
             if (isset($_GET['type'])) {
                 $type = urldecode($_GET['type']);
                 $materialER->where('type', $type);
             }
 
+            // Status filter
             if (isset($_GET['status'])) {
                 $status = urldecode($_GET['status']);
                 $materialER->where('status', $status);
             }
 
+            // Note filter
             if (isset($_GET['note'])) {
                 $note = urldecode($_GET['note']);
-                $materialER->where('note', '%' . $note . '%');
+                $materialER->where('note', 'LIKE', '%' . $note . '%');
+            }
+
+            // Created At filters
+            if (isset($_GET['created_from'])) {
+                $createdFrom = urldecode($_GET['created_from']);
+                $materialER->where('created_at', '>=', $createdFrom);
+            }
+            if (isset($_GET['created_to'])) {
+                $createdTo = urldecode($_GET['created_to']);
+                $materialER->where('created_at', '<=', $createdTo);
             }
 
             $result = $this->paginateResults($materialER, $perPage, $page)->toArray();

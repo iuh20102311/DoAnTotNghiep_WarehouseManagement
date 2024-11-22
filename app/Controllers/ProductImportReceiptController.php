@@ -2,16 +2,13 @@
 
 namespace App\Controllers;
 
-use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductExportReceipt;
 use App\Models\ProductImportReceipt;
-use App\Models\ProductImportReceiptDetail;
 use App\Models\ProductStorageHistory;
 use App\Models\StorageArea;
 use App\Models\User;
 use App\Utils\PaginationTrait;
-use Illuminate\Support\Facades\DB;
 use Lcobucci\JWT\Encoding\JoseEncoder;
 use Lcobucci\JWT\Token\Parser;
 
@@ -75,29 +72,69 @@ class ProductImportReceiptController
                                 $q->select('user_id', 'first_name', 'last_name');
                             }]);
                     },
-                    'details'
+                    'details',
+                    'order'
                 ])
                 ->orderByRaw("CASE 
                 WHEN status = 'ACTIVE' THEN 1 
                 ELSE 2 
-                END")  // Sort ACTIVE status first
+                END")
                 ->orderBy('created_at', 'desc');
 
+            // Code filter
+            if (isset($_GET['code'])) {
+                $code = urldecode($_GET['code']);
+                $query->where('code', 'LIKE', '%' . $code . '%');
+            }
+
+            // Creator filter
+            if (isset($_GET['created_by'])) {
+                $createdBy = urldecode($_GET['created_by']);
+                $query->where('created_by', $createdBy);
+            }
+
+            // Receiver filter
+            if (isset($_GET['receiver_id'])) {
+                $receiverId = urldecode($_GET['receiver_id']);
+                $query->where('receiver_id', $receiverId);
+            }
+
+            // Order filter
+            if (isset($_GET['order_id'])) {
+                $orderId = urldecode($_GET['order_id']);
+                $query->where('order_id', $orderId);
+            }
+
+            // Receipt Date filters
+            if (isset($_GET['receipt_date'])) {
+                $receiptDate = urldecode($_GET['receipt_date']);
+                $query->whereDate('receipt_date', $receiptDate);
+            }
+            if (isset($_GET['receipt_date_from'])) {
+                $receiptDateFrom = urldecode($_GET['receipt_date_from']);
+                $query->whereDate('receipt_date', '>=', $receiptDateFrom);
+            }
+            if (isset($_GET['receipt_date_to'])) {
+                $receiptDateTo = urldecode($_GET['receipt_date_to']);
+                $query->whereDate('receipt_date', '<=', $receiptDateTo);
+            }
+
+            // Type filter
             if (isset($_GET['type'])) {
-                $query->where('type', urldecode($_GET['type']));
+                $type = urldecode($_GET['type']);
+                $query->where('type', $type);
             }
 
-            if (isset($_GET['quantity'])) {
-                $query->where('quantity', urldecode($_GET['quantity']));
-            }
-
+            // Status filter
             if (isset($_GET['status'])) {
-                $query->where('status', urldecode($_GET['status']));
+                $status = urldecode($_GET['status']);
+                $query->where('status', $status);
             }
 
+            // Note filter
             if (isset($_GET['note'])) {
                 $note = urldecode($_GET['note']);
-                $query->where('note', '%' . $note . '%');
+                $query->where('note', 'LIKE', '%' . $note . '%');
             }
 
             $result = $this->paginateResults($query, $perPage, $page)->toArray();
