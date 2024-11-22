@@ -20,46 +20,81 @@ class ProductStorageHistoryController
                 ->with(['product', 'storageArea'])
                 ->orderBy('created_at', 'desc');
 
+            // Product ID filter
             if (isset($_GET['product_id'])) {
                 $productId = urldecode($_GET['product_id']);
                 $productStorageHistory->where('product_id', $productId);
             }
 
+            // Storage Area ID filter
             if (isset($_GET['storage_area_id'])) {
                 $storageAreaId = urldecode($_GET['storage_area_id']);
                 $productStorageHistory->where('storage_area_id', $storageAreaId);
             }
 
+            // Quantity filters
             if (isset($_GET['quantity'])) {
                 $quantity = urldecode($_GET['quantity']);
                 $productStorageHistory->where('quantity', $quantity);
             }
-
             if (isset($_GET['quantity_min'])) {
                 $quantityMin = urldecode($_GET['quantity_min']);
                 $productStorageHistory->where('quantity', '>=', $quantityMin);
             }
-
             if (isset($_GET['quantity_max'])) {
                 $quantityMax = urldecode($_GET['quantity_max']);
                 $productStorageHistory->where('quantity', '<=', $quantityMax);
             }
 
+            // Quantity Available filters
+            if (isset($_GET['quantity_available'])) {
+                $quantityAvailable = urldecode($_GET['quantity_available']);
+                $productStorageHistory->where('quantity_available', $quantityAvailable);
+            }
+            if (isset($_GET['quantity_available_min'])) {
+                $quantityAvailableMin = urldecode($_GET['quantity_available_min']);
+                $productStorageHistory->where('quantity_available', '>=', $quantityAvailableMin);
+            }
+            if (isset($_GET['quantity_available_max'])) {
+                $quantityAvailableMax = urldecode($_GET['quantity_available_max']);
+                $productStorageHistory->where('quantity_available', '<=', $quantityAvailableMax);
+            }
+
+            // Expiry Date filters
+            if (isset($_GET['expiry_date'])) {
+                $expiryDate = urldecode($_GET['expiry_date']);
+                $productStorageHistory->whereDate('expiry_date', $expiryDate);
+            }
+            if (isset($_GET['expiry_date_from'])) {
+                $expiryDateFrom = urldecode($_GET['expiry_date_from']);
+                $productStorageHistory->whereDate('expiry_date', '>=', $expiryDateFrom);
+            }
+            if (isset($_GET['expiry_date_to'])) {
+                $expiryDateTo = urldecode($_GET['expiry_date_to']);
+                $productStorageHistory->whereDate('expiry_date', '<=', $expiryDateTo);
+            }
+
+            // Status filter
+            if (isset($_GET['status'])) {
+                $status = urldecode($_GET['status']);
+                $productStorageHistory->where('status', $status);
+            }
+
+            // Created At filters
             if (isset($_GET['created_from'])) {
                 $createdFrom = urldecode($_GET['created_from']);
                 $productStorageHistory->where('created_at', '>=', $createdFrom);
             }
-
             if (isset($_GET['created_to'])) {
                 $createdTo = urldecode($_GET['created_to']);
                 $productStorageHistory->where('created_at', '<=', $createdTo);
             }
 
+            // Updated At filters
             if (isset($_GET['updated_from'])) {
                 $updatedFrom = urldecode($_GET['updated_from']);
                 $productStorageHistory->where('updated_at', '>=', $updatedFrom);
             }
-
             if (isset($_GET['updated_to'])) {
                 $updatedTo = urldecode($_GET['updated_to']);
                 $productStorageHistory->where('updated_at', '<=', $updatedTo);

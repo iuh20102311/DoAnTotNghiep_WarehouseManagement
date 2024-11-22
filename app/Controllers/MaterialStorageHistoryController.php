@@ -20,51 +20,87 @@ class MaterialStorageHistoryController
                 ->with(['material', 'provider', 'storageArea'])
                 ->orderBy('created_at', 'desc');
 
+            // Material ID filter
             if (isset($_GET['material_id'])) {
                 $materialId = urldecode($_GET['material_id']);
                 $materialStorageHistory->where('material_id', $materialId);
             }
 
+            // Provider ID filter
             if (isset($_GET['provider_id'])) {
                 $providerId = urldecode($_GET['provider_id']);
                 $materialStorageHistory->where('provider_id', $providerId);
             }
 
+            // Storage Area ID filter
             if (isset($_GET['storage_area_id'])) {
                 $storageAreaId = urldecode($_GET['storage_area_id']);
                 $materialStorageHistory->where('storage_area_id', $storageAreaId);
             }
 
+            // Quantity filters
             if (isset($_GET['quantity'])) {
                 $quantity = urldecode($_GET['quantity']);
                 $materialStorageHistory->where('quantity', $quantity);
             }
-
             if (isset($_GET['quantity_min'])) {
                 $quantityMin = urldecode($_GET['quantity_min']);
                 $materialStorageHistory->where('quantity', '>=', $quantityMin);
             }
-
             if (isset($_GET['quantity_max'])) {
                 $quantityMax = urldecode($_GET['quantity_max']);
                 $materialStorageHistory->where('quantity', '<=', $quantityMax);
             }
 
+            // Quantity Available filters
+            if (isset($_GET['quantity_available'])) {
+                $quantityAvailable = urldecode($_GET['quantity_available']);
+                $materialStorageHistory->where('quantity_available', $quantityAvailable);
+            }
+            if (isset($_GET['quantity_available_min'])) {
+                $quantityAvailableMin = urldecode($_GET['quantity_available_min']);
+                $materialStorageHistory->where('quantity_available', '>=', $quantityAvailableMin);
+            }
+            if (isset($_GET['quantity_available_max'])) {
+                $quantityAvailableMax = urldecode($_GET['quantity_available_max']);
+                $materialStorageHistory->where('quantity_available', '<=', $quantityAvailableMax);
+            }
+
+            // Expiry Date filters
+            if (isset($_GET['expiry_date'])) {
+                $expiryDate = urldecode($_GET['expiry_date']);
+                $materialStorageHistory->whereDate('expiry_date', $expiryDate);
+            }
+            if (isset($_GET['expiry_date_from'])) {
+                $expiryDateFrom = urldecode($_GET['expiry_date_from']);
+                $materialStorageHistory->whereDate('expiry_date', '>=', $expiryDateFrom);
+            }
+            if (isset($_GET['expiry_date_to'])) {
+                $expiryDateTo = urldecode($_GET['expiry_date_to']);
+                $materialStorageHistory->whereDate('expiry_date', '<=', $expiryDateTo);
+            }
+
+            // Status filter
+            if (isset($_GET['status'])) {
+                $status = urldecode($_GET['status']);
+                $materialStorageHistory->where('status', $status);
+            }
+
+            // Created At filters
             if (isset($_GET['created_from'])) {
                 $createdFrom = urldecode($_GET['created_from']);
                 $materialStorageHistory->where('created_at', '>=', $createdFrom);
             }
-
             if (isset($_GET['created_to'])) {
                 $createdTo = urldecode($_GET['created_to']);
                 $materialStorageHistory->where('created_at', '<=', $createdTo);
             }
 
+            // Updated At filters
             if (isset($_GET['updated_from'])) {
                 $updatedFrom = urldecode($_GET['updated_from']);
                 $materialStorageHistory->where('updated_at', '>=', $updatedFrom);
             }
-
             if (isset($_GET['updated_to'])) {
                 $updatedTo = urldecode($_GET['updated_to']);
                 $materialStorageHistory->where('updated_at', '<=', $updatedTo);
