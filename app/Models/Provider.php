@@ -48,26 +48,25 @@ class Provider extends Model
     {
         $validator = new Validator($data, $this->messages());
 
+        $currentId = $isUpdate ? $this->id : null;
+
         $rules = [
-            'name' => ['required', 'unique' => [Provider::class, 'name'], 'max' => 255],
+            'name' => ['nullable', 'max' => 255],
             'website' => ['nullable', 'url'],
-            'address' => ['required', 'max' => 255],
-            'city' => ['required', 'max' => 100],
-            'district' => ['required', 'max' => 100],
-            'ward' => ['required', 'max' => 100],
-            'representative_name' => ['required', 'max' => 255],
-            'representative_phone' => ['required', 'max' => 15, 'unique' => [Provider::class, 'representative_phone']],
-            'representative_email' => ['required', 'max' => 255, 'email', 'unique' => [Provider::class, 'representative_email']],
-            'phone' => ['required', 'max' => 15, 'unique' => [Provider::class, 'phone']],
-            'email' => ['required', 'max' => 255, 'email', 'unique' => [Provider::class, 'email']],
+            'address' => ['nullable', 'max' => 255],
+            'city' => ['nullable', 'max' => 100],
+            'district' => ['nullable', 'max' => 100],
+            'ward' => ['nullable', 'max' => 100],
+            'representative_name' => ['nullable', 'max' => 255],
+            'representative_phone' => ['nullable', 'max' => 15, 'unique' => [Provider::class, 'representative_phone']],
+            'representative_email' => ['nullable', 'max' => 255, 'email', 'unique' => [Provider::class, 'representative_email']],
+            'phone' => ['required', 'max' => 15, 'unique' => [Provider::class, 'phone', $currentId]],
+            'email' => ['required', 'max' => 255, 'email', 'unique' => [Provider::class, 'email', $currentId]],
             'note' => ['max' => 1000],
             'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE', 'DELETED']]
         ];
 
         if ($isUpdate) {
-            // Chỉ validate các trường có trong request
-            $rules = array_intersect_key($rules, $data);
-
             // Bỏ qua validate required
             foreach ($rules as $field => $constraints) {
                 $rules[$field] = array_filter($constraints, fn($c) => $c !== 'required');

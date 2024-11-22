@@ -291,25 +291,24 @@ class ProductExportReceiptController
         $data = json_decode(file_get_contents('php://input'), true);
 
         try {
-            // Basic validation
+            // [BƯỚC 1] - Validate basic required fields
             if (!isset($data['type']) || !in_array($data['type'], ['NORMAL', 'CANCEL'])) {
                 throw new \Exception('Type phải là NORMAL hoặc CANCEL');
             }
 
-            // Allowed fields based on type
+            // [BƯỚC 2] - Validate allowed fields
             $allowedFields = [
                 'NORMAL' => ['type', 'order_code', 'note', 'products'],
                 'CANCEL' => ['type', 'note', 'products']
             ];
 
-            // Check unexpected fields
             foreach ($data as $field => $value) {
                 if (!in_array($field, $allowedFields[$data['type']])) {
                     throw new \Exception("Trường '$field' không được phép với type " . $data['type']);
                 }
             }
 
-            // Token validation
+            // [BƯỚC 3] - Token validation
             $headers = apache_request_headers();
             $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
             if (!$token) {
@@ -320,7 +319,7 @@ class ProductExportReceiptController
             $parsedToken = $parser->parse($token);
             $createdById = $parsedToken->claims()->get('id');
 
-            // Type specific validation
+            // [BƯỚC 4] - Type specific validation
             $order = null;
             if ($data['type'] === 'NORMAL') {
                 if (!isset($data['order_code'])) {
@@ -345,12 +344,11 @@ class ProductExportReceiptController
 
                 if ($existingExport) {
                     throw new \Exception(
-                        "Đơn hàng {$data['order_code']} đã được xuất kho theo phiếu xuất {$existingExport->code} " .
-                        "vào lúc " . $existingExport->created_at->format('H:i:s d/m/Y')
+                        "Đơn hàng {$data['order_code']} đã được xuất kho theo phiếu xuất {$existingExport->code}"
                     );
                 }
 
-                // Lấy chi tiết đơn hàng từ order_details
+                // [BƯỚC 5] - Validate products cho type NORMAL
                 $orderDetails = $order->orderDetails()
                     ->where('deleted', false)
                     ->where('status', 'ACTIVE')
@@ -361,172 +359,10 @@ class ProductExportReceiptController
                     throw new \Exception('Đơn hàng không có sản phẩm');
                 }
 
-                // Xử lý products dựa vào 3 trường hợp
-                $productsWithQuantity = [];
+                $validatedProducts = [];
 
-                // TH1: Có truyền products đầy đủ
-                if (isset($data['products']) && !empty($data['products'])) {
-                    foreach ($data['products'] as $product) {
-                        if (!isset($product['product_id'])) {
-                            throw new \Exception('product_id là bắt buộc cho mỗi sản phẩm');
-                        }
-
-                        // Kiểm tra sản phẩm có trong đơn hàng không
-                        if (!$orderDetails->has($product['product_id'])) {
-                            throw new \Exception("Sản phẩm ID {$product['product_id']} không có trong đơn hàng");
-                        }
-
-                        $orderDetail = $orderDetails[$product['product_id']];
-
-                        // Kiểm tra và lấy số lượng xuất
-                        $requestQuantity = $product['quantity'] ?? $orderDetail->quantity;
-
-                        // Kiểm tra số lượng xuất phải lớn hơn 0
-                        if ($requestQuantity <= 0) {
-                            throw new \Exception("Số lượng xuất của sản phẩm ID {$product['product_id']} phải lớn hơn 0");
-                        }
-
-                        // Kiểm tra số lượng xuất không vượt quá số lượng đơn hàng
-                        if ($requestQuantity > $orderDetail->quantity) {
-                            throw new \Exception(
-                                "Số lượng xuất ({$requestQuantity}) của sản phẩm ID {$product['product_id']} " .
-                                "vượt quá số lượng trong đơn hàng ({$orderDetail->quantity})"
-                            );
-                        }
-
-                        // Sử dụng storage_area_id từ product hoặc từ data chung
-                        $storageAreaId = $product['storage_area_id'] ?? $data['storage_area_id'] ?? null;
-                        if (!$storageAreaId) {
-                            throw new \Exception("Thiếu storage_area_id cho sản phẩm ID {$product['product_id']}");
-                        }
-
-                        // Kiểm tra storage_area tồn tại
-                        if (!isset($data['storage_area_id']) || $storageAreaId !== $data['storage_area_id']) {
-                            $storageArea = StorageArea::where('id', $storageAreaId)
-                                ->where('deleted', false)
-                                ->first();
-
-                            if (!$storageArea) {
-                                throw new \Exception("Kho chứa ID {$storageAreaId} không tồn tại hoặc đã bị xóa");
-                            }
-                        }
-
-                        // Kiểm tra số lượng trong kho
-                        $totalAvailable = ProductStorageHistory::where('product_id', $product['product_id'])
-                            ->where('storage_area_id', $storageAreaId)
-                            ->where('deleted', false)
-                            ->sum('quantity');
-
-                        if ($totalAvailable < $requestQuantity) {
-                            throw new \Exception(
-                                "Không đủ số lượng trong kho cho sản phẩm ID {$product['product_id']}. " .
-                                "Cần: {$requestQuantity}, Có sẵn: {$totalAvailable}"
-                            );
-                        }
-
-                        $productsWithQuantity[] = [
-                            'product_id' => $product['product_id'],
-                            'storage_area_id' => $storageAreaId,
-                            'quantity' => $requestQuantity
-                        ];
-                    }
-                }
-                // TH2: Chỉ truyền mảng product_ids và quantities
-                else if (isset($data['product_ids']) && is_array($data['product_ids'])) {
-                    if (!isset($data['storage_area_id'])) {
-                        throw new \Exception('storage_area_id là bắt buộc khi chỉ định product_ids');
-                    }
-
-                    // Kiểm tra mảng quantities nếu có
-                    $quantities = $data['quantities'] ?? [];
-                    if (!empty($quantities) && count($quantities) !== count($data['product_ids'])) {
-                        throw new \Exception('Số lượng phần tử trong mảng quantities phải bằng số lượng product_ids');
-                    }
-
-                    foreach ($data['product_ids'] as $index => $productId) {
-                        if (!$orderDetails->has($productId)) {
-                            throw new \Exception("Sản phẩm ID {$productId} không có trong đơn hàng");
-                        }
-
-                        $orderDetail = $orderDetails[$productId];
-                        $requestQuantity = $quantities[$index] ?? $orderDetail->quantity;
-
-                        // Kiểm tra số lượng xuất phải lớn hơn 0
-                        if ($requestQuantity <= 0) {
-                            throw new \Exception("Số lượng xuất của sản phẩm ID {$productId} phải lớn hơn 0");
-                        }
-
-                        // Kiểm tra số lượng xuất không vượt quá số lượng đơn hàng
-                        if ($requestQuantity > $orderDetail->quantity) {
-                            throw new \Exception(
-                                "Số lượng xuất ({$requestQuantity}) của sản phẩm ID {$productId} " .
-                                "vượt quá số lượng trong đơn hàng ({$orderDetail->quantity})"
-                            );
-                        }
-
-                        // Kiểm tra số lượng trong kho
-                        $totalAvailable = ProductStorageHistory::where('product_id', $productId)
-                            ->where('storage_area_id', $data['storage_area_id'])
-                            ->where('deleted', false)
-                            ->sum('quantity');
-
-                        if ($totalAvailable < $requestQuantity) {
-                            throw new \Exception(
-                                "Không đủ số lượng trong kho cho sản phẩm ID {$productId}. " .
-                                "Cần: {$requestQuantity}, Có sẵn: {$totalAvailable}"
-                            );
-                        }
-
-                        $productsWithQuantity[] = [
-                            'product_id' => $productId,
-                            'storage_area_id' => $data['storage_area_id'],
-                            'quantity' => $requestQuantity
-                        ];
-                    }
-                }
-                // TH3: Không truyền products, lấy tất cả từ đơn hàng
-                else {
-                    if (!isset($data['storage_area_id'])) {
-                        throw new \Exception('storage_area_id là bắt buộc khi không chỉ định products');
-                    }
-
-                    foreach ($orderDetails as $orderDetail) {
-                        // Kiểm tra số lượng trong kho
-                        $totalAvailable = ProductStorageHistory::where('product_id', $orderDetail->product_id)
-                            ->where('storage_area_id', $data['storage_area_id'])
-                            ->where('deleted', false)
-                            ->sum('quantity');
-
-                        if ($totalAvailable < $orderDetail->quantity) {
-                            throw new \Exception(
-                                "Không đủ số lượng trong kho cho sản phẩm ID {$orderDetail->product_id}. " .
-                                "Cần: {$orderDetail->quantity}, Có sẵn: {$totalAvailable}"
-                            );
-                        }
-
-                        $productsWithQuantity[] = [
-                            'product_id' => $orderDetail->product_id,
-                            'storage_area_id' => $data['storage_area_id'],
-                            'quantity' => $orderDetail->quantity
-                        ];
-                    }
-                }
-
-                $data['products'] = $productsWithQuantity;
-            }
-
-            // Validate products cho CANCEL type
-            if ($data['type'] === 'CANCEL') {
-                if (!isset($data['products']) || empty($data['products'])) {
-                    throw new \Exception('Danh sách sản phẩm không được để trống');
-                }
-
+                // Kiểm tra và xử lý products
                 foreach ($data['products'] as $product) {
-                    if (!isset($product['product_id']) || !isset($product['quantity']) || !isset($product['storage_area_id'])) {
-                        throw new \Exception('product_id, quantity và storage_area_id là bắt buộc cho mỗi sản phẩm');
-                    }
-
-                    // Kiểm tra storage_area tồn tại
                     $storageArea = StorageArea::where('id', $product['storage_area_id'])
                         ->where('deleted', false)
                         ->first();
@@ -535,40 +371,102 @@ class ProductExportReceiptController
                         throw new \Exception("Kho chứa ID {$product['storage_area_id']} không tồn tại hoặc đã bị xóa");
                     }
 
-                    // Lấy tổng số lượng có sẵn trong kho
-                    $totalAvailable = ProductStorageHistory::where('product_id', $product['product_id'])
-                        ->where('storage_area_id', $product['storage_area_id'])
-                        ->where('deleted', false)
-                        ->sum('quantity');
-
-                    if ($totalAvailable < $product['quantity']) {
-                        $productInfo = Product::find($product['product_id']);
-                        $productName = $productInfo ? $productInfo->name : "Sản phẩm không xác định";
-                        throw new \Exception("{$productName} không đủ số lượng trong kho. Có sẵn: {$totalAvailable}, Yêu cầu: {$product['quantity']}");
+                    if ($storageArea->type !== 'PRODUCT') {
+                        throw new \Exception("Kho chứa {$storageArea->name} không phải là kho thành phẩm");
                     }
+
+                    if (!isset($product['product_id']) || !isset($product['quantity']) ||
+                        !isset($product['storage_area_id'])) {
+                        throw new \Exception('product_id, quantity và storage_area_id là bắt buộc cho mỗi sản phẩm');
+                    }
+
+                    // Kiểm tra sản phẩm có trong đơn hàng không
+                    if (!$orderDetails->has($product['product_id'])) {
+                        throw new \Exception("Sản phẩm ID {$product['product_id']} không có trong đơn hàng");
+                    }
+
+                    $orderDetail = $orderDetails[$product['product_id']];
+
+                    // Kiểm tra số lượng xuất
+                    if ($product['quantity'] <= 0) {
+                        throw new \Exception("Số lượng xuất phải lớn hơn 0");
+                    }
+
+                    if ($product['quantity'] > $orderDetail->quantity) {
+                        throw new \Exception(
+                            "Số lượng xuất ({$product['quantity']}) vượt quá số lượng trong đơn hàng ({$orderDetail->quantity})"
+                        );
+                    }
+
+                    // Kiểm tra số lượng trong kho
+                    $activeHistory = ProductStorageHistory::where('product_id', $product['product_id'])
+                        ->where('storage_area_id', $product['storage_area_id'])
+                        ->where('status', 'ACTIVE')
+                        ->where('deleted', false)
+                        ->first();
+
+                    if (!$activeHistory) {
+                        throw new \Exception("Không tìm thấy sản phẩm ID {$product['product_id']} trong kho {$product['storage_area_id']}");
+                    }
+
+                    if ($activeHistory->quantity_available < $product['quantity']) {
+                        throw new \Exception(
+                            "Không đủ số lượng trong kho cho sản phẩm ID {$product['product_id']}. " .
+                            "Cần: {$product['quantity']}, Có sẵn: {$activeHistory->quantity_available}"
+                        );
+                    }
+
+                    $validatedProducts[] = $product;
+                }
+            } else {
+                // [BƯỚC 6] - Validate products cho type CANCEL
+                if (!isset($data['products']) || empty($data['products'])) {
+                    throw new \Exception('Danh sách sản phẩm không được để trống');
+                }
+
+                $validatedProducts = [];
+                foreach ($data['products'] as $product) {
+                    if (!isset($product['product_id']) || !isset($product['quantity']) ||
+                        !isset($product['storage_area_id'])) {
+                        throw new \Exception('product_id, quantity và storage_area_id là bắt buộc cho mỗi sản phẩm');
+                    }
+
+                    // Kiểm tra số lượng trong kho
+                    $activeHistory = ProductStorageHistory::where('product_id', $product['product_id'])
+                        ->where('storage_area_id', $product['storage_area_id'])
+                        ->where('status', 'ACTIVE')
+                        ->where('deleted', false)
+                        ->first();
+
+                    if (!$activeHistory) {
+                        throw new \Exception("Không tìm thấy sản phẩm ID {$product['product_id']} trong kho {$product['storage_area_id']}");
+                    }
+
+                    if ($activeHistory->quantity_available < $product['quantity']) {
+                        throw new \Exception(
+                            "Không đủ số lượng trong kho cho sản phẩm ID {$product['product_id']}. " .
+                            "Cần: {$product['quantity']}, Có sẵn: {$activeHistory->quantity_available}"
+                        );
+                    }
+
+                    $validatedProducts[] = $product;
                 }
             }
 
-            // Tạo mã phiếu xuất tự động
+            // [BƯỚC 7] - Generate receipt code
             $currentDay = date('d');
             $currentMonth = date('m');
             $currentYear = date('y');
             $prefix = "PXTP" . $currentDay . $currentMonth . $currentYear;
 
-            $latestExportReceipt = ProductExportReceipt::query()
-                ->where('code', 'LIKE', $prefix . '%')
+            $latestExportReceipt = ProductExportReceipt::where('code', 'LIKE', $prefix . '%')
                 ->orderBy('code', 'desc')
                 ->first();
 
-            if ($latestExportReceipt) {
-                $sequence = intval(substr($latestExportReceipt->code, -5)) + 1;
-            } else {
-                $sequence = 1;
-            }
-
+            $sequence = $latestExportReceipt ? intval(substr($latestExportReceipt->code, -5)) + 1 : 1;
             $code = $prefix . str_pad($sequence, 5, '0', STR_PAD_LEFT);
 
-            // Create export receipt
+            // [BƯỚC 8] - Create export receipt
             $productExportReceipt = ProductExportReceipt::create([
                 'code' => $code,
                 'note' => $data['note'] ?? '',
@@ -578,52 +476,52 @@ class ProductExportReceiptController
                 'order_code' => $data['type'] === 'NORMAL' ? $data['order_code'] : null
             ]);
 
-            // Create details and update quantities using FIFO
-            foreach ($data['products'] as $product) {
-                $remainingQuantity = $product['quantity'];
-
-                // Lấy các lô trong kho, sắp xếp theo hạn sử dụng gần nhất
-                $storageBatches = ProductStorageHistory::where('product_id', $product['product_id'])
+            // [BƯỚC 9] - Create details and update quantities
+            foreach ($validatedProducts as $product) {
+                // Lấy history hiện tại
+                $currentHistory = ProductStorageHistory::where('product_id', $product['product_id'])
                     ->where('storage_area_id', $product['storage_area_id'])
+                    ->where('status', 'ACTIVE')
                     ->where('deleted', false)
-                    ->where('quantity', '>', 0)
-                    ->orderBy('expiry_date', 'asc')
-                    ->get();
+                    ->first();
 
-                foreach ($storageBatches as $batch) {
-                    if ($remainingQuantity <= 0) break;
+                // Set INACTIVE cho history cũ
+                $currentHistory->status = 'INACTIVE';
+                $currentHistory->save();
 
-                    $quantityFromBatch = min($remainingQuantity, $batch->quantity);
+                // Tạo history mới với số lượng đã trừ
+                $newHistory = new ProductStorageHistory();
+                $newHistory->product_id = $product['product_id'];
+                $newHistory->storage_area_id = $product['storage_area_id'];
+                $newHistory->expiry_date = $currentHistory->expiry_date;
+                $newHistory->quantity = $currentHistory->quantity;
+                $newHistory->quantity_available = $currentHistory->quantity_available - $product['quantity'];
+                $newHistory->status = 'ACTIVE';
+                $newHistory->deleted = false;
+                $newHistory->save();
 
-                    // Tạo chi tiết xuất kho cho từng lô
-                    $productExportReceipt->details()->create([
-                        'product_id' => $product['product_id'],
-                        'storage_area_id' => $product['storage_area_id'],
-                        'quantity' => $quantityFromBatch,
-                        'expiry_date' => $batch->expiry_date
-                    ]);
+                // Tạo chi tiết xuất kho
+                $productExportReceipt->details()->create([
+                    'product_id' => $product['product_id'],
+                    'storage_area_id' => $product['storage_area_id'],
+                    'quantity' => $product['quantity'],
+                    'expiry_date' => $currentHistory->expiry_date
+                ]);
 
-                    // Cập nhật số lượng trong batch
-                    $batch->quantity -= $quantityFromBatch;
-                    $batch->save();
-
-                    $remainingQuantity -= $quantityFromBatch;
-                }
-
-                // Cập nhật tổng số lượng trong bảng products
+                // Cập nhật số lượng trong bảng products
                 $productModel = Product::find($product['product_id']);
                 $productModel->quantity_available -= $product['quantity'];
                 $productModel->save();
             }
 
-            // Load relationships cho response
+            // [BƯỚC 10] - Load relationships for response
             $exportReceipt = ProductExportReceipt::with([
                 'details.product',
                 'details.storageArea',
                 'creator.profile'
             ])->find($productExportReceipt->id);
 
-            // Chuẩn bị response
+            // [BƯỚC 11] - Prepare response
             $response = [
                 'success' => true,
                 'message' => 'Xuất kho thành công',
@@ -646,7 +544,7 @@ class ProductExportReceiptController
                 ]
             ];
 
-            // Thêm thông tin đơn hàng nếu là type NORMAL
+            // Thêm thông tin đơn hàng nếu có
             if ($data['type'] === 'NORMAL' && $order) {
                 $response['data']['order'] = [
                     'code' => $order->code,
@@ -659,8 +557,16 @@ class ProductExportReceiptController
                 ];
             }
 
-            // Thêm chi tiết xuất kho
+            // Thêm chi tiết xuất kho và thông tin history
             $response['data']['details'] = $exportReceipt->details->map(function ($detail) {
+                // Lấy history mới nhất
+                $latestHistory = ProductStorageHistory::where([
+                    'product_id' => $detail->product_id,
+                    'storage_area_id' => $detail->storage_area_id,
+                    'status' => 'ACTIVE',
+                    'deleted' => false
+                ])->first();
+
                 return [
                     'id' => $detail->id,
                     'product' => [
@@ -675,7 +581,11 @@ class ProductExportReceiptController
                     ],
                     'quantity' => $detail->quantity,
                     'expiry_date' => $detail->expiry_date,
-                    'created_at' => $detail->created_at
+                    'created_at' => $detail->created_at,
+                    'history' => [
+                        'quantity_available' => $latestHistory ? $latestHistory->quantity_available : 0,
+                        'status' => $latestHistory ? $latestHistory->status : null
+                    ]
                 ];
             });
 

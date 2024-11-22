@@ -101,10 +101,26 @@ class Validator
     {
         $model = $parameter[0];
         $column = $parameter[1] ?? $field;
-        if ($model::where($column, $value)->exists()) {
+        $excludeId = $parameter[2] ?? null;
+
+        if ($excludeId) {
+            // Kiểm tra xem giá trị có thay đổi không
+            $currentRecord = $model::find($excludeId);
+            if ($currentRecord && $currentRecord->$column === $value) {
+                return true; // Nếu giá trị không thay đổi, bỏ qua validate unique
+            }
+        }
+
+        $query = $model::where($column, $value);
+        if ($excludeId) {
+            $query->where('id', '!=', $excludeId);
+        }
+
+        if ($query->exists()) {
             $this->addError($field, 'unique');
             return false;
         }
+
         return true;
     }
 

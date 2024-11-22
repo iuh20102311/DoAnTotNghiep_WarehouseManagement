@@ -38,11 +38,11 @@ class Customer extends Model
 
         $rules = [
             'group_customer_id' => ['required'],
-            'name' => ['required', 'string', 'min' => 2, 'max' => 255, 'no_special_chars', 'no_emoji', 'no_whitespace'],
+            'name' => ['required', 'string', 'min' => 2, 'max' => 255, 'no_whitespace'],
             'phone' => ($isUpdate ? ['required', 'string', 'min' => 10, 'max' => 15, 'no_special_chars', 'no_emoji', 'no_whitespace'] : ['required', 'string', 'min' => 10, 'max' => 15, 'unique' => [Customer::class, 'phone'], 'no_special_chars', 'no_emoji', 'no_whitespace']),
-            'gender' => ['required', 'enum' => [0, 1]],
+            'gender' => ['required', 'enum' => [0, 1, 2]],
             'email' => ($isUpdate ? ['required', 'email', 'no_emoji', 'no_whitespace'] : ['required', 'email', 'unique' => [Customer::class, 'email'], 'no_emoji', 'no_whitespace']),
-            'address' => ['required', 'string', 'max' => 500, 'no_special_chars', 'no_emoji', 'no_whitespace'],
+            'address' => ['required', 'string', 'max' => 500, 'no_whitespace'],
             'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE']]
         ];
 
@@ -88,7 +88,7 @@ class Customer extends Model
             ],
             'gender' => [
                 'required' => 'Giới tính là bắt buộc.',
-                'enum' => 'Giới tính phải là 0 (Nữ) hoặc 1 (Nam).',
+                'enum' => 'Giới tính phải là 0 (Nữ), 1 (Nam) hoặc 2 (Khác).',
             ],
             'email' => [
                 'required' => 'Email là bắt buộc.',

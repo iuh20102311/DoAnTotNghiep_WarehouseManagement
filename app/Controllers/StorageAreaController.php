@@ -30,6 +30,11 @@ class StorageAreaController
                 $storage->where('status', $status);
             }
 
+            if (isset($_GET['type'])) {
+                $type = urldecode($_GET['type']);
+                $storage->where('type', $type);
+            }
+
             if (isset($_GET['name'])) {
                 $name = urldecode($_GET['name']);
                 $storage->where('name', 'like', '%' . $name . '%');

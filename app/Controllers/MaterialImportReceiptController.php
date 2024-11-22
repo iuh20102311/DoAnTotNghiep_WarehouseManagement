@@ -538,6 +538,18 @@ class MaterialImportReceiptController
             // [BƯỚC 7] - Validate materials và chuẩn bị dữ liệu
             $validatedMaterials = [];
             foreach ($data['materials'] as $material) {
+                $storageArea = StorageArea::where('id', $material['storage_area_id'])
+                    ->where('deleted', false)
+                    ->first();
+
+                if (!$storageArea) {
+                    throw new \Exception('Khu vực lưu trữ không tồn tại hoặc không hoạt động');
+                }
+
+                if ($storageArea->type !== 'MATERIAL') {
+                    throw new \Exception("Kho chứa {$storageArea->name} không phải là kho nguyên vật liệu");
+                }
+
                 if (!isset($material['material_id']) || !isset($material['quantity']) ||
                     !isset($material['storage_area_id'])) {
                     throw new \Exception('material_id, quantity và storage_area_id là bắt buộc cho mỗi nguyên liệu');
