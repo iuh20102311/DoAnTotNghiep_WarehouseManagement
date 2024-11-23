@@ -331,6 +331,7 @@ class Validator
     public function validateAfterOrEqual($field, $value, $parameter)
     {
         try {
+            // Parse date cần validate
             $dateToValidate = new DateTime($value);
 
             if (isset($this->data[$parameter])) {
@@ -339,6 +340,14 @@ class Validator
             } else {
                 // So sánh với ngày cụ thể
                 $compareDate = new DateTime($parameter);
+            }
+
+            // Nếu format của date chỉ là Y-m-d, reset time về 00:00:00
+            if (strlen($value) <= 10) { // Y-m-d có độ dài là 10
+                $dateToValidate->setTime(0, 0, 0);
+            }
+            if (strlen($parameter) <= 10 || (isset($this->data[$parameter]) && strlen($this->data[$parameter]) <= 10)) {
+                $compareDate->setTime(0, 0, 0);
             }
 
             if ($dateToValidate < $compareDate) {
