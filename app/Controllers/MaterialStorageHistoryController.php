@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Models\MaterialStorageHistory;
+use App\Models\StorageArea;
 use App\Utils\PaginationTrait;
 
 class MaterialStorageHistoryController
@@ -247,6 +248,16 @@ class MaterialStorageHistoryController
         try {
             $data = json_decode(file_get_contents('php://input'), true);
 
+            // Kiểm tra xem area có loại là "MATERIAL" hay không
+            $storageArea = StorageArea::find($data['storage_area_id']);
+            if (!$storageArea || $storageArea->type !== 'MATERIAL') {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'Chỉ có thể tạo lịch sử lưu trữ vật liệu cho khu vực có loại là MATERIAL'
+                ];
+            }
+
             $materialStorageHistory = new MaterialStorageHistory();
             $errors = $materialStorageHistory->validate($data);
 
@@ -292,6 +303,17 @@ class MaterialStorageHistoryController
             }
 
             $data = json_decode(file_get_contents('php://input'), true);
+
+            // Kiểm tra xem area có loại là "MATERIAL" hay không
+            $storageArea = StorageArea::find($data['storage_area_id'] ?? $materialStorageHistory->storage_area_id);
+            if (!$storageArea || $storageArea->type !== 'MATERIAL') {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'Chỉ có thể cập nhật lịch sử lưu trữ vật liệu cho khu vực có loại là MATERIAL'
+                ];
+            }
+
             $errors = $materialStorageHistory->validate($data, true);
 
             if ($errors) {

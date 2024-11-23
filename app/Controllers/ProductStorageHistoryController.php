@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Models\ProductStorageHistory;
+use App\Models\StorageArea;
 use App\Utils\PaginationTrait;
 
 class ProductStorageHistoryController
@@ -207,6 +208,16 @@ class ProductStorageHistoryController
         try {
             $data = json_decode(file_get_contents('php://input'), true);
 
+            // Kiểm tra xem area có loại là "PRODUCT" hay không
+            $storageArea = StorageArea::find($data['storage_area_id']);
+            if (!$storageArea || $storageArea->type !== 'PRODUCT') {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'Chỉ có thể tạo lịch sử lưu trữ sản phẩm cho khu vực có loại là PRODUCT'
+                ];
+            }
+
             $productStorageHistory = new ProductStorageHistory();
             $errors = $productStorageHistory->validate($data);
 
@@ -252,6 +263,17 @@ class ProductStorageHistoryController
             }
 
             $data = json_decode(file_get_contents('php://input'), true);
+
+            // Kiểm tra xem area có loại là "PRODUCT" hay không
+            $storageArea = StorageArea::find($data['storage_area_id'] ?? $productStorageHistory->storage_area_id);
+            if (!$storageArea || $storageArea->type !== 'PRODUCT') {
+                http_response_code(400);
+                return [
+                    'success' => false,
+                    'error' => 'Chỉ có thể cập nhật lịch sử lưu trữ sản phẩm cho khu vực có loại là PRODUCT'
+                ];
+            }
+
             $errors = $productStorageHistory->validate($data, true);
 
             if ($errors) {
