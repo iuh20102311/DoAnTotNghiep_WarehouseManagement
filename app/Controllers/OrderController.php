@@ -25,27 +25,27 @@ class OrderController
             $orders = Order::query()
                 ->where('status', '!=', 'DELETED')
                 ->with(['customer', 'creator', 'orderDetails', 'giftSets'])
+                ->orderBy('created_at', 'desc')
                 ->orderByRaw("CASE 
-            WHEN status = 'PROCESSED' THEN 1
-            WHEN status = 'DELIVERED' THEN 2
-            WHEN status = 'SHIPPING' THEN 3
-            WHEN status = 'PENDING' THEN 4
-            WHEN status = 'CANCELLED' THEN 5
-            WHEN status = 'RETURNED' THEN 6
-            WHEN status = 'DRAFT' THEN 7
-            ELSE 8
-            END")
+                    WHEN status = 'PENDING' THEN 1
+                    WHEN status = 'PROCESSED' THEN 2
+                    WHEN status = 'SHIPPING' THEN 3
+                    WHEN status = 'DELIVERED' THEN 4
+                    WHEN status = 'CANCELLED' THEN 5
+                    WHEN status = 'RETURNED' THEN 6
+                    WHEN status = 'DRAFT' THEN 7
+                    ELSE 8
+                    END")
                 ->orderByRaw("CASE 
-            WHEN payment_status = 'PAID' THEN 1
-            WHEN payment_status = 'PENDING' THEN 2
-            ELSE 3
-            END")
+                    WHEN payment_status = 'PENDING' THEN 1
+                    WHEN payment_status = 'PAID' THEN 2
+                    ELSE 3
+                    END")
                 ->orderByRaw("CASE 
-            WHEN payment_method = 'CASH' THEN 1
-            WHEN payment_method = 'BANK_TRANSFER' THEN 2
-            ELSE 3
-            END")
-                ->orderBy('created_at', 'desc');
+                    WHEN payment_method = 'CASH' THEN 1
+                    WHEN payment_method = 'BANK_TRANSFER' THEN 2
+                    ELSE 3
+                    END");
 
             // Filter by customer name
             if (isset($_GET['customer_name'])) {
@@ -285,9 +285,10 @@ class OrderController
             // Remove fields that should not be passed directly
             unset($data['total_price']);
             unset($data['order_date']);
-            unset($data['code']); // Remove code if provided by user
+            unset($data['code']);
 
             if (json_last_error() !== JSON_ERROR_NONE) {
+                http_response_code(400);
                 throw new Exception('Invalid JSON data: ' . json_last_error_msg(), 400);
             }
 
@@ -296,6 +297,7 @@ class OrderController
             $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
 
             if (!$token) {
+                http_response_code(401);
                 throw new Exception('Token không tồn tại', 401);
             }
 
@@ -304,24 +306,28 @@ class OrderController
             $profileId = $parsedToken->claims()->get('profile_id');
 
             if (!$profileId) {
+                http_response_code(401);
                 throw new Exception('Profile ID không tồn tại trong token', 401);
             }
 
             $profile = Profile::where('deleted', false)->find($profileId);
 
             if (!$profile) {
+                http_response_code(404);
                 throw new Exception('Profile không tồn tại trong hệ thống', 404);
             }
 
             // Customer validation
             $customer = Customer::where('deleted', false)->find($data['customer_id']);
             if (!$customer) {
+                http_response_code(404);
                 throw new Exception('Khách hàng không tồn tại', 404);
             }
 
             // Payment method validation
             $paymentMethod = $data['payment_method'] ?? null;
             if ($paymentMethod && !in_array($paymentMethod, ['CASH', 'BANK_TRANSFER'])) {
+                http_response_code(400);
                 throw new Exception('Phương thức thanh toán không hợp lệ', 400);
             }
 
@@ -345,7 +351,7 @@ class OrderController
 
             // Format sequence to 5 digits
             $orderCode = $prefix . str_pad($sequence, 5, '0', STR_PAD_LEFT);
-            $orderDate = date('Y-m-d');
+            $orderDate = date('Y-m-d H:i:s');
 
             // Prepare order data
             $orderData = [
@@ -371,6 +377,7 @@ class OrderController
             $errors = $order->validate($orderData);
 
             if ($errors) {
+                http_response_code(422);
                 return [
                     'success' => false,
                     'error' => 'Validation failed',
