@@ -81,28 +81,30 @@ class GroupCustomerController
     public function getGroupCustomerList(): array
     {
         try {
-            $groupcustomer = GroupCustomer::query()
+            $groupcustomers = GroupCustomer::query()
                 ->where('deleted', false)
                 ->orderByRaw("CASE 
                 WHEN status = 'ACTIVE' THEN 1 
                 ELSE 2 
                 END")
-                ->orderBy('created_at', 'desc');
+                ->orderBy('created_at', 'desc')
+                ->get();
 
-            if (!$groupcustomer) {
+            if ($groupcustomers->isEmpty()) {
                 http_response_code(404);
                 return [
                     'success' => false,
-                    'error' => 'Không tìm thấy nhóm khách hàng nào',
+                    'error' => 'Không tìm thấy nhóm khách hàng nào'
                 ];
             }
 
-            return $this->paginateResults($groupcustomer)->toArray();
+            return $groupcustomers->toArray();
 
         } catch (\Exception $e) {
-            error_log("Error in: " . $e->getMessage());
+            error_log("Error in getGroupCustomerList: " . $e->getMessage());
             http_response_code(500);
             return [
+                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];

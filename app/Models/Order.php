@@ -13,7 +13,7 @@ class Order extends Model
 {
     use HasFactory;
     protected $table = 'orders';
-    protected $fillable = ['code', 'customer_id', 'created_by', 'order_date', 'delivery_date', 'total_price', 'phone', 'address', 'city', 'district', 'ward', 'status', 'payment_status', 'payment_method', 'note', 'created_at', 'updated_at', 'deleted'];
+    protected $fillable = ['code', 'customer_id', 'created_by', 'order_date', 'delivery_date', 'total_price', 'discount_percent', 'shipping_fee', 'delivery_type', 'phone', 'address', 'city', 'district', 'ward', 'status', 'payment_status', 'payment_method', 'note', 'created_at', 'updated_at', 'deleted'];
     protected $primaryKey = 'id';
     public $timestamps = true;
 
@@ -51,15 +51,18 @@ class Order extends Model
             'customer_id' => ['required', 'integer'],
             'created_by' => ['required', 'integer'],
             'delivery_date' => ['required', 'date' => 'Y-m-d', 'after_or_equal' => 'order_date'],
-            'phone' => ['required', 'string'],
-            'address' => ['nullable', 'string', 'max' => 255],
-            'city' => ['nullable', 'string', 'max' => 100],
-            'district' => ['nullable', 'string', 'max' => 100],
-            'ward' => ['nullable', 'string', 'max' => 100],
+            'discount_percent' => ['nullable', 'integer', 'min' => 0, 'max' => 100],
+            'shipping_fee' => ['nullable', 'integer', 'min' => 0],
+            'delivery_type' => ['required', 'enum' => ['STORE_PICKUP', 'SHIPPING']],
+            'phone' => ['required', 'string', 'max' => 10],
+            'address' => ['required_if' => ['delivery_type', 'SHIPPING'], 'string', 'max' => 255],
+            'city' => ['required_if' => ['delivery_type', 'SHIPPING'], 'string', 'max' => 100],
+            'district' => ['required_if' => ['delivery_type', 'SHIPPING'], 'string', 'max' => 100],
+            'ward' => ['required_if' => ['delivery_type', 'SHIPPING'], 'string', 'max' => 100],
             'status' => ['required', 'enum' => ['PROCESSED', 'DELIVERED', 'SHIPPING', 'PENDING', 'CANCELLED', 'RETURNED', 'DRAFT']],
             'payment_status' => ['required', 'enum' => ['PAID', 'PENDING']],
             'payment_method' => ['required', 'enum' => ['CASH', 'BANK_TRANSFER']],
-            'note' => ['nullable', 'max' => 255],
+            'note' => ['nullable', 'string', 'max' => 255],
         ];
 
         if (!$validator->validate($rules)) {
@@ -85,7 +88,20 @@ class Order extends Model
             'delivery_date' => [
                 'required' => 'Ngày giao hàng là bắt buộc.',
                 'date' => 'Ngày giao hàng không hợp lệ.',
-                'after' => 'Ngày giao hàng phải sau ngày đặt hàng.',
+                'after_or_equal' => 'Ngày giao hàng phải sau hoặc bằng ngày đặt hàng.',
+            ],
+            'discount_percent' => [
+                'integer' => 'Phần trăm giảm giá phải là số nguyên.',
+                'min' => 'Phần trăm giảm giá không được nhỏ hơn :min.',
+                'max' => 'Phần trăm giảm giá không được lớn hơn :max.',
+            ],
+            'shipping_fee' => [
+                'integer' => 'Phí vận chuyển phải là số nguyên.',
+                'min' => 'Phí vận chuyển không được nhỏ hơn :min.',
+            ],
+            'delivery_type' => [
+                'required' => 'Hình thức nhận hàng là bắt buộc.',
+                'enum' => 'Hình thức nhận hàng không hợp lệ.',
             ],
             'phone' => [
                 'required' => 'Số điện thoại là bắt buộc.',
@@ -93,24 +109,28 @@ class Order extends Model
                 'regex' => 'Số điện thoại phải có 10 chữ số.',
             ],
             'address' => [
+                'required_if' => 'Địa chỉ là bắt buộc khi chọn hình thức giao hàng.',
                 'string' => 'Địa chỉ phải là chuỗi.',
                 'max' => 'Địa chỉ không được vượt quá :max ký tự.',
             ],
             'city' => [
+                'required_if' => 'Tỉnh/Thành phố là bắt buộc khi chọn hình thức giao hàng.',
                 'string' => 'Tỉnh/Thành phố phải là chuỗi.',
                 'max' => 'Tỉnh/Thành phố không được vượt quá :max ký tự.',
             ],
             'district' => [
+                'required_if' => 'Quận/Huyện là bắt buộc khi chọn hình thức giao hàng.',
                 'string' => 'Quận/Huyện phải là chuỗi.',
                 'max' => 'Quận/Huyện không được vượt quá :max ký tự.',
             ],
             'ward' => [
+                'required_if' => 'Phường/Xã là bắt buộc khi chọn hình thức giao hàng.',
                 'string' => 'Phường/Xã phải là chuỗi.',
                 'max' => 'Phường/Xã không được vượt quá :max ký tự.',
             ],
             'status' => [
                 'required' => 'Trạng thái đơn hàng là bắt buộc.',
-                'enum' => 'Trạng thái đơn hàng không hợp lệ, phải là PROCESSED, DELIVERED, SHIPPING, PENDING, CANCELLED, RETURNED, DRAFT.',
+                'enum' => 'Trạng thái đơn hàng không hợp lệ.',
             ],
             'payment_status' => [
                 'required' => 'Trạng thái thanh toán là bắt buộc.',
@@ -121,6 +141,7 @@ class Order extends Model
                 'enum' => 'Phương thức thanh toán không hợp lệ.',
             ],
             'note' => [
+                'string' => 'Ghi chú phải là chuỗi.',
                 'max' => 'Ghi chú không được vượt quá :max ký tự.',
             ],
         ];
