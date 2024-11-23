@@ -78,6 +78,37 @@ class GroupCustomerController
         }
     }
 
+    public function getGroupCustomerList(): array
+    {
+        try {
+            $groupcustomer = GroupCustomer::query()
+                ->where('deleted', false)
+                ->orderByRaw("CASE 
+                WHEN status = 'ACTIVE' THEN 1 
+                ELSE 2 
+                END")
+                ->orderBy('created_at', 'desc');
+
+            if (!$groupcustomer) {
+                http_response_code(404);
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy nhóm khách hàng nào',
+                ];
+            }
+
+            return $this->paginateResults($groupcustomer)->toArray();
+
+        } catch (\Exception $e) {
+            error_log("Error in: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
     public function getGroupCustomerById($id): array
     {
         try {

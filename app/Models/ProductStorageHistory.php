@@ -33,7 +33,9 @@ class ProductStorageHistory extends Model
         $rules = [
             'product_id' => ['required', 'integer'],
             'storage_area_id' => ['required', 'integer'],
-            'quantity' => ['required', 'integer', 'min' => 0]
+            'quantity' => ['required', 'integer', 'min' => 0],
+            'quantity_available' => ['required', 'integer', 'min' => 0],
+            'expiry_date' => ['required', 'date' => 'Y-m-d', 'after' => 'now'],
         ];
 
         if ($isUpdate) {
@@ -76,7 +78,16 @@ class ProductStorageHistory extends Model
                 'required' => 'Số lượng là bắt buộc.',
                 'integer' => 'Số lượng phải là số nguyên.',
                 'min' => 'Số lượng không được nhỏ hơn :min.'
-            ]
+            ],
+            'quantity_available' => [
+                'required' => 'Số lượng khả dụng là bắt buộc.',
+                'integer' => 'Số lượng khả dụng phải là số nguyên.',
+                'min' => 'Số lượng khả dụng không được nhỏ hơn :min.'
+            ],
+            'expiry_date' => [
+                'required' => 'Hạn sử dụng là bắt buộc.',
+                'date' => 'Hạn sử dụng phải là một ngày hợp lệ.'
+            ],
         ];
     }
 }

@@ -12,7 +12,7 @@ class StorageArea extends Model
     use HasFactory;
 
     protected $table = 'storage_areas';
-    protected $fillable = ['name', 'code', 'description', 'status', 'created_at', 'updated_at', 'deleted'];
+    protected $fillable = ['name', 'code', 'type', 'description', 'status', 'created_at', 'updated_at', 'deleted'];
     protected $primaryKey = 'id';
     public $timestamps = true;
 
@@ -43,7 +43,8 @@ class StorageArea extends Model
         $rules = [
             'name' => ['required', 'max' => 255],
             'description' => ['max' => 1000],
-            'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE']]
+            'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE']],
+            'type' => ['required', 'enum' => ['MATERIAL', 'PRODUCT']]
         ];
 
         if ($isUpdate) {
@@ -100,6 +101,10 @@ class StorageArea extends Model
             'status' => [
                 'required' => 'Trạng thái là bắt buộc.',
                 'enum' => 'Trạng thái phải là ACTIVE, INACTIVE.'
+            ],
+            'TYPE' => [
+                'required' => 'Loại kho là bắt buộc.',
+                'enum' => 'Loại kho phải là MATERIAL, PRODUCT.'
             ]
         ];
     }

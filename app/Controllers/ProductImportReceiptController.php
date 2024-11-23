@@ -421,6 +421,11 @@ class ProductImportReceiptController
                     throw new \Exception('Khu vực lưu trữ không tồn tại hoặc không hoạt động');
                 }
 
+                // Thêm kiểm tra type của storage area
+                if ($storageArea->type !== 'PRODUCT') {
+                    throw new \Exception("Khu vực lưu trữ {$storageArea->name} không phải là kho thành phẩm");
+                }
+
                 if (!strtotime($product['expiry_date']) || strtotime($product['expiry_date']) <= time()) {
                     throw new \Exception('expiry_date phải là ngày trong tương lai và đúng định dạng');
                 }
