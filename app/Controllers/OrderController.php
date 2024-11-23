@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Models\Customer;
 use App\Models\Order;
+use App\Models\OrderDetail;
 use App\Models\Product;
 use App\Models\ProductPrice;
 use App\Models\Profile;
@@ -222,46 +223,25 @@ class OrderController
         }
     }
 
-    public function updateOrderById($id): array
-    {
-        try {
-            $order = Order::find($id);
-
-            if (!$order) {
-                http_response_code(404);
-                return ["error" => "Order not found"];
-            }
-
-            $data = json_decode(file_get_contents('php://input'), true);
-            $error = $order->validate($data, true);
-
-            if ($error != "") {
-                http_response_code(400);
-                error_log($error);
-                return ["error" => $error];
-            }
-
-            $order->fill($data);
-            $order->save();
-
-            return $order->toArray();
-        } catch (\Exception $e) {
-            http_response_code(500);
-            return [
-                'error' => 'Database error occurred',
-                'details' => $e->getMessage()
-            ];
-        }
-    }
-
     public function deleteOrder($id): array
     {
         try {
             $order = Order::find($id);
 
             if ($order) {
-                $order->status = 'DELETED';
+                // Cập nhật trạng thái của order
+                $order->status = 'CANCELLED';
+                $order->deleted = true;
                 $order->save();
+
+                // Lấy và cập nhật tất cả order details liên quan
+                $orderDetails = OrderDetail::where('order_id', $id)->get();
+                foreach ($orderDetails as $detail) {
+                    $detail->status = 'INACTIVE';
+                    $detail->deleted = true;
+                    $detail->save();
+                }
+
                 return ["message" => "Xóa thành công"];
             } else {
                 http_response_code(404);
@@ -353,6 +333,16 @@ class OrderController
             $orderCode = $prefix . str_pad($sequence, 5, '0', STR_PAD_LEFT);
             $orderDate = date('Y-m-d H:i:s');
 
+            // Set default values for new fields
+            $discountPercent = isset($data['discount_percent']) ? intval($data['discount_percent']) : 0;
+            $shippingFee = isset($data['shipping_fee']) ? intval($data['shipping_fee']) : 0;
+            $deliveryType = $data['delivery_type'] ?? 'SHIPPING';
+
+            // If store pickup, shipping fee should be 0
+            if ($deliveryType === 'STORE_PICKUP') {
+                $shippingFee = 0;
+            }
+
             // Prepare order data
             $orderData = [
                 'code' => $orderCode,
@@ -368,6 +358,9 @@ class OrderController
                 'status' => 'PENDING',
                 'payment_status' => 'PENDING',
                 'payment_method' => $paymentMethod,
+                'discount_percent' => $discountPercent,
+                'shipping_fee' => $shippingFee,
+                'delivery_type' => $deliveryType,
                 'total_price' => 0
             ];
 
@@ -387,13 +380,14 @@ class OrderController
 
             $order->save();
 
-            // Process order details
-            $totalPrice = 0;
+            // Process order details and calculate total
+            $subtotal = 0;
 
             foreach ($data['products'] as $item) {
                 $product = Product::find($item['product_id']);
 
                 if (!$product) {
+                    http_response_code(404);
                     throw new Exception("Sản phẩm #{$item['product_id']} không tồn tại", 404);
                 }
 
@@ -406,6 +400,7 @@ class OrderController
                     ->first();
 
                 if (!$price) {
+                    http_response_code(400);
                     throw new Exception("Giá sản phẩm #{$product->id} chưa được cập nhật", 400);
                 }
 
@@ -417,13 +412,18 @@ class OrderController
                 ];
 
                 $order->orderDetails()->create($detailData);
-                $totalPrice += $price->price * $item['quantity'];
+                $subtotal += $price->price * $item['quantity'];
             }
+
+            // Calculate total price with discount and shipping fee
+            $discountAmount = $subtotal * ($discountPercent / 100);
+            $totalPrice = $subtotal - $discountAmount + $shippingFee;
 
             // Update total price
             $order->total_price = $totalPrice;
             $order->save();
 
+            http_response_code(201);
             return [
                 'status' => 'success',
                 'message' => 'Tạo đơn hàng thành công',
@@ -431,6 +431,8 @@ class OrderController
             ];
         } catch (\Exception $e) {
             error_log("Error in createOrder: " . $e->getMessage());
+            $errorCode = $e->getCode() ?: 500;
+            http_response_code($errorCode);
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
@@ -448,9 +450,10 @@ class OrderController
             // Remove fields that should not be updated
             unset($data['total_price']);
             unset($data['order_date']);
-            unset($data['code']); // Remove code to prevent modification
+            unset($data['code']);
 
             if (json_last_error() !== JSON_ERROR_NONE) {
+                http_response_code(400);
                 throw new Exception('Invalid JSON data: ' . json_last_error_msg(), 400);
             }
 
@@ -459,6 +462,7 @@ class OrderController
             $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
 
             if (!$token) {
+                http_response_code(401);
                 throw new Exception('Token không tồn tại', 401);
             }
 
@@ -467,12 +471,14 @@ class OrderController
             $profileId = $parsedToken->claims()->get('profile_id');
 
             if (!$profileId) {
+                http_response_code(401);
                 throw new Exception('Profile ID không tồn tại trong token', 401);
             }
 
             $profile = Profile::where('deleted', false)->find($profileId);
 
             if (!$profile) {
+                http_response_code(404);
                 throw new Exception('Profile không tồn tại trong hệ thống', 404);
             }
 
@@ -480,27 +486,54 @@ class OrderController
             $order = Order::where('deleted', false)->find($id);
 
             if (!$order) {
+                http_response_code(404);
                 throw new Exception('Đơn hàng không tồn tại', 404);
             }
 
-            // Keep original order date and code
+            // Keep original order date
             $orderDate = $order->order_date;
+
+            // Get updated values
+            $discountPercent = isset($data['discount_percent']) ? intval($data['discount_percent']) : $order->discount_percent;
+            $shippingFee = isset($data['shipping_fee']) ? intval($data['shipping_fee']) : $order->shipping_fee;
+            $deliveryType = $data['delivery_type'] ?? $order->delivery_type;
+
+            // If store pickup, shipping fee should be 0
+            if ($deliveryType === 'STORE_PICKUP') {
+                $shippingFee = 0;
+                $data['shipping_fee'] = 0;
+            }
+
+            // Calculate new total price
+            $subtotal = 0;
+            foreach ($order->orderDetails as $detail) {
+                $subtotal += $detail->price * $detail->quantity;
+            }
+
+            $discountAmount = $subtotal * ($discountPercent / 100);
+            $totalPrice = $subtotal - $discountAmount + $shippingFee;
+
+            // Update order data
+            $data['total_price'] = $totalPrice;
+            $data['order_date'] = $orderDate;
 
             // Update order information
             $order->fill($data);
-            $order->order_date = $orderDate; // Ensure order date remains unchanged
 
             $errors = $order->validate($order->toArray());
 
             if ($errors) {
+                http_response_code(422);
                 return [
                     'success' => false,
                     'error' => 'Validation failed',
                     'details' => $errors
                 ];
             }
+
             $order->save();
 
+            http_response_code(200);
             return [
                 'status' => 'success',
                 'message' => 'Cập nhật đơn hàng thành công',

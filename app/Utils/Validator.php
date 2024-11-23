@@ -66,6 +66,26 @@ class Validator
         return true;
     }
 
+    public function validateRequiredIf($field, $value, $parameter)
+    {
+        // Parameter should be an array with [field, value]
+        $dependentField = $parameter[0];
+        $dependentValue = $parameter[1];
+
+        // Check if the dependent field has the specified value
+        if (isset($this->data[$dependentField]) && $this->data[$dependentField] == $dependentValue) {
+            // If dependent condition is met, field becomes required
+            if (empty($value) && $value !== '0') {
+                $this->addError($field, 'required_if', [
+                    'field' => $dependentField,
+                    'value' => $dependentValue
+                ]);
+                return false;
+            }
+        }
+        return true;
+    }
+
     public function validateNullable($field, $value)
     {
         // Nếu field có thể null và giá trị là null hoặc rỗng thì cho qua
@@ -518,6 +538,7 @@ class Validator
     {
         $messages = [
             'required' => ':field là bắt buộc.',
+            'required_if' => ':field là bắt buộc khi :field có giá trị là :value.',
             'email' => ':field phải là email hợp lệ.',
             'string' => ':field phải là chuỗi.',
             'unique' => ':field đã tồn tại.',
