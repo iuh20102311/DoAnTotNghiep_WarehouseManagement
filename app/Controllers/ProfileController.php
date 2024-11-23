@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Models\Profile;
+use App\Models\User;
 use App\Utils\PaginationTrait;
 
 class ProfileController
@@ -189,16 +190,60 @@ class ProfileController
         try {
             $data = json_decode(file_get_contents('php://input'), true);
 
-            $profile = new Profile();
-            $errors = $profile->validate($data);
+            // Required fields for User
+            $userData = array_intersect_key($data, array_flip([
+                'email',
+                'password',
+                'role_id',
+                'status'
+            ]));
 
-            if ($errors) {
+            // Required fields for Profile
+            $requiredProfileData = array_intersect_key($data, array_flip([
+                'first_name',
+                'last_name',
+                'phone',
+                'gender',
+                'status'
+            ]));
+
+            // Optional fields for Profile - only include if they exist in input
+            $optionalFields = ['avatar', 'address', 'ward', 'district', 'city', 'birthday'];
+            $optionalProfileData = [];
+            foreach ($optionalFields as $field) {
+                if (isset($data[$field])) {
+                    $optionalProfileData[$field] = $data[$field];
+                }
+            }
+
+            // Merge required and optional profile fields
+            $profileData = array_merge($requiredProfileData, $optionalProfileData);
+
+            // Validate data
+            $user = new User();
+            $userErrors = $user->validate($userData);
+
+            $profile = new Profile();
+            $profileErrors = $profile->validate($profileData);
+
+            // Combine validation errors if any
+            $errors = array_merge($userErrors ?? [], $profileErrors ?? []);
+
+            if (!empty($errors)) {
                 http_response_code(400);
                 return [
                     'success' => false,
                     'error' => 'Validation failed',
                     'details' => $errors
                 ];
+            }
+
+            // Create User first
+            $user->fill($userData);
+            $user->save();
+
+            if (!$user->id) {
+                throw new \Exception('Failed to create user');
             }
 
             // Generate new code for provider
@@ -219,14 +264,31 @@ class ProfileController
             }
 
             // Format sequence to 5 digits
-            $data['code'] = $prefix . str_pad($sequence, 5, '0', STR_PAD_LEFT);
+            $profileData['code'] = $prefix . str_pad($sequence, 5, '0', STR_PAD_LEFT);
+            $profileData['user_id'] = $user->id;
 
-            $profile->fill($data);
-            $profile->save();
+            // Create Profile
+            $profile->fill($profileData);
+            $saveResult = $profile->save();
+
+            if (!$saveResult) {
+                // If profile creation fails, try to delete the created user
+                try {
+                    $user->delete();
+                } catch (\Exception $e) {
+                    error_log("Failed to delete user after profile creation failed: " . $e->getMessage());
+                }
+                throw new \Exception('Failed to create profile');
+            }
+
+            // Load the profile with user relationship for response
+            $profileWithUser = $profile->toArray();
+            $profileWithUser['user'] = $user->toArray();
+            unset($profileWithUser['user']['password']); // Remove password from response
 
             return [
                 'success' => true,
-                'data' => $profile->toArray()
+                'data' => $profileWithUser
             ];
 
         } catch (\Exception $e) {

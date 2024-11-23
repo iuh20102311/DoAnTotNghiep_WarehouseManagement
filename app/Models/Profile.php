@@ -48,14 +48,13 @@ class Profile extends Model
         $validator = new Validator($data, $this->messages());
 
         $rules = [
-            'user_id' => ['required', 'integer'],
             'first_name' => ['required', 'max' => 50],
             'last_name' => ['required', 'max' => 50],
             'phone' => ['required', 'max' => 15],
-            'birthday' => ['required', 'date' => 'Y-m-d'],
+            'birthday' => ['nullable', 'date' => 'Y-m-d'],
             'avatar' => ['max' => 255],
             'gender' => ['integer', 'enum' => ['0', '1']],
-            'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE']]
+            'status' => ['required']
         ];
 
         if ($isUpdate) {
@@ -70,11 +69,6 @@ class Profile extends Model
 
         if (!$validator->validate($rules)) {
             return $validator->getErrors();
-        }
-
-        // Validate foreign key existence
-        if (isset($data['user_id']) && !User::where('deleted', false)->find($data['user_id'])) {
-            return ['user_id' => ['Người dùng không tồn tại']];
         }
 
         // Validate unique phone if provided
@@ -125,7 +119,6 @@ class Profile extends Model
             ],
             'status' => [
                 'required' => 'Trạng thái là bắt buộc.',
-                'enum' => 'Trạng thái phải là ACTIVE hoặc INACTIVE.'
             ]
         ];
     }
