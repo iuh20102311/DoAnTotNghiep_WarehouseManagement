@@ -394,12 +394,14 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
         });
 
         $router->group(array('prefix' => '/v1/group_customers'), function (RouteCollector $router) {
+            $router->get('/list', ['App\Controllers\GroupCustomerController', 'getGroupCustomerList']);
+            $router->get('/', ['App\Controllers\GroupCustomerController', 'getGroupCustomers']);
+            $router->post('/', ['App\Controllers\GroupCustomerController', 'createGroupCustomer']);
+
             $router->get('/{id}/customers', ['App\Controllers\GroupCustomerController', 'getCustomerByGroupCustomer']);
+            $router->get('/{id}', ['App\Controllers\GroupCustomerController', 'getGroupCustomerById']);
             $router->put('/{id}', ['App\Controllers\GroupCustomerController', 'updateGroupCustomerById']);
             $router->delete('/{id}', ['App\Controllers\GroupCustomerController', 'deleteGroupCustomer']);
-            $router->get('/{id}', ['App\Controllers\GroupCustomerController', 'getGroupCustomerById']);
-            $router->post('/', ['App\Controllers\GroupCustomerController', 'createGroupCustomer']);
-            $router->get('/', ['App\Controllers\GroupCustomerController', 'getGroupCustomers']);
         });
 
         $router->group(array('prefix' => '/v1/customers'), function (RouteCollector $router) {
