@@ -388,7 +388,7 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
             $router->get('/{id}/created_orders', ['App\Controllers\ProfileController', 'getCreatedOrdersByProfile']);
             $router->put('/{id}', ['App\Controllers\ProfileController', 'updateProfileById']);
             $router->delete('/{id}', ['App\Controllers\ProfileController', 'deleteProfile']);
-            $router->get('/{id}', ['App\Controllers\ProfileController', 'getProfileById']);
+            $router->get('/{code}', ['App\Controllers\ProfileController', 'getProfileByCode']);
             $router->post('/', ['App\Controllers\ProfileController', 'createProfile']);
             $router->get('/', ['App\Controllers\ProfileController', 'getProfile']);
         });
