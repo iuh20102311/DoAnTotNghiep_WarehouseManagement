@@ -13,7 +13,7 @@ class Order extends Model
 {
     use HasFactory;
     protected $table = 'orders';
-    protected $fillable = ['code', 'customer_id', 'created_by', 'order_date', 'delivery_date', 'total_price', 'phone', 'address', 'city', 'district', 'ward', 'status', 'payment_status', 'payment_method', 'created_at', 'updated_at', 'deleted'];
+    protected $fillable = ['code', 'customer_id', 'created_by', 'order_date', 'delivery_date', 'total_price', 'phone', 'address', 'city', 'district', 'ward', 'status', 'payment_status', 'payment_method', 'note', 'created_at', 'updated_at', 'deleted'];
     protected $primaryKey = 'id';
     public $timestamps = true;
 
@@ -52,13 +52,14 @@ class Order extends Model
             'created_by' => ['required', 'integer'],
             'delivery_date' => ['required', 'date' => 'Y-m-d', 'after_or_equal' => 'order_date'],
             'phone' => ['required', 'string'],
-            'address' => ['nullable', 'string', 'min' => 5, 'max' => 255],
+            'address' => ['nullable', 'string', 'max' => 255],
             'city' => ['nullable', 'string', 'max' => 100],
             'district' => ['nullable', 'string', 'max' => 100],
             'ward' => ['nullable', 'string', 'max' => 100],
             'status' => ['required', 'enum' => ['PROCESSED', 'DELIVERED', 'SHIPPING', 'PENDING', 'CANCELLED', 'RETURNED', 'DRAFT']],
             'payment_status' => ['required', 'enum' => ['PAID', 'PENDING']],
             'payment_method' => ['required', 'enum' => ['CASH', 'BANK_TRANSFER']],
+            'note' => ['nullable', 'max' => 255],
         ];
 
         if (!$validator->validate($rules)) {
@@ -92,23 +93,18 @@ class Order extends Model
                 'regex' => 'Số điện thoại phải có 10 chữ số.',
             ],
             'address' => [
-                'required' => 'Địa chỉ là bắt buộc.',
                 'string' => 'Địa chỉ phải là chuỗi.',
-                'min' => 'Địa chỉ phải có ít nhất :min ký tự.',
                 'max' => 'Địa chỉ không được vượt quá :max ký tự.',
             ],
             'city' => [
-                'required' => 'Tỉnh/Thành phố là bắt buộc.',
                 'string' => 'Tỉnh/Thành phố phải là chuỗi.',
                 'max' => 'Tỉnh/Thành phố không được vượt quá :max ký tự.',
             ],
             'district' => [
-                'required' => 'Quận/Huyện là bắt buộc.',
                 'string' => 'Quận/Huyện phải là chuỗi.',
                 'max' => 'Quận/Huyện không được vượt quá :max ký tự.',
             ],
             'ward' => [
-                'required' => 'Phường/Xã là bắt buộc.',
                 'string' => 'Phường/Xã phải là chuỗi.',
                 'max' => 'Phường/Xã không được vượt quá :max ký tự.',
             ],
@@ -123,6 +119,9 @@ class Order extends Model
             'payment_method' => [
                 'required' => 'Phương thức thanh toán là bắt buộc.',
                 'enum' => 'Phương thức thanh toán không hợp lệ.',
+            ],
+            'note' => [
+                'max' => 'Ghi chú không được vượt quá :max ký tự.',
             ],
         ];
     }
