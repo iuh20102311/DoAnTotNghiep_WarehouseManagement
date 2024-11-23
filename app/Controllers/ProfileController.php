@@ -94,11 +94,11 @@ class ProfileController
         }
     }
 
-    public function getProfileById($id): array
+    public function getProfileByCode($code): array
     {
         try {
             $profile = Profile::query()
-                ->where('id', $id)
+                ->where('code', $code)
                 ->where('deleted', false)
                 ->with(['user', 'createdOrders'])
                 ->first();

@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\ProductPrice;
 use App\Models\Profile;
 use App\Utils\PaginationTrait;
+use App\Utils\ShippingCalculator;
 use Exception;
 use Lcobucci\JWT\Encoding\JoseEncoder;
 use Lcobucci\JWT\Token\Parser;
@@ -16,6 +17,13 @@ use Lcobucci\JWT\Token\Parser;
 class OrderController
 {
     use PaginationTrait;
+
+    private $shippingCalculator;
+
+    public function __construct(ShippingCalculator $shippingCalculator)
+    {
+        $this->shippingCalculator = $shippingCalculator;
+    }
 
     public function getOrders(): array
     {
@@ -552,4 +560,208 @@ class OrderController
             ];
         }
     }
+
+//    public function createOrder()
+//    {
+//        try {
+//            // 1. Đọc và validate input
+//            $rawInput = file_get_contents('php://input');
+//            $data = json_decode($rawInput, true);
+//
+//            if (json_last_error() !== JSON_ERROR_NONE) {
+//                http_response_code(400);
+//                throw new \Exception('Invalid JSON data: ' . json_last_error_msg(), 400);
+//            }
+//
+//            // Loại bỏ các trường không cho phép gửi trực tiếp
+//            unset($data['total_price']);
+//            unset($data['order_date']);
+//            unset($data['code']);
+//
+//            // 2. Validate token và lấy profile_id
+//            $headers = apache_request_headers();
+//            $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
+//
+//            if (!$token) {
+//                http_response_code(401);
+//                throw new \Exception('Token không tồn tại', 401);
+//            }
+//
+//            $parser = new Parser(new JoseEncoder());
+//            $parsedToken = $parser->parse($token);
+//            $profileId = $parsedToken->claims()->get('profile_id');
+//
+//            if (!$profileId) {
+//                http_response_code(401);
+//                throw new \Exception('Profile ID không tồn tại trong token', 401);
+//            }
+//
+//            // 3. Kiểm tra profile
+//            $profile = Profile::where('deleted', false)->find($profileId);
+//            if (!$profile) {
+//                http_response_code(404);
+//                throw new \Exception('Profile không tồn tại trong hệ thống', 404);
+//            }
+//
+//            // 4. Validate customer
+//            $customer = Customer::where('deleted', false)->find($data['customer_id']);
+//            if (!$customer) {
+//                http_response_code(404);
+//                throw new \Exception('Khách hàng không tồn tại', 404);
+//            }
+//
+//            // 5. Validate payment method
+//            $paymentMethod = $data['payment_method'] ?? null;
+//            if ($paymentMethod && !in_array($paymentMethod, ['CASH', 'BANK_TRANSFER'])) {
+//                http_response_code(400);
+//                throw new \Exception('Phương thức thanh toán không hợp lệ', 400);
+//            }
+//
+//            // 6. Tạo mã đơn hàng
+//            $currentDay = date('d');
+//            $currentMonth = date('m');
+//            $currentYear = date('y');
+//            $prefix = "DH" . $currentDay . $currentMonth . $currentYear;
+//
+//            $latestOrder = Order::query()
+//                ->where('code', 'LIKE', $prefix . '%')
+//                ->orderBy('code', 'desc')
+//                ->first();
+//
+//            $sequence = $latestOrder ? intval(substr($latestOrder->code, -5)) + 1 : 1;
+//            $orderCode = $prefix . str_pad($sequence, 5, '0', STR_PAD_LEFT);
+//
+//            // 7. Set các giá trị mặc định
+//            $orderDate = date('Y-m-d H:i:s');
+//            $discountPercent = isset($data['discount_percent']) ? intval($data['discount_percent']) : 0;
+//            $deliveryType = $data['delivery_type'] ?? 'SHIPPING';
+//
+//            // 8. Tính phí ship
+//            $shippingFee = 0;
+//            if ($deliveryType === 'SHIPPING') {
+//                try {
+//                    $shippingInfo = $this->shippingCalculator->calculateShippingFee(
+//                        $data['address'] ?? $customer->address,
+//                        $data['ward'] ?? $customer->ward,
+//                        $data['district'] ?? $customer->district,
+//                        $data['city'] ?? $customer->city
+//                    );
+//                    $shippingFee = $shippingInfo['shippingFee'];
+//                } catch (\Exception $e) {
+//                    http_response_code(400);
+//                    throw new \Exception('Không thể tính phí ship: ' . $e->getMessage());
+//                }
+//            }
+//
+//            // 9. Chuẩn bị dữ liệu đơn hàng
+//            $orderData = [
+//                'code' => $orderCode,
+//                'customer_id' => $customer->id,
+//                'created_by' => $profileId,
+//                'order_date' => $orderDate,
+//                'phone' => $data['phone'] ?? $customer->phone,
+//                'address' => $data['address'] ?? $customer->address,
+//                'city' => $data['city'] ?? $customer->city,
+//                'district' => $data['district'] ?? $customer->district,
+//                'ward' => $data['ward'] ?? $customer->ward,
+//                'delivery_date' => $data['delivery_date'] ?? date('Y-m-d', strtotime('+3 days')),
+//                'status' => 'PENDING',
+//                'payment_status' => 'PENDING',
+//                'payment_method' => $paymentMethod,
+//                'discount_percent' => $discountPercent,
+//                'shipping_fee' => $shippingFee,
+//                'delivery_type' => $deliveryType,
+//                'total_price' => 0
+//            ];
+//
+//            // 10. Validate đơn hàng
+//            $order = new Order();
+//            $order->fill($orderData);
+//            $errors = $order->validate($orderData);
+//
+//            if ($errors) {
+//                http_response_code(422);
+//                return [
+//                    'success' => false,
+//                    'error' => 'Validation failed',
+//                    'details' => $errors
+//                ];
+//            }
+//
+//            // 11. Lưu đơn hàng
+//            $order->save();
+//
+//            // 12. Xử lý chi tiết đơn hàng và tính tổng tiền
+//            $subtotal = 0;
+//            foreach ($data['products'] as $item) {
+//                $product = Product::find($item['product_id']);
+//                if (!$product) {
+//                    http_response_code(404);
+//                    throw new \Exception("Sản phẩm #{$item['product_id']} không tồn tại", 404);
+//                }
+//
+//                // Lấy giá hiện tại của sản phẩm
+//                $currentDate = date('Y-m-d');
+//                $price = ProductPrice::where('product_id', $product->id)
+//                    ->where('date_start', '<=', $currentDate)
+//                    ->where('date_end', '>=', $currentDate)
+//                    ->where('status', 'ACTIVE')
+//                    ->orderBy('date_start', 'desc')
+//                    ->first();
+//
+//                if (!$price) {
+//                    http_response_code(400);
+//                    throw new \Exception("Giá sản phẩm #{$product->id} chưa được cập nhật", 400);
+//                }
+//
+//                // Tạo chi tiết đơn hàng
+//                $detailData = [
+//                    'product_id' => $item['product_id'],
+//                    'quantity' => $item['quantity'],
+//                    'price' => $price->price,
+//                    'status' => 'ACTIVE',
+//                ];
+//
+//                $order->orderDetails()->create($detailData);
+//                $subtotal += $price->price * $item['quantity'];
+//            }
+//
+//            // 13. Tính tổng tiền cuối cùng
+//            $discountAmount = $subtotal * ($discountPercent / 100);
+//            $totalPrice = $subtotal - $discountAmount + $shippingFee;
+//
+//            // 14. Cập nhật tổng tiền
+//            $order->total_price = $totalPrice;
+//            $order->save();
+//
+//            // 15. Trả về kết quả
+//            http_response_code(201);
+//            return [
+//                'status' => 'success',
+//                'message' => 'Tạo đơn hàng thành công',
+//                'data' => [
+//                    'order_id' => $order->id,
+//                    'code' => $order->code,
+//                    'subtotal' => $subtotal,
+//                    'discount_amount' => $discountAmount,
+//                    'shipping_fee' => $shippingFee,
+//                    'total_price' => $totalPrice,
+//                    'shipping_info' => $deliveryType === 'SHIPPING' ? [
+//                        'distance' => $shippingInfo['distance'] ?? null,
+//                        'is_inner_city' => $shippingInfo['isInnerCity'] ?? null,
+//                    ] : null
+//                ]
+//            ];
+//
+//        } catch (\Exception $e) {
+//            error_log("Error in createOrder: " . $e->getMessage());
+//            $errorCode = $e->getCode() ?: 500;
+//            http_response_code($errorCode);
+//            return [
+//                'success' => false,
+//                'error' => 'Error occurred',
+//                'message' => $e->getMessage()
+//            ];
+//        }
+//    }
 }
