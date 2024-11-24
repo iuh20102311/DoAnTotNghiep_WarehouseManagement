@@ -88,17 +88,14 @@ class Product extends Model
             'weight' => ['required', 'numeric', 'min' => 0],
             'origin' => ['required', 'string'],
             'image' => ['required', 'string'],
-            'minimum_stock_level' => ['nullable', 'integer', 'min' => 0],
-            'maximum_stock_level' => ['nullable', 'integer', 'min' => 100],
+            'minimum_stock_level' => ['nullable', 'integer', 'min' => 0, 'less_than:maximum_stock_level'],
+            'maximum_stock_level' => ['nullable', 'integer', 'greater_than:minimum_stock_level'],
             'usage_time' => ['nullable', 'string'],
-            'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE', 'OUT_OF_STOCK']]
+            'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE', 'OUT_OF_STOCK']],
         ];
 
         if ($isUpdate) {
-            // Chỉ validate các trường có trong request
             $rules = array_intersect_key($rules, $data);
-
-            // Bỏ qua validate required
             foreach ($rules as $field => $constraints) {
                 $rules[$field] = array_filter($constraints, fn($c) => $c !== 'required');
             }
@@ -136,11 +133,13 @@ class Product extends Model
             ],
             'minimum_stock_level' => [
                 'integer' => 'Mức tồn kho tối thiểu phải là số nguyên.',
-                'min' => 'Mức tồn kho tối thiểu không được âm.'
+                'min' => 'Mức tồn kho tối thiểu không được âm.',
+                'less_than' => 'Mức tồn kho tối thiểu phải nhỏ hơn mức tồn kho tối đa.'
             ],
             'maximum_stock_level' => [
-                'integer' => 'Mức tồn kho tối thiểu phải là số nguyên.',
-                'min' => 'Mức tồn kho tối đa ít nhất là 100.'
+                'integer' => 'Mức tồn kho tối đa phải là số nguyên.',
+                'min' => 'Mức tồn kho tối đa ít nhất là 100.',
+                'greater_than' => 'Mức tồn kho tối đa phải lớn hơn mức tồn kho tối thiểu.'
             ],
             'status' => [
                 'required' => 'Trạng thái là bắt buộc.',

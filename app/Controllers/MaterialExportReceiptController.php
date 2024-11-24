@@ -7,7 +7,6 @@ use App\Models\MaterialExportReceipt;
 use App\Models\MaterialImportReceipt;
 use App\Models\MaterialImportReceiptDetail;
 use App\Models\MaterialStorageHistory;
-use App\Models\Provider;
 use App\Models\StorageArea;
 use App\Utils\PaginationTrait;
 use Lcobucci\JWT\Encoding\JoseEncoder;

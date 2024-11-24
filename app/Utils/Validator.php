@@ -525,6 +525,72 @@ class Validator
         return true;
     }
 
+    public function validateGreaterThan($field, $value, $parameter)
+    {
+        // Nếu giá trị đang validate là null thì bỏ qua
+        if ($value === null) {
+            return true;
+        }
+
+        // Parameter có thể là một field khác hoặc một giá trị cụ thể
+        $compareValue = isset($this->data[$parameter]) ? $this->data[$parameter] : $parameter;
+
+        // Nếu giá trị so sánh là null thì bỏ qua
+        if ($compareValue === null) {
+            return true;
+        }
+
+        // Đảm bảo cả hai giá trị đều là số
+        if (!is_numeric($value) || !is_numeric($compareValue)) {
+            return false;
+        }
+
+        // Đổi sang số để so sánh
+        $value = floatval($value);
+        $compareValue = floatval($compareValue);
+
+        // Kiểm tra value có lớn hơn compareValue không
+        if ($value <= $compareValue) {
+            $this->addError($field, 'greater_than', ['other' => $parameter]);
+            return false;
+        }
+
+        return true;
+    }
+
+    public function validateLessThan($field, $value, $parameter)
+    {
+        // Nếu giá trị đang validate là null thì bỏ qua
+        if ($value === null) {
+            return true;
+        }
+
+        // Parameter có thể là một field khác hoặc một giá trị cụ thể
+        $compareValue = isset($this->data[$parameter]) ? $this->data[$parameter] : $parameter;
+
+        // Nếu giá trị so sánh là null thì bỏ qua
+        if ($compareValue === null) {
+            return true;
+        }
+
+        // Đảm bảo cả hai giá trị đều là số
+        if (!is_numeric($value) || !is_numeric($compareValue)) {
+            return false;
+        }
+
+        // Đổi sang số để so sánh
+        $value = floatval($value);
+        $compareValue = floatval($compareValue);
+
+        // Kiểm tra value có nhỏ hơn compareValue không
+        if ($value >= $compareValue) {
+            $this->addError($field, 'less_than', ['other' => $parameter]);
+            return false;
+        }
+
+        return true;
+    }
+
     protected function addError($field, $rule, $parameters = [])
     {
         $message = $this->messages[$field][$rule] ?? $this->getDefaultMessage($field, $rule);

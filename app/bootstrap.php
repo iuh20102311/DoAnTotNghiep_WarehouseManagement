@@ -459,6 +459,8 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
             $router->get('/{id}', ['App\Controllers\InventoryCheckController', 'getInventoryCheckById']);
             $router->post('/', ['App\Controllers\InventoryCheckController', 'createInventoryCheck']);
             $router->get('/', ['App\Controllers\InventoryCheckController', 'getInventoryChecks']);
+
+            $router->put('/{id}/approve', ['App\Controllers\InventoryCheckController', 'approveInventoryCheck']);
         });
 
         $router->group(array('prefix' => '/v1/inventory_check_details'), function (RouteCollector $router) {
