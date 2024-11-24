@@ -68,10 +68,10 @@ class Material extends Model
             'weight' => ['required', 'numeric', 'min' => 0],
             'origin' => ['required', 'max' => 255],
             'packing' => ['required', 'max' => 255],
-            'minimum_stock_level' => ['required', 'integer', 'min' => 0],
-            'maximum_stock_level' => ['required', 'integer', 'min' => 100],
+            'minimum_stock_level' => ['nullable', 'integer', 'min' => 0, 'less_than:maximum_stock_level'],
+            'maximum_stock_level' => ['nullable', 'integer', 'greater_than:minimum_stock_level'],
             'status' => ['required', 'enum' => ['ACTIVE','INACTIVE','OUT_OF_STOCK']],
-            'note' => ['max' => 1000]
+            'note' => ['max' => 255]
         ];
 
         if ($isUpdate) {
@@ -86,13 +86,6 @@ class Material extends Model
 
         if (!$validator->validate($rules)) {
             return $validator->getErrors();
-        }
-
-        // Additional custom validation
-        if (isset($data['minimum_stock_level']) && isset($data['maximum_stock_level'])) {
-            if ($data['minimum_stock_level'] > $data['maximum_stock_level']) {
-                return ['minimum_stock_level' => ['Mức tồn kho tối thiểu không thể lớn hơn mức tồn kho tối đa']];
-            }
         }
 
         return null;
@@ -123,14 +116,14 @@ class Material extends Model
                 'max' => 'Loại chứa không được vượt quá :max ký tự.'
             ],
             'minimum_stock_level' => [
-                'required' => 'Mức tồn kho tối thiểu là bắt buộc.',
                 'integer' => 'Mức tồn kho tối thiểu phải là số nguyên.',
-                'min' => 'Mức tồn kho tối thiểu không được nhỏ hơn :min.'
+                'min' => 'Mức tồn kho tối thiểu không được âm.',
+                'less_than' => 'Mức tồn kho tối thiểu phải nhỏ hơn mức tồn kho tối đa.'
             ],
             'maximum_stock_level' => [
-                'required' => 'Mức tồn kho tối đa là bắt buộc.',
                 'integer' => 'Mức tồn kho tối đa phải là số nguyên.',
-                'min' => 'Mức tồn kho tối đa không được nhỏ hơn :min.'
+                'min' => 'Mức tồn kho tối đa ít nhất là 100.',
+                'greater_than' => 'Mức tồn kho tối đa phải lớn hơn mức tồn kho tối thiểu.'
             ],
             'status' => [
                 'required' => 'Trạng thái là bắt buộc.',

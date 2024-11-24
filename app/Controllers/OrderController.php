@@ -20,9 +20,9 @@ class OrderController
 
     private $shippingCalculator;
 
-    public function __construct(ShippingCalculator $shippingCalculator)
+    public function __construct(ShippingCalculator $shippingCalculator = null)
     {
-        $this->shippingCalculator = $shippingCalculator;
+        $this->shippingCalculator = $shippingCalculator ?? new ShippingCalculator();
     }
 
     public function getOrders(): array
@@ -73,10 +73,18 @@ class OrderController
             // Filter by phone
             if (isset($_GET['phone'])) {
                 $phone = urldecode($_GET['phone']);
-                $orders->where(function ($query) use ($phone) {
-                    $query->where('phone', 'LIKE', '%' . $phone . '%')
-                        ->orWhere('phone', 'LIKE', $phone . '%')
-                        ->orWhere('phone', 'LIKE', '%' . $phone);
+                // Chỉ giữ lại số, loại bỏ các ký tự đặc biệt
+                $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
+
+                $orders->where(function ($query) use ($cleanPhone) {
+                    $query->where('phone', 'LIKE', '%' . $cleanPhone . '%')
+                        ->orWhere('phone', 'LIKE', $cleanPhone . '%')
+                        ->orWhere('phone', 'LIKE', '%' . $cleanPhone)
+                        ->orWhereHas('customer', function ($subQuery) use ($cleanPhone) {
+                            $subQuery->where('phone', 'LIKE', '%' . $cleanPhone . '%')
+                                ->orWhere('phone', 'LIKE', $cleanPhone . '%')
+                                ->orWhere('phone', 'LIKE', '%' . $cleanPhone);
+                        });
                 });
             }
 
