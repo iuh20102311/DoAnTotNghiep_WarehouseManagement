@@ -48,7 +48,7 @@ class Order extends Model
         $validator = new Validator($data, $this->messages());
 
         $rules = [
-            'customer_id' => ['required', 'integer'],
+            'customer_id' => ['nullable', 'integer'],
             'created_by' => ['required', 'integer'],
             'delivery_date' => ['required', 'date' => 'Y-m-d', 'after_or_equal' => 'order_date'],
             'discount_percent' => ['nullable', 'integer', 'min' => 0, 'max' => 100],
@@ -76,7 +76,6 @@ class Order extends Model
     {
         return [
             'customer_id' => [
-                'required' => 'ID khách hàng là bắt buộc.',
                 'integer' => 'ID khách hàng phải là số nguyên.',
                 'exists' => 'Khách hàng không tồn tại.',
             ],

@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Models\Product;
 use App\Models\ProductExportReceipt;
 use App\Models\ProductImportReceipt;
+use App\Models\ProductInventoryHistory;
 use App\Models\ProductStorageHistory;
 use App\Models\StorageArea;
 use App\Models\User;
@@ -498,16 +499,34 @@ class ProductImportReceiptController
                 $historyRecord->deleted = false;
                 $historyRecord->save();
 
+                // Update product quantity
+                $productModel = Product::find($product['product_id']);
+                $oldQuantity = $productModel->quantity_available;  // Lưu số lượng cũ
+                $productModel->quantity_available += $product['quantity'];
+                $productModel->save();
+
+                // Tạo product inventory history
+                $actionType = match($data['type']) {
+                    'NORMAL' => 'IMPORT_NORMAL',
+                    'RETURN' => 'IMPORT_RETURN'
+                };
+
+                ProductInventoryHistory::create([
+                    'storage_area_id' => $product['storage_area_id'],
+                    'product_id' => $product['product_id'],
+                    'quantity_before' => $oldQuantity,
+                    'quantity_change' => $product['quantity'],  // Số dương vì là nhập kho
+                    'quantity_after' => $productModel->quantity_available,
+                    'remaining_quantity' => $productModel->quantity_available,
+                    'action_type' => $actionType,
+                    'created_by' => $createdById
+                ]);
+
                 // Lưu detail và history vào mảng
                 $importDetails[] = [
                     'detail' => $detail,
                     'history' => $historyRecord
                 ];
-
-                // Update product quantity
-                $productModel = Product::find($product['product_id']);
-                $productModel->quantity_available += $product['quantity'];
-                $productModel->save();
             }
 
             // [BƯỚC 11] - Load relationships for response

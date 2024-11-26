@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductExportReceipt;
+use App\Models\ProductInventoryHistory;
 use App\Models\ProductStorageHistory;
 use App\Models\StorageArea;
 use App\Utils\PaginationTrait;
@@ -510,8 +511,26 @@ class ProductExportReceiptController
 
                 // Cập nhật số lượng trong bảng products
                 $productModel = Product::find($product['product_id']);
+                $oldQuantity = $productModel->quantity_available;  // Lưu số lượng cũ
                 $productModel->quantity_available -= $product['quantity'];
                 $productModel->save();
+
+                // Tạo product inventory history
+                $actionType = match($data['type']) {
+                    'NORMAL' => 'EXPORT_NORMAL',
+                    'CANCEL' => 'EXPORT_CANCEL'
+                };
+
+                ProductInventoryHistory::create([
+                    'storage_area_id' => $product['storage_area_id'],
+                    'product_id' => $product['product_id'],
+                    'quantity_before' => $oldQuantity,
+                    'quantity_change' => -$product['quantity'],  // Dấu trừ vì là xuất kho
+                    'quantity_after' => $productModel->quantity_available,
+                    'remaining_quantity' => $productModel->quantity_available,
+                    'action_type' => $actionType,
+                    'created_by' => $createdById
+                ]);
             }
 
             // [BƯỚC 10] - Load relationships for response

@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Models\Material;
 use App\Models\MaterialExportReceipt;
 use App\Models\MaterialImportReceipt;
+use App\Models\MaterialInventoryHistory;
 use App\Models\MaterialStorageHistory;
 use App\Models\Provider;
 use App\Models\StorageArea;
@@ -685,10 +686,28 @@ class MaterialImportReceiptController
                     'history' => $historyRecord
                 ];
 
-                // Update material quantity
+                // Update material quantity in materials
                 $materialModel = Material::find($material['material_id']);
+                $oldQuantity = $materialModel->quantity_available; // Lưu số lượng cũ
                 $materialModel->quantity_available += $material['quantity'];
                 $materialModel->save();
+
+                // Tạo material inventory history
+                $actionType = match($data['type']) {
+                    'NORMAL' => 'IMPORT_NORMAL',
+                    'RETURN' => 'IMPORT_RETURN'
+                };
+
+                MaterialInventoryHistory::create([
+                    'storage_area_id' => $material['storage_area_id'],
+                    'material_id' => $material['material_id'],
+                    'quantity_before' => $oldQuantity,
+                    'quantity_change' => $material['quantity'], // Số dương vì là nhập kho
+                    'quantity_after' => $materialModel->quantity_available,
+                    'remaining_quantity' => $materialModel->quantity_available,
+                    'action_type' => $actionType,
+                    'created_by' => $createdById
+                ]);
             }
 
             // Update total price for NORMAL type

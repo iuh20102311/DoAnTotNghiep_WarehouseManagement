@@ -6,6 +6,7 @@ use App\Models\Material;
 use App\Models\MaterialExportReceipt;
 use App\Models\MaterialImportReceipt;
 use App\Models\MaterialImportReceiptDetail;
+use App\Models\MaterialInventoryHistory;
 use App\Models\MaterialStorageHistory;
 use App\Models\StorageArea;
 use App\Utils\PaginationTrait;
@@ -477,8 +478,27 @@ class MaterialExportReceiptController
 
                 // Cập nhật số lượng trong bảng materials
                 $materialModel = Material::find($material['material_id']);
+                $oldQuantity = $materialModel->quantity_available;
                 $materialModel->quantity_available -= $material['quantity'];
                 $materialModel->save();
+
+                // Tạo material inventory history
+                $actionType = match($data['type']) {
+                    'NORMAL' => 'EXPORT_NORMAL',
+                    'CANCEL' => 'EXPORT_CANCEL',
+                    'RETURN' => 'EXPORT_RETURN'
+                };
+
+                MaterialInventoryHistory::create([
+                    'storage_area_id' => $material['storage_area_id'],
+                    'material_id' => $material['material_id'],
+                    'quantity_before' => $oldQuantity,
+                    'quantity_change' => -$material['quantity'], // Dấu trừ vì là xuất kho
+                    'quantity_after' => $materialModel->quantity_available,
+                    'remaining_quantity' => $materialModel->quantity_available,
+                    'action_type' => $actionType,
+                    'created_by' => $createdById
+                ]);
             }
 
             // [BƯỚC 9] - Load relationships for response

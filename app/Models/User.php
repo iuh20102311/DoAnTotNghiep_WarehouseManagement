@@ -79,7 +79,7 @@ class User extends Model
 
     public function inventoryHistory()
     {
-        return $this->hasMany(InventoryHistory::class, 'created_by');
+        return $this->hasMany(MaterialInventoryHistory::class, 'created_by');
     }
 
 

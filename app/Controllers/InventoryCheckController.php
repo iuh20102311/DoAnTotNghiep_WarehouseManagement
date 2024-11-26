@@ -4,8 +4,9 @@ namespace App\Controllers;
 
 use App\Models\InventoryCheck;
 use App\Models\InventoryCheckDetail;
-use App\Models\InventoryHistory;
+use App\Models\MaterialInventoryHistory;
 use App\Models\MaterialStorageHistory;
+use App\Models\ProductInventoryHistory;
 use App\Models\ProductStorageHistory;
 use App\Models\Role;
 use App\Models\StorageArea;
@@ -523,21 +524,31 @@ class InventoryCheckController
                 }
 
                 // [BƯỚC 8] - Ghi nhận lịch sử kiểm kê
-                $history = new InventoryHistory();
-                $history->fill([
-                    'storage_area_id' => $inventoryCheck->storage_area_id,
-                    'product_id' => $firstDetail->product_id,
-                    'material_id' => $firstDetail->material_id,
-                    'quantity_before' => $totalExact,
-                    'quantity_change' => $updateDetail['actual_quantity'] - $totalExact,
-                    'quantity_after' => $updateDetail['actual_quantity'] - ($updateDetail['defective_quantity'] ?? 0),
-                    'remaining_quantity' => $updateDetail['actual_quantity'] - ($updateDetail['defective_quantity'] ?? 0),
-                    'action_type' => 'CHECK',
-                    'reference_id' => $id,
-                    'reference_type' => 'INVENTORY_CHECK',
-                    'created_by' => $currentUserId
-                ]);
-                $history->save();
+                if ($firstDetail->product_id) {
+                    // Ghi nhận kiểm kê sản phẩm
+                    ProductInventoryHistory::create([
+                        'storage_area_id' => $inventoryCheck->storage_area_id,
+                        'product_id' => $firstDetail->product_id,
+                        'quantity_before' => $totalExact,
+                        'quantity_change' => $updateDetail['actual_quantity'] - $totalExact,
+                        'quantity_after' => $updateDetail['actual_quantity'] - ($updateDetail['defective_quantity'] ?? 0),
+                        'remaining_quantity' => $updateDetail['actual_quantity'] - ($updateDetail['defective_quantity'] ?? 0),
+                        'action_type' => 'CHECK',
+                        'created_by' => $currentUserId
+                    ]);
+                } else {
+                    // Ghi nhận kiểm kê nguyên liệu
+                    MaterialInventoryHistory::create([
+                        'storage_area_id' => $inventoryCheck->storage_area_id,
+                        'material_id' => $firstDetail->material_id,
+                        'quantity_before' => $totalExact,
+                        'quantity_change' => $updateDetail['actual_quantity'] - $totalExact,
+                        'quantity_after' => $updateDetail['actual_quantity'] - ($updateDetail['defective_quantity'] ?? 0),
+                        'remaining_quantity' => $updateDetail['actual_quantity'] - ($updateDetail['defective_quantity'] ?? 0),
+                        'action_type' => 'CHECK',
+                        'created_by' => $currentUserId
+                    ]);
+                }
 
                 // [BƯỚC 9] - Cập nhật storage history
                 if ($firstDetail->product_id) {

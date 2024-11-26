@@ -507,7 +507,7 @@ class OrderController
             }
 
             // Keep original order date
-            $orderDate = $order->order_date;
+            $orderDate = date('Y-m-d H:i:s');
 
             // Get updated values
             $discountPercent = isset($data['discount_percent']) ? intval($data['discount_percent']) : $order->discount_percent;

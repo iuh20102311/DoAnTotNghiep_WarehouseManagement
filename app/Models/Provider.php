@@ -61,7 +61,7 @@ class Provider extends Model
             'representative_phone' => ['nullable', 'max' => 15, 'unique' => [Provider::class, 'representative_phone', $currentId]],
             'representative_email' => ['nullable', 'max' => 255, 'email', 'unique' => [Provider::class, 'representative_email', $currentId]],
             'phone' => ['required', 'max' => 15, 'unique' => [Provider::class, 'phone', $currentId]],
-            'email' => ['required', 'max' => 255, 'email', 'unique' => [Provider::class, 'email', $currentId]],
+            'email' => ['nullable', 'max' => 255, 'email', 'unique' => [Provider::class, 'email', $currentId]],
             'note' => ['max' => 1000],
             'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE', 'DELETED']]
         ];
@@ -129,7 +129,6 @@ class Provider extends Model
                 'unique' => 'Số điện thoại này đã được sử dụng.',
             ],
             'email' => [
-                'required' => 'Email công ty là bắt buộc.',
                 'max' => 'Email công ty không được vượt quá :max ký tự.',
                 'email' => 'Email công ty không hợp lệ.',
                 'unique' => 'Email này đã được sử dụng.',
