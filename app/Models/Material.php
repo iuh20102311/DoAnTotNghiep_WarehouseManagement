@@ -49,7 +49,7 @@ class Material extends Model
 
     public function inventoryHistory(): HasMany
     {
-        return $this->hasMany(InventoryHistory::class);
+        return $this->hasMany(MaterialInventoryHistory::class);
     }
 
     // Quan hệ bảng nhiều nhiều
@@ -68,11 +68,17 @@ class Material extends Model
             'weight' => ['required', 'numeric', 'min' => 0],
             'origin' => ['required', 'max' => 255],
             'packing' => ['required', 'max' => 255],
-            'minimum_stock_level' => ['nullable', 'integer', 'min' => 0, 'less_than:maximum_stock_level'],
-            'maximum_stock_level' => ['nullable', 'integer', 'greater_than:minimum_stock_level'],
-            'status' => ['required', 'enum' => ['ACTIVE','INACTIVE','OUT_OF_STOCK']],
+            'minimum_stock_level' => ['nullable', 'xor:maximum_stock_level', 'integer', 'min' => 0],
+            'maximum_stock_level' => ['nullable', 'xor:minimum_stock_level', 'integer', 'min' => 0],
+            'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE', 'OUT_OF_STOCK']],
             'note' => ['max' => 255]
         ];
+
+        // Thêm validate greater_than/less_than chỉ khi cả 2 field đều được nhập
+        if (isset($data['minimum_stock_level']) && isset($data['maximum_stock_level'])) {
+            $rules['minimum_stock_level'][] = 'less_than:maximum_stock_level';
+            $rules['maximum_stock_level'][] = 'greater_than:minimum_stock_level';
+        }
 
         if ($isUpdate) {
             // Chỉ validate các trường có trong request
@@ -118,16 +124,18 @@ class Material extends Model
             'minimum_stock_level' => [
                 'integer' => 'Mức tồn kho tối thiểu phải là số nguyên.',
                 'min' => 'Mức tồn kho tối thiểu không được âm.',
-                'less_than' => 'Mức tồn kho tối thiểu phải nhỏ hơn mức tồn kho tối đa.'
+                'less_than' => 'Mức tồn kho tối thiểu phải nhỏ hơn mức tồn kho tối đa.',
+                'xor' => 'Phải nhập ít nhất một trong hai trường mức tồn kho tối thiểu hoặc tối đa.'
             ],
             'maximum_stock_level' => [
                 'integer' => 'Mức tồn kho tối đa phải là số nguyên.',
-                'min' => 'Mức tồn kho tối đa ít nhất là 100.',
-                'greater_than' => 'Mức tồn kho tối đa phải lớn hơn mức tồn kho tối thiểu.'
+                'min' => 'Mức tồn kho tối đa không được âm.',
+                'greater_than' => 'Mức tồn kho tối đa phải lớn hơn mức tồn kho tối thiểu.',
+                'xor' => 'Phải nhập ít nhất một trong hai trường mức tồn kho tối thiểu hoặc tối đa.'
             ],
             'status' => [
                 'required' => 'Trạng thái là bắt buộc.',
-                'enum' => 'Trạng thái phải là ACTIVE,INACTIVE hoặc OUT_OF_STOCK.'
+                'enum' => 'Trạng thái phải là ACTIVE, INACTIVE hoặc OUT_OF_STOCK.'
             ],
             'note' => [
                 'max' => 'Ghi chú không được vượt quá :max ký tự.'
