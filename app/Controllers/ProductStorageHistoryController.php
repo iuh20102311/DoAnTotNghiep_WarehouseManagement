@@ -21,6 +21,30 @@ class ProductStorageHistoryController
                 ->with(['product', 'storageArea'])
                 ->orderBy('created_at', 'desc');
 
+            // Search by specific date
+            if (isset($_GET['date'])) {
+                $date = urldecode($_GET['date']);
+                $productStorageHistory->whereDate('created_at', $date);
+            }
+
+            // Search by storage area name/code
+            if (isset($_GET['search'])) {
+                $search = urldecode($_GET['search']);
+                $productStorageHistory->whereHas('storageArea', function($query) use ($search) {
+                    $query->where('code', 'LIKE', '%' . $search . '%')
+                        ->orWhere('name', 'LIKE', '%' . $search . '%');
+                });
+            }
+
+            // Search by product name or SKU
+            if (isset($_GET['search_product'])) {
+                $searchProduct = urldecode($_GET['search_product']);
+                $productStorageHistory->whereHas('product', function($query) use ($searchProduct) {
+                    $query->where('name', 'LIKE', '%' . $searchProduct . '%')
+                        ->orWhere('sku', 'LIKE', '%' . $searchProduct . '%');
+                });
+            }
+
             // Product ID filter
             if (isset($_GET['product_id'])) {
                 $productId = urldecode($_GET['product_id']);

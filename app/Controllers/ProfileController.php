@@ -17,13 +17,22 @@ class ProfileController
             $page = (int)($_GET['page'] ?? 1);
 
             $profile = Profile::query()
-                ->where('deleted', false)
-                ->with(['user', 'createdOrders'])
+                ->where('profiles.deleted', false)
+                ->where('users.deleted', false)
+                ->with(['user.role'])
+                ->with(['createdOrders'])
                 ->orderByRaw("CASE 
-                WHEN status = 'ACTIVE' THEN 1 
-                ELSE 2 
-                END")  // Sort ACTIVE status first
-                ->orderBy('created_at', 'desc');
+            WHEN profiles.status = 'ACTIVE' THEN 1 
+            ELSE 2 
+            END")
+                ->orderBy('profiles.created_at', 'desc')
+                ->select('profiles.*')
+                ->join('users', 'profiles.user_id', '=', 'users.id')
+                ->join('roles', 'users.role_id', '=', 'roles.id')
+                ->addSelect([
+                    'users.role_id',
+                    'roles.name as role_name'
+                ]);
 
             if (isset($_GET['phone'])) {
                 $phone = urldecode($_GET['phone']);
