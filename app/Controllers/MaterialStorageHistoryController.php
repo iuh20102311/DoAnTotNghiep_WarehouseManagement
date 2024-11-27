@@ -21,19 +21,41 @@ class MaterialStorageHistoryController
                 ->with(['material', 'provider', 'storageArea'])
                 ->orderBy('created_at', 'desc');
 
-            // Material ID filter
+            // Search by specific date
+            if (isset($_GET['date'])) {
+                $date = urldecode($_GET['date']);
+                $materialStorageHistory->whereDate('created_at', $date);
+            }
+
+            // General search for material name or SKU
+            if (isset($_GET['search'])) {
+                $search = urldecode($_GET['search']);
+                $materialStorageHistory->whereHas('storageArea', function($query) use ($search) {
+                    $query->where('code', 'LIKE', '%' . $search . '%')
+                        ->orWhere('name', 'LIKE', '%' . $search . '%');
+                });
+            }
+
+            // Material name/SKU specific search
+            if (isset($_GET['material_search'])) {
+                $materialSearch = urldecode($_GET['material_search']);
+                $materialStorageHistory->whereHas('material', function($query) use ($materialSearch) {
+                    $query->where('name', 'LIKE', '%' . $materialSearch . '%')
+                        ->orWhere('sku', 'LIKE', '%' . $materialSearch . '%');
+                });
+            }
+
+            // Rest of your existing filters...
             if (isset($_GET['material_id'])) {
                 $materialId = urldecode($_GET['material_id']);
                 $materialStorageHistory->where('material_id', $materialId);
             }
 
-            // Provider ID filter
             if (isset($_GET['provider_id'])) {
                 $providerId = urldecode($_GET['provider_id']);
                 $materialStorageHistory->where('provider_id', $providerId);
             }
 
-            // Storage Area ID filter
             if (isset($_GET['storage_area_id'])) {
                 $storageAreaId = urldecode($_GET['storage_area_id']);
                 $materialStorageHistory->where('storage_area_id', $storageAreaId);
@@ -90,11 +112,11 @@ class MaterialStorageHistoryController
             // Created At filters
             if (isset($_GET['created_from'])) {
                 $createdFrom = urldecode($_GET['created_from']);
-                $materialStorageHistory->where('created_at', '>=', $createdFrom);
+                $materialStorageHistory->whereDate('created_at', '>=', $createdFrom);
             }
             if (isset($_GET['created_to'])) {
                 $createdTo = urldecode($_GET['created_to']);
-                $materialStorageHistory->where('created_at', '<=', $createdTo);
+                $materialStorageHistory->whereDate('created_at', '<=', $createdTo);
             }
 
             // Updated At filters

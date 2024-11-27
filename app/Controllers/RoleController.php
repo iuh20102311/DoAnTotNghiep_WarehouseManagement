@@ -57,6 +57,27 @@ class RoleController
         }
     }
 
+    public function getRoleList(): array
+    {
+        try {
+            $roles = Role::query()
+                ->where('deleted', false)
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->toArray();
+
+            return $roles;
+
+        } catch (\Exception $e) {
+            error_log("Error in getRoleList: " . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'message' => $e->getMessage()
+            ];
+        }
+    }
+
     public function getRoleById($id): array
     {
         try {

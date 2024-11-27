@@ -418,12 +418,15 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
         });
 
         $router->group(array('prefix' => '/v1/roles'), function (RouteCollector $router) {
+            $router->get('/list', ['App\Controllers\RoleController', 'getRoleList']);
+            $router->get('/', ['App\Controllers\RoleController', 'getRoles']);
+            $router->post('/', ['App\Controllers\RoleController', 'createRole']);
+
+            // Pattern routes below
             $router->get('/{id}/users', ['App\Controllers\RoleController', 'getUserByRole']);
             $router->put('/{id}', ['App\Controllers\RoleController', 'updateRoleById']);
             $router->delete('/{id}', ['App\Controllers\RoleController', 'deleteRole']);
             $router->get('/{id}', ['App\Controllers\RoleController', 'getRoleById']);
-            $router->post('/', ['App\Controllers\RoleController', 'createRole']);
-            $router->get('/', ['App\Controllers\RoleController', 'getRoles']);
         });
 
         $router->group(array('prefix' => '/v1/gift_sets'), function (RouteCollector $router) {
