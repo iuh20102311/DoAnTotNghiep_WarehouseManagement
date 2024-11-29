@@ -359,12 +359,20 @@ class OrderController
                 $shippingFee = 0;
             }
 
+            // Handle recipient information
+            $recipientName = $data['recipient_name'] ?? $customer->name;
+
+            // Handle address information
+            $useCustomAddress = isset($data['address']) || isset($data['city']) || isset($data['district']) || isset($data['ward']);
+
             // Prepare order data
+            // Thay đổi phần xử lý địa chỉ trong orderData
             $orderData = [
                 'code' => $orderCode,
                 'customer_id' => $customer->id,
                 'created_by' => $profileId,
                 'order_date' => $orderDate,
+                'recipient_name' => $recipientName,
                 'phone' => $data['phone'] ?? $customer->phone,
                 'address' => $data['address'] ?? $customer->address,
                 'city' => $data['city'] ?? $customer->city,

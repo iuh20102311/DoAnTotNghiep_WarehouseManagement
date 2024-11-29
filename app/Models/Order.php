@@ -47,6 +47,8 @@ class Order extends Model
     {
         $validator = new Validator($data, $this->messages());
 
+        $useCustomAddress = isset($data['address']) || isset($data['city']) || isset($data['district']) || isset($data['ward']);
+
         $rules = [
             'customer_id' => ['nullable', 'integer'],
             'created_by' => ['required', 'integer'],
@@ -55,15 +57,19 @@ class Order extends Model
             'shipping_fee' => ['nullable', 'integer', 'min' => 0],
             'delivery_type' => ['required', 'enum' => ['STORE_PICKUP', 'SHIPPING']],
             'phone' => ['required', 'string', 'max' => 10],
-            'address' => ['required_if' => ['delivery_type', 'SHIPPING'], 'string', 'max' => 255],
-            'city' => ['required_if' => ['delivery_type', 'SHIPPING'], 'string', 'max' => 100],
-            'district' => ['required_if' => ['delivery_type', 'SHIPPING'], 'string', 'max' => 100],
-            'ward' => ['required_if' => ['delivery_type', 'SHIPPING'], 'string', 'max' => 100],
             'status' => ['required', 'enum' => ['PROCESSED', 'DELIVERED', 'SHIPPING', 'PENDING', 'CANCELLED', 'RETURNED', 'DRAFT']],
             'payment_status' => ['required', 'enum' => ['PAID', 'PENDING']],
             'payment_method' => ['required', 'enum' => ['CASH', 'BANK_TRANSFER']],
             'note' => ['nullable', 'string', 'max' => 255],
         ];
+
+        // Only validate address fields if delivery type is SHIPPING and using custom address
+        if ($data['delivery_type'] === 'SHIPPING' && $useCustomAddress) {
+            $rules['address'] = ['required', 'string', 'max' => 255];
+            $rules['city'] = ['required', 'string', 'max' => 100];
+            $rules['district'] = ['required', 'string', 'max' => 100];
+            $rules['ward'] = ['required', 'string', 'max' => 100];
+        }
 
         if (!$validator->validate($rules)) {
             return $validator->getErrors();
