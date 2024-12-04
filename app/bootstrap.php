@@ -204,6 +204,10 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
             $router->get('/', ['App\Controllers\ProductStorageHistoryController', 'getProductStorageHistory']);
         });
 
+        $router->group(array('prefix' => '/v1/product_storage_history_details'), function (RouteCollector $router) {
+            $router->get('/', ['App\Controllers\ProductStorageHistoryDetailController', 'getAll']);
+        });
+
         $router->group(array('prefix' => '/v1/categories'), function (RouteCollector $router) {
             $router->get('/list', ['App\Controllers\CategoryController', 'getCategoryList']);
             $router->get('/', ['App\Controllers\CategoryController', 'getCategories']);
@@ -281,6 +285,10 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
             $router->get('/{id}', ['App\Controllers\MaterialStorageHistoryController', 'getMaterialStorageHistoryById']);
             $router->post('/', ['App\Controllers\MaterialStorageHistoryController', 'createMaterialStorageHistory']);
             $router->get('/', ['App\Controllers\MaterialStorageHistoryController', 'getMaterialStorageHistory']);
+        });
+
+        $router->group(array('prefix' => '/v1/material_storage_history_details'), function (RouteCollector $router) {
+            $router->get('/', ['App\Controllers\MaterialStorageHistoryDetailController', 'getAll']);
         });
 
         $router->group(array('prefix' => '/v1/providers'), function (RouteCollector $router) {

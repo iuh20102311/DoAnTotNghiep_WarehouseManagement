@@ -49,7 +49,6 @@ class ProductController
                     },
                     'categories',
                     'inventoryCheckDetails',
-                    'inventoryHistory'
                 ])
                 ->orderByRaw("CASE 
                 WHEN status = 'ACTIVE' THEN 1
@@ -244,7 +243,6 @@ class ProductController
                     },
                     'categories',
                     'inventoryCheckDetails',
-                    'inventoryHistory'
                 ])
                 ->first();
 
@@ -1219,36 +1217,6 @@ class ProductController
         }
     }
 
-    public function getInventoryHistoryByProduct($id): array
-    {
-        try {
-            $perPage = (int)($_GET['per_page'] ?? 10);
-            $page = (int)($_GET['page'] ?? 1);
-
-            $product = Product::query()
-                ->where('deleted', false)
-                ->find($id);
-
-            if (!$product) {
-                return [
-                    'error' => 'Không tìm thấy sản phẩm'
-                ];
-            }
-
-            $inventoryHistoryQuery = $product->inventoryHistory()
-                ->with(['product', 'creator', 'storageArea'])
-                ->getQuery();
-
-            return $this->paginateResults($inventoryHistoryQuery, $perPage, $page)->toArray();
-
-        } catch (\Exception $e) {
-            error_log("Error in getInventoryHistoryByProduct: " . $e->getMessage());
-            return [
-                'error' => 'Database error occurred',
-                'details' => $e->getMessage()
-            ];
-        }
-    }
 
     public function getProductDiscountsByProduct($id): array
     {

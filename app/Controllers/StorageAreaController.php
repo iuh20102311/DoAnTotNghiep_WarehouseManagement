@@ -18,7 +18,7 @@ class StorageAreaController
 
             $storage = StorageArea::query()
                 ->where('deleted', false)
-                ->with(['productStorageHistories', 'materialStorageHistories', 'inventoryChecks', 'inventoryHistory'])
+                ->with(['productStorageHistories', 'materialStorageHistories', 'inventoryChecks'])
                 ->orderByRaw("CASE 
                 WHEN status = 'ACTIVE' THEN 1 
                 ELSE 2 
@@ -73,7 +73,7 @@ class StorageAreaController
             $storage = StorageArea::query()
                 ->where('code', $code)
                 ->where('deleted', false)
-                ->with(['productStorageHistories', 'materialStorageHistories', 'inventoryChecks', 'inventoryHistory'])
+                ->with(['productStorageHistories', 'materialStorageHistories', 'inventoryChecks'])
                 ->first();
 
             if (!$storage) {
@@ -373,47 +373,6 @@ class StorageAreaController
 
         } catch (\Exception $e) {
             error_log("Error in getInventoryChecksByStorageArea: " . $e->getMessage());
-            http_response_code(500);
-            return [
-                'error' => 'Database error occurred',
-                'details' => $e->getMessage()
-            ];
-        }
-    }
-
-    public function getInventoryHistoryByStorageArea($id): array
-    {
-        try {
-            $perPage = (int)($_GET['per_page'] ?? 10);
-            $page = (int)($_GET['page'] ?? 1);
-
-            $storage = StorageArea::where('deleted', false)->find($id);
-
-            if (!$storage) {
-                http_response_code(404);
-                return [
-                    'error' => 'Không tìm thấy khu vực kho'
-                ];
-            }
-
-            $query = $storage->inventoryHistory()
-                ->with(['product', 'material', 'creator'])
-                ->getQuery();
-
-            if (isset($_GET['created_from'])) {
-                $createdFrom = urldecode($_GET['created_from']);
-                $query->where('created_at', '>=', $createdFrom);
-            }
-
-            if (isset($_GET['created_to'])) {
-                $createdTo = urldecode($_GET['created_to']);
-                $query->where('created_at', '<=', $createdTo);
-            }
-
-            return $this->paginateResults($query, $perPage, $page)->toArray();
-
-        } catch (\Exception $e) {
-            error_log("Error in getInventoryHistoryByStorageArea: " . $e->getMessage());
             http_response_code(500);
             return [
                 'error' => 'Database error occurred',
