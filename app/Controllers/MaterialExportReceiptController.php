@@ -65,16 +65,6 @@ class MaterialExportReceiptController
                     },
                     'details'
                 ])
-                ->orderByRaw("CASE 
-                    WHEN status = 'COMPLETED' THEN 1 
-                    WHEN status = 'TEMPORARY' THEN 2
-                END")
-                ->orderByRaw("CASE 
-                    WHEN type = 'RETURN' THEN 1
-                    WHEN type = 'NORMAL' THEN 2
-                    WHEN type = 'OTHER' THEN 3
-                    WHEN type = 'CANCEL' THEN 4
-                END")
                 ->orderBy('created_at', 'desc');
 
             // Code filter

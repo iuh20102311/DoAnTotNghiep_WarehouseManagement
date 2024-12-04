@@ -19,6 +19,7 @@ class ProductStorageHistoryController
             $productStorageHistory = ProductStorageHistory::query()
                 ->where('deleted', false)
                 ->with(['product', 'storageArea'])
+                ->orderBy('expiry_date', 'asc')
                 ->orderBy('created_at', 'desc');
 
             // Search by specific date

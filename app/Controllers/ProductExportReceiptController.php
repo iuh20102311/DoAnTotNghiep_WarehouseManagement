@@ -66,10 +66,6 @@ class ProductExportReceiptController
                     },
                     'details'
                 ])
-                ->orderByRaw("CASE 
-                WHEN status = 'ACTIVE' THEN 1 
-                ELSE 2 
-                END")
                 ->orderBy('created_at', 'desc');
 
             // Code filter
