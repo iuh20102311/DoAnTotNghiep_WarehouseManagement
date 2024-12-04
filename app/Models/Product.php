@@ -88,14 +88,14 @@ class Product extends Model
             'weight' => ['required', 'numeric', 'min' => 0],
             'origin' => ['required', 'string'],
             'image' => ['required', 'string'],
-            'minimum_stock_level' => ['nullable', 'xor:maximum_stock_level', 'integer', 'min' => 0],
-            'maximum_stock_level' => ['nullable', 'xor:minimum_stock_level', 'integer', 'min' => 0],
+            'minimum_stock_level' => ['nullable', 'integer', 'min' => 0],
+            'maximum_stock_level' => ['nullable', 'integer', 'min' => 0],
             'usage_time' => ['nullable', 'string'],
             'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE', 'OUT_OF_STOCK']],
         ];
 
-        // Thêm validate greater_than/less_than chỉ khi cả 2 field đều được nhập
-        if (isset($data['minimum_stock_level']) && isset($data['maximum_stock_level'])) {
+        // Thêm validate greater_than/less_than chỉ khi cả 2 field đều được nhập và không rỗng
+        if (!empty($data['minimum_stock_level']) && !empty($data['maximum_stock_level'])) {
             $rules['minimum_stock_level'][] = 'less_than:maximum_stock_level';
             $rules['maximum_stock_level'][] = 'greater_than:minimum_stock_level';
         }
@@ -119,12 +119,15 @@ class Product extends Model
         return [
             'name' => [
                 'required' => 'Tên sản phẩm là bắt buộc.',
+                'string' => 'Tên sản phẩm phải là chuỗi.'
             ],
             'packing' => [
                 'required' => 'Loại vật chứa là bắt buộc.',
+                'string' => 'Loại vật chứa phải là chuỗi.'
             ],
             'unit' => [
                 'required' => 'Đơn vị tính là bắt buộc.',
+                'string' => 'Đơn vị tính phải là chuỗi.'
             ],
             'weight' => [
                 'required' => 'Khối lượng là bắt buộc.',
@@ -133,25 +136,28 @@ class Product extends Model
             ],
             'origin' => [
                 'required' => 'Xuất xứ sản phẩm là bắt buộc.',
+                'string' => 'Xuất xứ sản phẩm phải là chuỗi.'
             ],
             'image' => [
-                'required' => 'Hình ảnh là bắt buộc.'
+                'required' => 'Hình ảnh là bắt buộc.',
+                'string' => 'Hình ảnh phải là chuỗi.'
             ],
             'minimum_stock_level' => [
                 'integer' => 'Mức tồn kho tối thiểu phải là số nguyên.',
                 'min' => 'Mức tồn kho tối thiểu không được âm.',
-                'less_than' => 'Mức tồn kho tối thiểu phải nhỏ hơn mức tồn kho tối đa.',
-                'xor' => 'Phải nhập ít nhất một trong hai trường mức tồn kho tối thiểu hoặc tối đa.'
+                'less_than' => 'Mức tồn kho tối thiểu phải nhỏ hơn mức tồn kho tối đa.'
             ],
             'maximum_stock_level' => [
                 'integer' => 'Mức tồn kho tối đa phải là số nguyên.',
                 'min' => 'Mức tồn kho tối đa không được âm.',
-                'greater_than' => 'Mức tồn kho tối đa phải lớn hơn mức tồn kho tối thiểu.',
-                'xor' => 'Phải nhập ít nhất một trong hai trường mức tồn kho tối thiểu hoặc tối đa.'
+                'greater_than' => 'Mức tồn kho tối đa phải lớn hơn mức tồn kho tối thiểu.'
+            ],
+            'usage_time' => [
+                'string' => 'Thời gian sử dụng phải là chuỗi.'
             ],
             'status' => [
                 'required' => 'Trạng thái là bắt buộc.',
-                'in' => 'Trạng thái không hợp lệ. Trạng thái chỉ có thể là ACTIVE hoặc DELETED.'
+                'enum' => 'Trạng thái không hợp lệ. Trạng thái chỉ có thể là ACTIVE, INACTIVE hoặc OUT_OF_STOCK.'
             ]
         ];
     }
