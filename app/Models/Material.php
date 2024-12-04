@@ -49,7 +49,7 @@ class Material extends Model
 
     public function inventoryHistory(): HasMany
     {
-        return $this->hasMany(MaterialInventoryHistory::class);
+        return $this->hasMany(MaterialStorageHistoryDetail::class);
     }
 
     // Quan hệ bảng nhiều nhiều

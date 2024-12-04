@@ -3,38 +3,26 @@
 namespace App\Models;
 
 use App\Utils\Validator;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class MaterialInventoryHistory extends Model
+class MaterialStorageHistoryDetail extends Model
 {
-    use HasFactory;
-
-    protected $table = 'material_inventory_history';
+    protected $table = 'material_storage_history_details';
     protected $fillable = [
-        'storage_area_id',
-        'material_id',
+        'material_storage_history_id',
         'quantity_before',
         'quantity_change',
         'quantity_after',
-        'remaining_quantity',
         'action_type',
         'created_at',
         'created_by'
     ];
-    protected $primaryKey = 'id';
     public $timestamps = false;
 
-    public function storageArea(): BelongsTo
+    public function materialStorageHistory(): BelongsTo
     {
-        return $this->belongsTo(StorageArea::class);
-    }
-
-    public function material(): BelongsTo
-    {
-        return $this->belongsTo(Material::class);
+        return $this->belongsTo(MaterialStorageHistory::class);
     }
 
     public function creator(): BelongsTo
@@ -47,12 +35,10 @@ class MaterialInventoryHistory extends Model
         $validator = new Validator($data, $this->messages());
 
         $rules = [
-            'storage_area_id' => ['required', 'integer'],
-            'material_id' => ['required', 'integer'],
+            'material_storage_history_id' => ['required', 'integer'],
             'quantity_before' => ['required', 'numeric', 'min' => 0],
             'quantity_change' => ['required', 'numeric'],
             'quantity_after' => ['required', 'numeric', 'min' => 0],
-            'remaining_quantity' => ['required', 'numeric', 'min' => 0],
             'action_type' => ['required', 'enum' => ['EXPORT_NORMAL', 'EXPORT_RETURN', 'EXPORT_CANCEL', 'IMPORT_NORMAL', 'IMPORT_RETURN', 'CHECK']],
             'created_by' => ['required', 'integer'],
         ];
@@ -67,13 +53,9 @@ class MaterialInventoryHistory extends Model
     protected function messages()
     {
         return [
-            'storage_area_id' => [
-                'required' => 'ID khu vực lưu trữ là bắt buộc.',
-                'integer' => 'ID khu vực lưu trữ phải là số nguyên.',
-            ],
-            'material_id' => [
-                'required' => 'ID nguyên liệu là bắt buộc.',
-                'integer' => 'ID nguyên liệu phải là số nguyên.',
+            'material_storage_history_id' => [
+                'required' => 'ID lịch sử lưu trữ nguyên liệu là bắt buộc.',
+                'integer' => 'ID lịch sử lưu trữ nguyên liệu phải là số nguyên.',
             ],
             'quantity_before' => [
                 'required' => 'Số lượng trước khi thay đổi là bắt buộc.',
@@ -88,11 +70,6 @@ class MaterialInventoryHistory extends Model
                 'required' => 'Số lượng sau khi thay đổi là bắt buộc.',
                 'numeric' => 'Số lượng sau khi thay đổi phải là số.',
                 'min' => 'Số lượng sau khi thay đổi không được âm.',
-            ],
-            'remaining_quantity' => [
-                'required' => 'Số lượng còn lại là bắt buộc.',
-                'numeric' => 'Số lượng còn lại phải là số.',
-                'min' => 'Số lượng còn lại không được âm.',
             ],
             'action_type' => [
                 'required' => 'Loại hành động là bắt buộc.',

@@ -33,7 +33,7 @@ class StorageArea extends Model
 
     public function inventoryHistory(): HasMany
     {
-        return $this->hasMany(MaterialInventoryHistory::class);
+        return $this->hasMany(MaterialStorageHistoryDetail::class);
     }
 
     public function validate(array $data, $isUpdate = false)

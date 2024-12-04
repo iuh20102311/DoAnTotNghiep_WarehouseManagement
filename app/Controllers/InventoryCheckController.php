@@ -4,9 +4,9 @@ namespace App\Controllers;
 
 use App\Models\InventoryCheck;
 use App\Models\InventoryCheckDetail;
-use App\Models\MaterialInventoryHistory;
+use App\Models\MaterialStorageHistoryDetail;
 use App\Models\MaterialStorageHistory;
-use App\Models\ProductInventoryHistory;
+use App\Models\ProductStorageHistoryDetail;
 use App\Models\ProductStorageHistory;
 use App\Models\Role;
 use App\Models\StorageArea;
@@ -526,7 +526,7 @@ class InventoryCheckController
                 // [BƯỚC 8] - Ghi nhận lịch sử kiểm kê
                 if ($firstDetail->product_id) {
                     // Ghi nhận kiểm kê sản phẩm
-                    ProductInventoryHistory::create([
+                    ProductStorageHistoryDetail::create([
                         'storage_area_id' => $inventoryCheck->storage_area_id,
                         'product_id' => $firstDetail->product_id,
                         'quantity_before' => $totalExact,
@@ -538,7 +538,7 @@ class InventoryCheckController
                     ]);
                 } else {
                     // Ghi nhận kiểm kê nguyên liệu
-                    MaterialInventoryHistory::create([
+                    MaterialStorageHistoryDetail::create([
                         'storage_area_id' => $inventoryCheck->storage_area_id,
                         'material_id' => $firstDetail->material_id,
                         'quantity_before' => $totalExact,
