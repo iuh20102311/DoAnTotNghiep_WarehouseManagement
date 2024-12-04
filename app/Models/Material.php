@@ -61,21 +61,20 @@ class Material extends Model
     public function validate(array $data, $isUpdate = false)
     {
         $validator = new Validator($data, $this->messages());
-
         $rules = [
             'name' => ['required', 'max' => 255],
             'unit' => ['required', 'max' => 50],
             'weight' => ['required', 'numeric', 'min' => 0],
             'origin' => ['required', 'max' => 255],
             'packing' => ['required', 'max' => 255],
-            'minimum_stock_level' => ['nullable', 'xor:maximum_stock_level', 'integer', 'min' => 0],
-            'maximum_stock_level' => ['nullable', 'xor:minimum_stock_level', 'integer', 'min' => 0],
+            'minimum_stock_level' => ['nullable', 'integer', 'min' => 0],
+            'maximum_stock_level' => ['nullable', 'integer', 'min' => 0],
             'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE', 'OUT_OF_STOCK']],
             'note' => ['max' => 255]
         ];
 
         // Thêm validate greater_than/less_than chỉ khi cả 2 field đều được nhập
-        if (isset($data['minimum_stock_level']) && isset($data['maximum_stock_level'])) {
+        if (!empty($data['minimum_stock_level']) && !empty($data['maximum_stock_level'])) {
             $rules['minimum_stock_level'][] = 'less_than:maximum_stock_level';
             $rules['maximum_stock_level'][] = 'greater_than:minimum_stock_level';
         }
@@ -83,7 +82,6 @@ class Material extends Model
         if ($isUpdate) {
             // Chỉ validate các trường có trong request
             $rules = array_intersect_key($rules, $data);
-
             // Bỏ qua validate required
             foreach ($rules as $field => $constraints) {
                 $rules[$field] = array_filter($constraints, fn($c) => $c !== 'required');
@@ -93,7 +91,6 @@ class Material extends Model
         if (!$validator->validate($rules)) {
             return $validator->getErrors();
         }
-
         return null;
     }
 
@@ -124,14 +121,12 @@ class Material extends Model
             'minimum_stock_level' => [
                 'integer' => 'Mức tồn kho tối thiểu phải là số nguyên.',
                 'min' => 'Mức tồn kho tối thiểu không được âm.',
-                'less_than' => 'Mức tồn kho tối thiểu phải nhỏ hơn mức tồn kho tối đa.',
-                'xor' => 'Phải nhập ít nhất một trong hai trường mức tồn kho tối thiểu hoặc tối đa.'
+                'less_than' => 'Mức tồn kho tối thiểu phải nhỏ hơn mức tồn kho tối đa.'
             ],
             'maximum_stock_level' => [
                 'integer' => 'Mức tồn kho tối đa phải là số nguyên.',
                 'min' => 'Mức tồn kho tối đa không được âm.',
-                'greater_than' => 'Mức tồn kho tối đa phải lớn hơn mức tồn kho tối thiểu.',
-                'xor' => 'Phải nhập ít nhất một trong hai trường mức tồn kho tối thiểu hoặc tối đa.'
+                'greater_than' => 'Mức tồn kho tối đa phải lớn hơn mức tồn kho tối thiểu.'
             ],
             'status' => [
                 'required' => 'Trạng thái là bắt buộc.',
