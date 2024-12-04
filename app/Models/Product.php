@@ -61,11 +61,6 @@ class Product extends Model
         return $this->hasMany(InventoryCheckDetail::class);
     }
 
-    public function inventoryHistory(): HasMany
-    {
-        return $this->hasMany(ProductStorageHistoryDetail::class);
-    }
-
     // Quan hệ bảng nhiều nhiều
     public function productDiscounts(): HasMany
     {

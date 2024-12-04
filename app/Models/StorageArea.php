@@ -31,11 +31,6 @@ class StorageArea extends Model
         return $this->hasMany(InventoryCheck::class);
     }
 
-    public function inventoryHistory(): HasMany
-    {
-        return $this->hasMany(MaterialStorageHistoryDetail::class);
-    }
-
     public function validate(array $data, $isUpdate = false)
     {
         $validator = new Validator($data, $this->messages());
