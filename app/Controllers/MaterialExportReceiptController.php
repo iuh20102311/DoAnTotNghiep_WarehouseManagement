@@ -1010,11 +1010,6 @@ class MaterialExportReceiptController
                     'expiry_date' => $history->expiry_date
                 ]);
 
-                // Cập nhật số lượng trong bảng materials
-                $materialModel = Material::find($history->material_id);
-                $materialModel->quantity_available -= $quantity;
-                $materialModel->save();
-
                 // Tạo material inventory history
                 $actionType = match($data['type']) {
                     'NORMAL' => 'EXPORT_NORMAL',
