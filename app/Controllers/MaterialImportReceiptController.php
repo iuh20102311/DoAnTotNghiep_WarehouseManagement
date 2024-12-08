@@ -1006,7 +1006,7 @@ class MaterialImportReceiptController
 
             // [BƯỚC 2] - Get and validate receipt
             $importReceipt = MaterialImportReceipt::with(['details'])->where('id', $importReceiptId)
-                ->where('status', 'TEMPORARY')
+                ->where('status', 'PENDING_APPROVED')
                 ->where('deleted', false)
                 ->first();
 
