@@ -139,6 +139,8 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
 
         $router->group(array('prefix' => '/v1/import'), function (RouteCollector $router) {
             $router->post('/materials', ['App\Controllers\MaterialImportReceiptController', 'importMaterials']);
+            $router->post('/materials/approve/{importReceiptId}', ['App\Controllers\MaterialImportReceiptController', 'approveImportReceipt']);
+
             $router->post('/products', ['App\Controllers\ProductImportReceiptController', 'importProducts']);
         });
 
@@ -324,7 +326,6 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
             $router->put('/{id}', ['App\Controllers\MaterialImportReceiptController', 'updateMaterialImportReceiptById']);
             $router->delete('/{id}', ['App\Controllers\MaterialImportReceiptController', 'deleteMaterialImportReceipt']);
             $router->get('/{code}', ['App\Controllers\MaterialImportReceiptController', 'getMaterialImportReceiptByCode']);
-            $router->patch('/{id}/approve', ['App\Controllers\MaterialImportReceiptController', 'approveImportReceipt']);
             $router->get('/', ['App\Controllers\MaterialImportReceiptController', 'getMaterialImportReceipts']);
         });
 
