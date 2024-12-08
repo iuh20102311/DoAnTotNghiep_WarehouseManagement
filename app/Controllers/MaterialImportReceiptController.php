@@ -927,7 +927,7 @@ class MaterialImportReceiptController
                 'provider_id' => $data['type'] === 'NORMAL' ? $data['provider_id'] : null,
                 'material_export_receipt_id' => $data['type'] === 'RETURN' ? $data['material_export_receipt_id'] : null,
                 'note' => $data['note'] ?? null,
-                'status' => 'TEMPORARY',
+                'status' => 'PENDING_APPROVED',
                 'created_by' => $createdById,
                 'receiver_id' => $data['receiver_id']
             ]);
@@ -1046,7 +1046,7 @@ class MaterialImportReceiptController
                 }
 
                 // Create history detail
-                $actionType = match($importReceipt->type) {
+                $actionType = match ($importReceipt->type) {
                     'NORMAL' => 'IMPORT_NORMAL',
                     'RETURN' => 'IMPORT_RETURN'
                 };
@@ -1079,6 +1079,60 @@ class MaterialImportReceiptController
                     'code' => $importReceipt->code,
                     'status' => $importReceipt->status,
                     'approved_at' => date('Y-m-d H:i:s')
+                ]
+            ];
+
+            header('Content-Type: application/json');
+            echo json_encode($response, JSON_UNESCAPED_UNICODE);
+
+        } catch (\Exception $e) {
+            header('Content-Type: application/json');
+            http_response_code(400);
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], JSON_UNESCAPED_UNICODE);
+        }
+    }
+
+    public function rejectImportReceipt(string $importReceiptId): void
+    {
+        try {
+            // [BƯỚC 1] - Token validation
+            $headers = apache_request_headers();
+            $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
+            if (!$token) {
+                throw new \Exception('Token không tồn tại');
+            }
+
+            $parser = new Parser(new JoseEncoder());
+            $parsedToken = $parser->parse($token);
+            $rejectedById = $parsedToken->claims()->get('id');
+
+            // [BƯỚC 2] - Get and validate receipt
+            $importReceipt = MaterialImportReceipt::where('id', $importReceiptId)
+                ->where('status', 'PENDING_APPROVED')
+                ->where('deleted', false)
+                ->first();
+
+            if (!$importReceipt) {
+                throw new \Exception('Phiếu nhập không tồn tại hoặc không ở trạng thái tạm thời');
+            }
+
+            // [BƯỚC 3] - Update receipt status
+            $importReceipt->status = 'REJECTED';
+            $importReceipt->save();
+
+            // [BƯỚC 4] - Prepare response
+            $response = [
+                'success' => true,
+                'message' => 'Từ chối phiếu nhập kho thành công',
+                'data' => [
+                    'id' => $importReceipt->id,
+                    'code' => $importReceipt->code,
+                    'status' => $importReceipt->status,
+                    'rejected_at' => date('Y-m-d H:i:s'),
+                    'rejected_by' => $rejectedById,
                 ]
             ];
 
