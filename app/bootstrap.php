@@ -132,6 +132,10 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
     });
 
     $router->group(array('before' => 'auth'), function (RouteCollector $router) {
+        $router->group(array('prefix' => '/v1/reports'), function (RouteCollector $router) {
+            $router->get('/stats', ['App\Controllers\ReportStats', 'getStats']);
+        });
+
         $router->group(array('prefix' => '/v1/export'), function (RouteCollector $router) {
             $router->post('/materials', ['App\Controllers\MaterialExportReceiptController', 'exportMaterials']);
             $router->post('/products', ['App\Controllers\ProductExportReceiptController', 'exportProducts']);
@@ -428,15 +432,15 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
         });
 
         $router->group(array('prefix' => '/v1/roles'), function (RouteCollector $router) {
-            $router->get('/list', ['App\Controllers\RoleController', 'getRoleList']);
-            $router->get('/', ['App\Controllers\RoleController', 'getRoles']);
-            $router->post('/', ['App\Controllers\RoleController', 'createRole']);
+            $router->get('/list', ['App\Controllers\ReportStats', 'getRoleList']);
+            $router->get('/', ['App\Controllers\ReportStats', 'getRoles']);
+            $router->post('/', ['App\Controllers\ReportStats', 'createRole']);
 
             // Pattern routes below
-            $router->get('/{id}/users', ['App\Controllers\RoleController', 'getUserByRole']);
-            $router->put('/{id}', ['App\Controllers\RoleController', 'updateRoleById']);
-            $router->delete('/{id}', ['App\Controllers\RoleController', 'deleteRole']);
-            $router->get('/{id}', ['App\Controllers\RoleController', 'getRoleById']);
+            $router->get('/{id}/users', ['App\Controllers\ReportStats', 'getUserByRole']);
+            $router->put('/{id}', ['App\Controllers\ReportStats', 'updateRoleById']);
+            $router->delete('/{id}', ['App\Controllers\ReportStats', 'deleteRole']);
+            $router->get('/{id}', ['App\Controllers\ReportStats', 'getRoleById']);
         });
 
         $router->group(array('prefix' => '/v1/gift_sets'), function (RouteCollector $router) {
