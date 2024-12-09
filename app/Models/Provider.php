@@ -58,10 +58,13 @@ class Provider extends Model
             'district' => ['nullable', 'max' => 100],
             'ward' => ['nullable', 'max' => 100],
             'representative_name' => ['nullable', 'max' => 255],
-            'representative_phone' => ['nullable', 'max' => 15, 'unique' => [Provider::class, 'representative_phone', $currentId]],
-            'representative_email' => ['nullable', 'max' => 255, 'email', 'unique' => [Provider::class, 'representative_email', $currentId]],
+            // 'representative_phone' => ['nullable', 'max' => 15, 'unique' => [Provider::class, 'representative_phone', $currentId]],
+            // 'representative_email' => ['nullable', 'max' => 255, 'email', 'unique' => [Provider::class, 'representative_email', $currentId]],
+            'representative_phone' => ['nullable', 'max' => 15],
+            'representative_email' => ['nullable', 'max' => 255, 'email'],
             'phone' => ['required', 'max' => 15, 'unique' => [Provider::class, 'phone', $currentId]],
-            'email' => ['nullable', 'max' => 255, 'email', 'unique' => [Provider::class, 'email', $currentId]],
+            // 'email' => ['nullable', 'max' => 255, 'email', 'unique' => [Provider::class, 'email', $currentId]],
+            'email' => ['nullable', 'max' => 255, 'email'],
             'note' => ['max' => 1000],
             'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE', 'DELETED']]
         ];
@@ -115,23 +118,23 @@ class Provider extends Model
             'representative_phone' => [
                 'required' => 'Số điện thoại người đại diện là bắt buộc.',
                 'max' => 'Số điện thoại người đại diện không được vượt quá :max ký tự.',
-                'unique' => 'Số điện thoại người đại diện này đã được sử dụng.',
+                // 'unique' => 'Số điện thoại người đại diện này đã được sử dụng.',
             ],
             'representative_email' => [
                 'required' => 'Email người đại diện là bắt buộc.',
                 'max' => 'Email người đại diện không được vượt quá :max ký tự.',
                 'email' => 'Email người đại diện không hợp lệ.',
-                'unique' => 'Email người đại diện này đã được sử dụng.',
+                // 'unique' => 'Email người đại diện này đã được sử dụng.',
             ],
             'phone' => [
                 'required' => 'Số điện thoại công ty là bắt buộc.',
                 'max' => 'Số điện thoại công ty không được vượt quá :max ký tự.',
-                'unique' => 'Số điện thoại này đã được sử dụng.',
+                // 'unique' => 'Số điện thoại này đã được sử dụng.',
             ],
             'email' => [
                 'max' => 'Email công ty không được vượt quá :max ký tự.',
                 'email' => 'Email công ty không hợp lệ.',
-                'unique' => 'Email này đã được sử dụng.',
+                // 'unique' => 'Email này đã được sử dụng.',
             ],
             'note' => [
                 'max' => 'Ghi chú không được vượt quá :max ký tự.'
