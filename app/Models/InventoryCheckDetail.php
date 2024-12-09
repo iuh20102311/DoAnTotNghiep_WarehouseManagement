@@ -6,15 +6,23 @@ use App\Utils\Validator;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class InventoryCheckDetail extends Model
 {
     use HasFactory;
 
     protected $table = 'inventory_check_details';
-    protected $fillable = ['product_id', 'inventory_check_id', 'material_id', 'exact_quantity', 'actual_quantity', 'defective_quantity', 'error_description', 'created_at', 'updated_at', 'deleted'];
+    protected $fillable = [
+        'product_history_id',
+        'inventory_check_id',
+        'material_history_id',
+        'system_quantity',
+        'actual_quantity',
+        'reason',
+        'created_at',
+        'updated_at',
+        'deleted'
+    ];
     protected $primaryKey = 'id';
     public $timestamps = true;
 
@@ -23,30 +31,30 @@ class InventoryCheckDetail extends Model
         return $this->belongsTo(InventoryCheck::class, 'inventory_check_id');
     }
 
-    public function product(): BelongsTo
+    public function productHistory(): BelongsTo
     {
-        return $this->belongsTo(Product::class, 'product_id');
+        return $this->belongsTo(ProductStorageHistory::class, 'product_history_id');
     }
 
-    public function material(): BelongsTo
+    public function materialHistory(): BelongsTo
     {
-        return $this->belongsTo(Material::class, 'material_id');
+        return $this->belongsTo(MaterialStorageHistory::class, 'material_history_id');
     }
 
     // Mutator to enforce constraint programmatically
-    public function setProductIdAttribute($value)
+    public function setProductHistoryIdAttribute($value)
     {
         if (!is_null($value)) {
-            $this->attributes['product_id'] = $value;
-            $this->attributes['material_id'] = null; // Force material_id to null
+            $this->attributes['product_history_id'] = $value;
+            $this->attributes['material_history_id'] = null; // Force material_history_id to null
         }
     }
 
-    public function setMaterialIdAttribute($value)
+    public function setMaterialHistoryIdAttribute($value)
     {
         if (!is_null($value)) {
-            $this->attributes['material_id'] = $value;
-            $this->attributes['product_id'] = null; // Force product_id to null
+            $this->attributes['material_history_id'] = $value;
+            $this->attributes['product_history_id'] = null; // Force product_history_id to null
         }
     }
 
@@ -56,12 +64,11 @@ class InventoryCheckDetail extends Model
 
         $rules = [
             'inventory_check_id' => ['required', 'integer'],
-            'product_id' => ['nullable', 'integer', 'xor:material_id'],
-            'material_id' => ['nullable', 'integer', 'xor:product_id'],
-            'exact_quantity' => ['required', 'integer', 'min' => 0],
+            'product_history_id' => ['nullable', 'integer', 'xor:material_history_id'],
+            'material_history_id' => ['nullable', 'integer', 'xor:product_history_id'],
+            'system_quantity' => ['required', 'integer', 'min' => 0],
             'actual_quantity' => ['required', 'integer', 'min' => 0],
-            'defective_quantity' => ['required', 'integer', 'min' => 0],
-            'error_description' => ['nullable', 'string', 'max' => 500]
+            'reason' => ['nullable', 'string', 'max' => 500]
         ];
 
         if ($isUpdate) {
@@ -94,26 +101,22 @@ class InventoryCheckDetail extends Model
             'inventory_check_id' => [
                 'required' => 'ID kiểm kho là bắt buộc.',
             ],
-            'product_id' => [
-                'xor' => 'Chỉ được chọn sản phẩm hoặc nguyên liệu.',
+            'product_history_id' => [
+                'xor' => 'Chỉ được chọn lịch sử sản phẩm hoặc lịch sử nguyên liệu.',
             ],
-            'material_id' => [
-                'xor' => 'Chỉ được chọn sản phẩm hoặc nguyên liệu.',
+            'material_history_id' => [
+                'xor' => 'Chỉ được chọn lịch sử sản phẩm hoặc lịch sử nguyên liệu.',
             ],
-            'exact_quantity' => [
-                'required' => 'Số lượng chính xác là bắt buộc.',
-                'min' => 'Số lượng chính xác không được âm.',
+            'system_quantity' => [
+                'required' => 'Số lượng hệ thống là bắt buộc.',
+                'min' => 'Số lượng hệ thống không được âm.',
             ],
             'actual_quantity' => [
                 'required' => 'Số lượng thực tế là bắt buộc.',
                 'min' => 'Số lượng thực tế không được âm.',
             ],
-            'defective_quantity' => [
-                'required' => 'Số lượng lỗi là bắt buộc.',
-                'min' => 'Số lượng lỗi không được âm.',
-            ],
-            'error_description' => [
-                'max' => 'Mô tả lỗi không được vượt quá :max ký tự.',
+            'reason' => [
+                'max' => 'Lý do không được vượt quá :max ký tự.',
             ],
         ];
     }

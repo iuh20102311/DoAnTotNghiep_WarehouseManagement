@@ -185,14 +185,14 @@ class InventoryCheckController
                 ];
             }
 
-            $role = (new Role())->find($user->role_id);
-            if (!$role || $role->name !== 'Staff') {
-                http_response_code(403);
-                return [
-                    'success' => false,
-                    'error' => 'Chỉ nhân viên mới được tạo phiếu kiểm kê'
-                ];
-            }
+//            $role = (new Role())->find($user->role_id);
+//            if (!$role || $role->name !== 'Staff') {
+//                http_response_code(403);
+//                return [
+//                    'success' => false,
+//                    'error' => 'Chỉ nhân viên mới được tạo phiếu kiểm kê'
+//                ];
+//            }
 
             // Chuẩn bị dữ liệu để validate và tạo phiếu
             $checkData = [
@@ -226,26 +226,36 @@ class InventoryCheckController
                     ->where('status', 'ACTIVE')
                     ->where('deleted', false)
                     ->get();
+
+                // Tạo chi tiết kiểm kê cho sản phẩm
+                foreach ($currentStock as $stock) {
+                    $detail = new InventoryCheckDetail();
+                    $detail->fill([
+                        'inventory_check_id' => $inventoryCheck->id,
+                        'product_history_id' => $stock->id,
+                        'system_quantity' => $stock->quantity_available,
+                        'actual_quantity' => null
+                    ]);
+                    $detail->save();
+                }
             } else {
                 $currentStock = (new MaterialStorageHistory())
                     ->where('storage_area_id', $storageArea->id)
                     ->where('status', 'ACTIVE')
                     ->where('deleted', false)
                     ->get();
-            }
 
-            // Tạo chi tiết kiểm kê
-            foreach ($currentStock as $stock) {
-                $detail = new InventoryCheckDetail();
-                $detail->fill([
-                    'inventory_check_id' => $inventoryCheck->id,
-                    'product_id' => $storageArea->type === 'PRODUCT' ? $stock->product_id : null,
-                    'material_id' => $storageArea->type === 'MATERIAL' ? $stock->material_id : null,
-                    'exact_quantity' => $stock->quantity_available,
-                    'actual_quantity' => null,
-                    'defective_quantity' => 0
-                ]);
-                $detail->save();
+                // Tạo chi tiết kiểm kê cho nguyên liệu
+                foreach ($currentStock as $stock) {
+                    $detail = new InventoryCheckDetail();
+                    $detail->fill([
+                        'inventory_check_id' => $inventoryCheck->id,
+                        'material_history_id' => $stock->id,
+                        'system_quantity' => $stock->quantity_available,
+                        'actual_quantity' => null
+                    ]);
+                    $detail->save();
+                }
             }
 
             return [
@@ -319,14 +329,14 @@ class InventoryCheckController
                 ];
             }
 
-            $role = (new Role())->find($user->role_id);
-            if (!$role || $role->id !== 3) {
-                http_response_code(403);
-                return [
-                    'success' => false,
-                    'error' => 'Chỉ thủ kho mới được phê duyệt phiếu kiểm kê'
-                ];
-            }
+//            $role = (new Role())->find($user->role_id);
+//            if (!$role || $role->id !== 3) {
+//                http_response_code(403);
+//                return [
+//                    'success' => false,
+//                    'error' => 'Chỉ thủ kho mới được phê duyệt phiếu kiểm kê'
+//                ];
+//            }
 
             // Chỉ cập nhật trạng thái và thông tin phê duyệt
             $inventoryCheck->status = 'APPROVED';
@@ -355,7 +365,16 @@ class InventoryCheckController
         try {
             $data = json_decode(file_get_contents('php://input'), true);
 
-            // [BƯỚC 1] - Kiểm tra phiếu kiểm kê tồn tại
+            // [BƯỚC 1] - Validate payload cơ bản
+            if (!isset($data['created_by']) || !isset($data['details']) || !is_array($data['details'])) {
+                http_response_code(422);
+                return [
+                    'success' => false,
+                    'error' => 'Dữ liệu không hợp lệ'
+                ];
+            }
+
+            // [BƯỚC 2] - Kiểm tra phiếu kiểm kê tồn tại
             $inventoryCheck = (new InventoryCheck())
                 ->where('deleted', false)
                 ->find($id);
@@ -368,7 +387,7 @@ class InventoryCheckController
                 ];
             }
 
-            // [BƯỚC 2] - Kiểm tra trạng thái phiếu
+            // [BƯỚC 3] - Kiểm tra trạng thái phiếu
             if ($inventoryCheck->status !== 'APPROVED') {
                 http_response_code(422);
                 return [
@@ -377,7 +396,7 @@ class InventoryCheckController
                 ];
             }
 
-            // [BƯỚC 3] - Kiểm tra JWT Token và quyền hạn
+            // [BƯỚC 4] - Token validation
             $headers = apache_request_headers();
             $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
             if (!$token) {
@@ -389,55 +408,45 @@ class InventoryCheckController
             $parsedToken = $parser->parse($token);
             $currentUserId = $parsedToken->claims()->get('id');
 
-            // Kiểm tra user và role
-            $user = (new User())->where('deleted', false)->find($currentUserId);
+            // [BƯỚC 5] - Kiểm tra user thực hiện và role
+            $user = (new User())->where('deleted', false)->find($data['created_by']);
             if (!$user) {
                 http_response_code(422);
                 return [
                     'success' => false,
-                    'error' => 'Không tìm thấy thông tin người dùng'
+                    'error' => 'Không tìm thấy thông tin người thực hiện'
                 ];
             }
 
-            $role = (new Role())->find($user->role_id);
-            if (!$role || $role->id !== 4) {
-                http_response_code(403);
-                return [
-                    'success' => false,
-                    'error' => 'Chỉ nhân viên mới được cập nhật kết quả kiểm kê'
-                ];
-            }
+//            $role = (new Role())->find($user->role_id);
+//            if (!$role || $role->id !== 4) {
+//                http_response_code(403);
+//                return [
+//                    'success' => false,
+//                    'error' => 'Người thực hiện phải là nhân viên'
+//                ];
+//            }
 
-            // [BƯỚC 4] - Validate dữ liệu đầu vào
-            if (!isset($data['details']) || !is_array($data['details']) || empty($data['details'])) {
-                http_response_code(422);
-                return [
-                    'success' => false,
-                    'error' => 'Dữ liệu kiểm kê không hợp lệ'
-                ];
-            }
-
-            // [BƯỚC 5] - Lấy và kiểm tra chi tiết kiểm kê
+            // [BƯỚC 6] - Lấy và kiểm tra chi tiết kiểm kê
             $currentDetails = (new InventoryCheckDetail())
                 ->where('inventory_check_id', $id)
                 ->where('deleted', false)
                 ->get();
 
-            $materialDetails = [];
+            $historyMap = [];
             foreach ($currentDetails as $detail) {
-                $materialId = $detail->material_id ?? $detail->product_id;
-                if (!isset($materialDetails[$materialId])) {
-                    $materialDetails[$materialId] = [];
+                $historyId = $detail->material_history_id ?? $detail->product_history_id;
+                if (!isset($historyMap[$historyId])) {
+                    $historyMap[$historyId] = $detail;
                 }
-                $materialDetails[$materialId][] = $detail;
             }
 
-            // [BƯỚC 6] - Kiểm tra kiểm kê đủ số lượng
+            // [BƯỚC 7] - Kiểm tra kiểm kê đủ số lượng
             $submittedIds = array_map(function($detail) {
-                return $detail['material_id'] ?? $detail['product_id'];
+                return $detail['history_id'];
             }, $data['details']);
 
-            $missingItems = array_diff(array_keys($materialDetails), $submittedIds);
+            $missingItems = array_diff(array_keys($historyMap), $submittedIds);
             if (!empty($missingItems)) {
                 $missingCount = count($missingItems);
                 $type = $inventoryCheck->storageArea->type === 'PRODUCT' ? 'Sản phẩm' : 'Nguyên liệu';
@@ -448,16 +457,16 @@ class InventoryCheckController
                 ];
             }
 
-            // [BƯỚC 7] - Xử lý cập nhật từng chi tiết
+            // [BƯỚC 8] - Xử lý cập nhật từng chi tiết
             foreach ($data['details'] as $updateDetail) {
-                $materialId = $updateDetail['material_id'] ?? $updateDetail['product_id'];
+                $historyId = $updateDetail['history_id'];
 
                 // Validate chi tiết
-                if (!isset($materialDetails[$materialId])) {
+                if (!isset($historyMap[$historyId])) {
                     http_response_code(422);
                     return [
                         'success' => false,
-                        'error' => 'Không tìm thấy material/product trong phiếu kiểm kê'
+                        'error' => 'Không tìm thấy history trong phiếu kiểm kê'
                     ];
                 }
 
@@ -469,151 +478,64 @@ class InventoryCheckController
                     ];
                 }
 
-                // Tính tổng số lượng từ kho
-                $totalExact = 0;
-                $firstDetail = $materialDetails[$materialId][0]; // Định nghĩa $firstDetail ở đây
-                foreach ($materialDetails[$materialId] as $detail) {
-                    $totalExact += $detail->exact_quantity;
-                }
+                $detail = $historyMap[$historyId];
+                $isProduct = $detail->product_history_id !== null;
 
-                // Lấy thông tin storage history hiện tại
-                if ($firstDetail->product_id) {
-                    $currentStorage = (new ProductStorageHistory())
-                        ->where('product_id', $firstDetail->product_id)
-                        ->where('storage_area_id', $inventoryCheck->storage_area_id)
-                        ->where('status', 'ACTIVE')
-                        ->where('deleted', false)
-                        ->first();
+                // Lấy history record hiện tại
+                if ($isProduct) {
+                    $currentHistory = ProductStorageHistory::find($detail->product_history_id);
                 } else {
-                    $currentStorage = (new MaterialStorageHistory())
-                        ->where('material_id', $firstDetail->material_id)
-                        ->where('storage_area_id', $inventoryCheck->storage_area_id)
-                        ->where('status', 'ACTIVE')
-                        ->where('deleted', false)
-                        ->first();
+                    $currentHistory = MaterialStorageHistory::find($detail->material_history_id);
                 }
 
-                // Kiểm tra tổng số lượng kiểm kê phải bằng số lượng trong kho
-                $totalChecked = $updateDetail['actual_quantity'] + ($updateDetail['defective_quantity'] ?? 0);
-                if ($totalChecked !== $currentStorage->quantity_available) {
-                    $type = $firstDetail->product_id ? 'Sản phẩm' : 'Nguyên liệu';
-                    $itemName = $firstDetail->product_id ?
-                        $firstDetail->product->name :
-                        $firstDetail->material->name;
-
+                if (!$currentHistory) {
                     http_response_code(422);
                     return [
                         'success' => false,
-                        'error' => "Tổng số lượng kiểm kê của {$type} '{$itemName}' ({$totalChecked}) không khớp với số lượng trong kho ({$currentStorage->quantity_available})"
+                        'error' => 'Không tìm thấy history record'
                     ];
                 }
 
-                // Gộp các chi tiết trùng
-                $firstDetail->fill([
-                    'exact_quantity' => $totalExact,
+                // Cập nhật chi tiết kiểm kê
+                $detail->fill([
+                    'system_quantity' => $currentHistory->quantity_available,
                     'actual_quantity' => $updateDetail['actual_quantity'],
-                    'defective_quantity' => $updateDetail['defective_quantity'] ?? 0,
-                    'error_description' => $updateDetail['error_description'] ?? null
+                    'reason' => $updateDetail['reason'] ?? null
                 ]);
-                $firstDetail->save();
+                $detail->save();
 
-                // Xóa các chi tiết trùng
-                for ($i = 1; $i < count($materialDetails[$materialId]); $i++) {
-                    $materialDetails[$materialId][$i]->deleted = true;
-                    $materialDetails[$materialId][$i]->save();
-                }
-
-                // [BƯỚC 8] - Ghi nhận lịch sử kiểm kê
-                if ($firstDetail->product_id) {
-                    // Ghi nhận kiểm kê sản phẩm
+                // Tạo history detail record
+                if ($isProduct) {
                     ProductStorageHistoryDetail::create([
-                        'storage_area_id' => $inventoryCheck->storage_area_id,
-                        'product_id' => $firstDetail->product_id,
-                        'quantity_before' => $totalExact,
-                        'quantity_change' => $updateDetail['actual_quantity'] - $totalExact,
-                        'quantity_after' => $updateDetail['actual_quantity'] - ($updateDetail['defective_quantity'] ?? 0),
-                        'remaining_quantity' => $updateDetail['actual_quantity'] - ($updateDetail['defective_quantity'] ?? 0),
+                        'product_storage_history_id' => $currentHistory->id,
+                        'quantity_before' => $currentHistory->quantity_available,
+                        'quantity_change' => $updateDetail['actual_quantity'] - $currentHistory->quantity_available,
+                        'quantity_after' => $updateDetail['actual_quantity'],
                         'action_type' => 'CHECK',
-                        'created_by' => $currentUserId
+                        'created_by' => $data['created_by']
                     ]);
                 } else {
-                    // Ghi nhận kiểm kê nguyên liệu
                     MaterialStorageHistoryDetail::create([
-                        'storage_area_id' => $inventoryCheck->storage_area_id,
-                        'material_id' => $firstDetail->material_id,
-                        'quantity_before' => $totalExact,
-                        'quantity_change' => $updateDetail['actual_quantity'] - $totalExact,
-                        'quantity_after' => $updateDetail['actual_quantity'] - ($updateDetail['defective_quantity'] ?? 0),
-                        'remaining_quantity' => $updateDetail['actual_quantity'] - ($updateDetail['defective_quantity'] ?? 0),
+                        'material_storage_history_id' => $currentHistory->id,
+                        'quantity_before' => $currentHistory->quantity_available,
+                        'quantity_change' => $updateDetail['actual_quantity'] - $currentHistory->quantity_available,
+                        'quantity_after' => $updateDetail['actual_quantity'],
                         'action_type' => 'CHECK',
-                        'created_by' => $currentUserId
+                        'created_by' => $data['created_by']
                     ]);
                 }
 
-                // [BƯỚC 9] - Cập nhật storage history
-                if ($firstDetail->product_id) {
-                    // Xử lý product storage history
-                    $currentStorage = (new ProductStorageHistory())
-                        ->where('product_id', $firstDetail->product_id)
-                        ->where('storage_area_id', $inventoryCheck->storage_area_id)
-                        ->where('status', 'ACTIVE')
-                        ->where('deleted', false)
-                        ->first();
-
-                    if ($currentStorage) {
-                        // Set record hiện tại thành inactive
-                        $currentStorage->status = 'INACTIVE';
-                        $currentStorage->save();
-
-                        // Tạo record mới cho số lượng sau kiểm kê
-                        $newStorage = new ProductStorageHistory();
-                        $newStorage->fill([
-                            'product_id' => $firstDetail->product_id,
-                            'storage_area_id' => $inventoryCheck->storage_area_id,
-                            'expiry_date' => $currentStorage->expiry_date,
-                            'quantity' => 0,
-                            'quantity_available' => $updateDetail['actual_quantity'] - ($updateDetail['defective_quantity'] ?? 0),
-                            'provider_id' => $currentStorage->provider_id,
-                            'status' => 'ACTIVE',
-                            'deleted' => false
-                        ]);
-                        $newStorage->save();
-                    }
-                } else {
-                    // Xử lý material storage history - tương tự product
-                    $currentStorage = (new MaterialStorageHistory())
-                        ->where('material_id', $firstDetail->material_id)
-                        ->where('storage_area_id', $inventoryCheck->storage_area_id)
-                        ->where('status', 'ACTIVE')
-                        ->where('deleted', false)
-                        ->first();
-
-                    if ($currentStorage) {
-                        $currentStorage->status = 'INACTIVE';
-                        $currentStorage->save();
-
-                        $newStorage = new MaterialStorageHistory();
-                        $newStorage->fill([
-                            'material_id' => $firstDetail->material_id,
-                            'storage_area_id' => $inventoryCheck->storage_area_id,
-                            'expiry_date' => $currentStorage->expiry_date,
-                            'quantity' => 0,
-                            'quantity_available' => $updateDetail['actual_quantity'] - ($updateDetail['defective_quantity'] ?? 0),
-                            'provider_id' => $currentStorage->provider_id,
-                            'status' => 'ACTIVE',
-                            'deleted' => false
-                        ]);
-                        $newStorage->save();
-                    }
-                }
+                // Cập nhật số lượng trong history
+                $currentHistory->quantity_available = $updateDetail['actual_quantity'];
+                $currentHistory->save();
             }
 
-            // [BƯỚC 10] - Cập nhật trạng thái phiếu kiểm kê
+            // [BƯỚC 9] - Cập nhật trạng thái phiếu kiểm kê
             $inventoryCheck->status = 'COMPLETED';
             $inventoryCheck->completed_at = date('Y-m-d H:i:s');
             $inventoryCheck->save();
 
-            // [BƯỚC 11] - Trả về kết quả
+            // [BƯỚC 10] - Trả về kết quả
             return [
                 'success' => true,
                 'data' => $inventoryCheck->load([
