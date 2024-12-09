@@ -77,7 +77,7 @@ class ReportStats
                 ->groupBy('date')
                 ->orderBy('date');
 
-            $revenueByDate = $revenueQuery->get()->map(function($item) {
+            $revenueByDate = $revenueQuery->get()->map(function ($item) {
                 return [
                     'date' => date('d/m/Y', strtotime($item->date)),
                     'totalOrders' => (int)$item->totalOrders,
@@ -93,21 +93,18 @@ class ReportStats
 
             // [BƯỚC 8] - Prepare response
             $response = [
-                'success' => true,
-                'data' => [
-                    'summary' => [
-                        'totalProduct' => (int)$totalProduct,
-                        'totalMaterial' => (int)$totalMaterial,
-                        'todayRevenue' => (int)$todayRevenue,
-                        'pendingImports' => (int)$pendingImports
-                    ],
-                    'revenue' => [
-                        'startDate' => date('d/m/Y', strtotime($startDate)),
-                        'endDate' => date('d/m/Y', strtotime($endDate)),
-                        'totalOrders' => $periodTotals['totalOrders'],
-                        'totalRevenue' => $periodTotals['totalRevenue'],
-                        'details' => $revenueByDate
-                    ]
+                'summary' => [
+                    'totalProduct' => (int)$totalProduct,
+                    'totalMaterial' => (int)$totalMaterial,
+                    'todayRevenue' => (int)$todayRevenue,
+                    'pendingImports' => (int)$pendingImports
+                ],
+                'revenue' => [
+                    'startDate' => date('d/m/Y', strtotime($startDate)),
+                    'endDate' => date('d/m/Y', strtotime($endDate)),
+                    'totalOrders' => $periodTotals['totalOrders'],
+                    'totalRevenue' => $periodTotals['totalRevenue'],
+                    'details' => $revenueByDate
                 ]
             ];
 
