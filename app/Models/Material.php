@@ -42,11 +42,6 @@ class Material extends Model
         return $this->hasMany(MaterialImportReceiptDetail::class);
     }
 
-    public function inventoryCheckDetails(): HasMany
-    {
-        return $this->hasMany(InventoryCheckDetail::class,'material_id');
-    }
-
     public function inventoryHistory(): HasMany
     {
         return $this->hasMany(MaterialStorageHistoryDetail::class);

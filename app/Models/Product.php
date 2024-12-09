@@ -56,11 +56,6 @@ class Product extends Model
         return $this->belongsToMany(GiftSet::class, 'gift_set_products')->withPivot('quantity');
     }
 
-    public function inventoryCheckDetails(): HasMany
-    {
-        return $this->hasMany(InventoryCheckDetail::class);
-    }
-
     // Quan hệ bảng nhiều nhiều
     public function productDiscounts(): HasMany
     {

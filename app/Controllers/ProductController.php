@@ -48,7 +48,6 @@ class ProductController
                             ->latest('date_start');
                     },
                     'categories',
-                    'inventoryCheckDetails',
                 ])
                 ->orderByRaw("CASE 
                 WHEN status = 'ACTIVE' THEN 1
@@ -242,7 +241,6 @@ class ProductController
                             ->latest('date_start');
                     },
                     'categories',
-                    'inventoryCheckDetails',
                 ])
                 ->first();
 
@@ -1185,38 +1183,6 @@ class ProductController
             ];
         }
     }
-
-    public function getInventoryCheckDetailsByProduct($id): array
-    {
-        try {
-            $perPage = (int)($_GET['per_page'] ?? 10);
-            $page = (int)($_GET['page'] ?? 1);
-
-            $product = Product::query()
-                ->where('deleted', false)
-                ->find($id);
-
-            if (!$product) {
-                return [
-                    'error' => 'Không tìm thấy sản phẩm'
-                ];
-            }
-
-            $inventoryCheckDetailsQuery = $product->inventoryCheckDetails()
-                ->with(['product', 'inventoryCheck'])
-                ->getQuery();
-
-            return $this->paginateResults($inventoryCheckDetailsQuery, $perPage, $page)->toArray();
-
-        } catch (\Exception $e) {
-            error_log("Error in getInventoryCheckDetailsByProduct: " . $e->getMessage());
-            return [
-                'error' => 'Database error occurred',
-                'details' => $e->getMessage()
-            ];
-        }
-    }
-
 
     public function getProductDiscountsByProduct($id): array
     {
