@@ -41,7 +41,8 @@ class Customer extends Model
             'name' => ['required', 'string', 'min' => 2, 'max' => 255, 'no_whitespace'],
             'phone' => ($isUpdate ? ['required', 'string', 'min' => 10, 'max' => 15, 'no_special_chars', 'no_emoji', 'no_whitespace'] : ['required', 'string', 'min' => 10, 'max' => 15, 'unique' => [Customer::class, 'phone'], 'no_special_chars', 'no_emoji', 'no_whitespace']),
             'gender' => ['required', 'enum' => [1, 2, 3]],
-            'email' => ($isUpdate ? ['required', 'email', 'no_emoji', 'no_whitespace'] : ['required', 'email', 'unique' => [Customer::class, 'email'], 'no_emoji', 'no_whitespace']),
+            //'email' => ($isUpdate ? ['required', 'email', 'no_emoji', 'no_whitespace'] : ['required', 'email', 'unique' => [Customer::class, 'email'], 'no_emoji', 'no_whitespace']),
+            'email' => ($isUpdate ? ['nullable', 'email', 'no_emoji', 'no_whitespace'] : ['nullable', 'email', 'unique' => [Customer::class, 'email'], 'no_emoji', 'no_whitespace']),
             'address' => ['required', 'string', 'max' => 500, 'no_whitespace'],
             'status' => ['required', 'enum' => ['ACTIVE', 'INACTIVE']]
         ];
