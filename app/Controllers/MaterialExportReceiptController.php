@@ -928,8 +928,9 @@ class MaterialExportReceiptController
                     throw new \Exception("Số lượng xuất phải lớn hơn 0");
                 }
 
-                // Lấy history record
-                $history = MaterialStorageHistory::where('id', $material['material_history_id'])
+                // Lấy history record và material liên quan
+                $history = MaterialStorageHistory::with('material')
+                    ->where('id', $material['material_history_id'])
                     ->where('status', 'ACTIVE')
                     ->where('deleted', false)
                     ->where('quantity_available', '>', 0)
@@ -949,12 +950,12 @@ class MaterialExportReceiptController
                 // Kiểm tra thêm cho type RETURN
                 if ($data['type'] === 'RETURN') {
                     $importDetail = MaterialImportReceiptDetail::where('material_import_receipt_id', $data['material_import_receipt_id'])
-                        ->where('material_id', $material['material_id'])
+                        ->where('material_id', $history->material_id)
                         ->where('deleted', false)
                         ->first();
 
                     if (!$importDetail) {
-                        throw new \Exception("Nguyên liệu ID {$material['material_id']} không có trong phiếu nhập");
+                        throw new \Exception("Nguyên liệu không có trong phiếu nhập");
                     }
 
                     if ($material['quantity'] > $importDetail->quantity) {
@@ -1027,9 +1028,8 @@ class MaterialExportReceiptController
                 ]);
 
                 // Cập nhật số lượng trong bảng materials
-                $materialModel = Material::find($history->material_id);
-                $materialModel->quantity_available -= $quantity;
-                $materialModel->save();
+                $history->material->quantity_available -= $quantity;
+                $history->material->save();
             }
 
             // [BƯỚC 9] - Load relationships for response
