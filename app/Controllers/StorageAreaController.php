@@ -435,8 +435,8 @@ class StorageAreaController
             $storages = StorageArea::query()
                 ->where('deleted', false)
                 ->with([
-                    'productStorageHistories.product:id,name,sku',
-                    'materialStorageHistories.material:id,name,sku'
+                    'productStorageHistories.product:id,name,sku,packing,unit,weight',
+                    'materialStorageHistories.material:id,name,sku,packing,unit,weight'
                 ])
                 ->get();
 
@@ -459,16 +459,16 @@ class StorageAreaController
                 ->where('code', $code)
                 ->where('deleted', false)
                 ->with([
-                    'productStorageHistories' => function($query) {
+                    'productStorageHistories' => function ($query) {
                         $query->where('quantity_available', '>', 0)
                             ->where('deleted', false)
                             ->where('status', 'ACTIVE')
                             ->with('product:id,name,sku,packing,unit,weight');
                     },
-                    'materialStorageHistories' => function($query) {
+                    'materialStorageHistories' => function ($query) {
                         $query->where('quantity', '>', 0)
                             ->where('deleted', false)
-                            ->with('material:id,name,sku');
+                            ->with('material:id,name,sku,packing,unit,weight');
                     }
                 ])
                 ->first();
