@@ -36,7 +36,7 @@ class Profile extends Model
             'phone' => ['required', 'max' => 15],
             'birthday' => ['nullable', 'date' => 'Y-m-d'],
             'avatar' => ['max' => 255],
-            'gender' => ['integer', 'enum' => ['0', '1']],
+            'gender' => ['integer', 'enum' => ['1', '2', '3']],
             'status' => ['required']
         ];
 
@@ -98,7 +98,7 @@ class Profile extends Model
                 'max' => 'Đường dẫn ảnh đại diện không được vượt quá :max ký tự.'
             ],
             'gender' => [
-                'enum' => 'Giới tính phải là 0, 1'
+                'enum' => 'Giới tính phải là 1: Nam , 2: Nữ, 3: Khác'
             ],
             'status' => [
                 'required' => 'Trạng thái là bắt buộc.',
