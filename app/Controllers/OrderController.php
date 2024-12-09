@@ -780,4 +780,138 @@ class OrderController
 //            ];
 //        }
 //    }
+
+    public function updateOrderDetails(string $orderCode): void
+    {
+        $data = json_decode(file_get_contents('php://input'), true);
+        $currentDate = date('Y-m-d H:i:s');
+
+        try {
+            // Validate input
+            if (!isset($data['products']) || !is_array($data['products'])) {
+                throw new \Exception('Danh sách products không hợp lệ');
+            }
+
+            // Get order
+            $order = Order::where('code', $orderCode)
+                ->where('deleted', false)
+                ->where('status', 'PENDING')
+                ->first();
+
+            if (!$order) {
+                throw new \Exception('Đơn hàng không tồn tại hoặc không thể chỉnh sửa');
+            }
+
+            // Validate products
+            $totalPrice = 0;
+            $validatedProducts = [];
+            foreach ($data['products'] as $product) {
+                if (!isset($product['product_id']) || !isset($product['quantity'])) {
+                    throw new \Exception('Thiếu thông tin product_id hoặc quantity');
+                }
+
+                if ($product['quantity'] <= 0) {
+                    throw new \Exception('Số lượng sản phẩm phải lớn hơn 0');
+                }
+
+                $productModel = Product::where('id', $product['product_id'])
+                    ->where('deleted', false)
+                    ->where('status', 'ACTIVE')
+                    ->first();
+
+                if (!$productModel) {
+                    throw new \Exception("Sản phẩm #{$product['product_id']} không tồn tại");
+                }
+
+                // Lấy giá có hiệu lực
+                $productPrice = ProductPrice::where('product_id', $product['product_id'])
+                    ->where('status', 'ACTIVE')
+                    ->where('deleted', false)
+                    ->where('date_start', '<=', $currentDate)
+                    ->where(function ($query) use ($currentDate) {
+                        $query->where('date_end', '>=', $currentDate)
+                            ->orWhereNull('date_end');
+                    })
+                    ->orderBy('date_start', 'desc')
+                    ->first();
+
+                if (!$productPrice) {
+                    throw new \Exception("Sản phẩm #{$product['product_id']} chưa có giá hiệu lực");
+                }
+
+                $price = $productPrice->price;
+                $itemTotal = $price * $product['quantity'];
+                $totalPrice += $itemTotal;
+
+                $validatedProducts[] = [
+                    'product_id' => $product['product_id'],
+                    'quantity' => $product['quantity'],
+                    'price' => $price
+                ];
+            }
+
+            // Bắt đầu cập nhật
+            // 1. Xóa tất cả order details cũ
+            OrderDetail::query()
+                ->where('order_id', $order->id)
+               // ->update(['deleted' => true]) // (xóa mềm)
+                ->delete(); // (xoá luôn)
+
+            // 2. Thêm order details mới
+            foreach ($validatedProducts as $product) {
+                OrderDetail::query()->insert([
+                    'order_id' => $order->id,
+                    'product_id' => $product['product_id'],
+                    'quantity' => $product['quantity'],
+                    'price' => $product['price'],
+                    'exportQuantity' => 0,
+                    'status' => 'ACTIVE',
+                    'deleted' => false,
+                    'created_at' => $currentDate,
+                    'updated_at' => $currentDate
+                ]);
+            }
+
+            // 3. Cập nhật tổng tiền của order
+            Order::query()
+                ->where('id', $order->id)
+                ->update([
+                    'total_price' => $totalPrice,
+                    'updated_at' => $currentDate
+                ]);
+
+            // 4. Prepare response
+            $updatedOrder = Order::with(['orderDetails' => function ($query) {
+                $query->where('deleted', false);
+            }])->find($order->id);
+
+            $response = [
+                'success' => true,
+                'message' => 'Cập nhật chi tiết đơn hàng thành công',
+                'data' => [
+                    'id' => $updatedOrder->id,
+                    'code' => $updatedOrder->code,
+                    'total_price' => $updatedOrder->total_price,
+                    'products' => $updatedOrder->orderDetails->map(function ($detail) {
+                        return [
+                            'product_id' => $detail->product_id,
+                            'quantity' => $detail->quantity,
+                            'price' => $detail->price
+                        ];
+                    })
+                ]
+            ];
+
+            header('Content-Type: application/json');
+            echo json_encode($response, JSON_UNESCAPED_UNICODE);
+
+        } catch (\Exception $e) {
+            header('Content-Type: application/json');
+            http_response_code(400);
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], JSON_UNESCAPED_UNICODE);
+        }
+    }
 }

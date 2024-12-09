@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Models\Order;
+use App\Models\OrderDetail;
 use App\Models\Product;
 use App\Models\ProductExportReceipt;
 use App\Models\ProductStorageHistoryDetail;
@@ -775,6 +776,23 @@ class ProductExportReceiptController
                     'expiry_date' => $history->expiry_date
                 ]);
 
+                // Cập nhật exportQuantity trong order_detail nếu là xuất NORMAL
+                $orderDetail = $order->orderDetails()
+                    ->where('product_id', $history->product_id)
+                    ->where('deleted', false)
+                    ->where('status', 'ACTIVE')
+                    ->first();
+
+                $currentExportQuantity = $orderDetail->exportQuantity ?? 0;
+                $newExportQuantity = $currentExportQuantity + $quantity;
+
+                OrderDetail::query()
+                    ->where('order_id', $order->id)
+                    ->where('product_id', $history->product_id)
+                    ->where('deleted', false)
+                    ->where('status', 'ACTIVE')
+                    ->update(['exportQuantity' => $newExportQuantity]);
+
                 // Cập nhật số lượng trong bảng products
                 $productModel = Product::find($history->product_id);
                 $oldQuantity = $productModel->quantity_available;
@@ -790,6 +808,28 @@ class ProductExportReceiptController
                     'action_type' => $data['type'] === 'NORMAL' ? 'EXPORT_NORMAL' : 'EXPORT_CANCEL',
                     'created_by' => $createdById
                 ]);
+            }
+
+            // Cập nhật trạng thái đơn hàng dựa trên exportQuantity
+            if ($data['type'] === 'NORMAL') {
+                $allOrderDetails = $order->orderDetails()
+                    ->where('deleted', false)
+                    ->where('status', 'ACTIVE')
+                    ->get();
+
+                $allFullyExported = true;
+
+                foreach ($allOrderDetails as $detail) {
+                    $exportedQuantity = $detail->exportQuantity ?? 0;
+                    if ($exportedQuantity < $detail->quantity) {
+                        $allFullyExported = false;
+                        break;
+                    }
+                }
+
+                Order::query()
+                    ->where('id', $order->id)
+                    ->update(['status' => $allFullyExported ? 'PROCESSED' : 'PARTIAL_SHIPPING']);
             }
 
             // [BƯỚC 9] - Load relationships for response
