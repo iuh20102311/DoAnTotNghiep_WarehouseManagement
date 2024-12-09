@@ -199,6 +199,11 @@ class ProfileController
         try {
             $data = json_decode(file_get_contents('php://input'), true);
 
+            // Hash password before proceeding
+            if (isset($data['password'])) {
+                $data['password'] = password_hash($data['password'], PASSWORD_DEFAULT);
+            }
+
             // Required fields for User
             $userData = array_intersect_key($data, array_flip([
                 'email',
@@ -225,17 +230,15 @@ class ProfileController
                 }
             }
 
-            // Merge required and optional profile fields
+            // Rest of your existing createProfile code remains the same
             $profileData = array_merge($requiredProfileData, $optionalProfileData);
 
-            // Validate data
             $user = new User();
             $userErrors = $user->validate($userData);
 
             $profile = new Profile();
             $profileErrors = $profile->validate($profileData);
 
-            // Combine validation errors if any
             $errors = array_merge($userErrors ?? [], $profileErrors ?? []);
 
             if (!empty($errors)) {
@@ -247,7 +250,6 @@ class ProfileController
                 ];
             }
 
-            // Create User first
             $user->fill($userData);
             $user->save();
 
@@ -255,12 +257,10 @@ class ProfileController
                 throw new \Exception('Failed to create user');
             }
 
-            // Generate new code for provider
             $currentMonth = date('m');
             $currentYear = date('y');
             $prefix = "NCC" . $currentMonth . $currentYear;
 
-            // Get latest provider code with current prefix
             $latestProfile = Profile::query()
                 ->where('code', 'LIKE', $prefix . '%')
                 ->orderBy('code', 'desc')
@@ -272,16 +272,13 @@ class ProfileController
                 $sequence = 1;
             }
 
-            // Format sequence to 5 digits
             $profileData['code'] = $prefix . str_pad($sequence, 5, '0', STR_PAD_LEFT);
             $profileData['user_id'] = $user->id;
 
-            // Create Profile
             $profile->fill($profileData);
             $saveResult = $profile->save();
 
             if (!$saveResult) {
-                // If profile creation fails, try to delete the created user
                 try {
                     $user->delete();
                 } catch (\Exception $e) {
@@ -290,10 +287,9 @@ class ProfileController
                 throw new \Exception('Failed to create profile');
             }
 
-            // Load the profile with user relationship for response
             $profileWithUser = $profile->toArray();
             $profileWithUser['user'] = $user->toArray();
-            unset($profileWithUser['user']['password']); // Remove password from response
+            unset($profileWithUser['user']['password']);
 
             return [
                 'success' => true,
