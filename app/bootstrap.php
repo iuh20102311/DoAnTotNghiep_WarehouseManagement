@@ -167,8 +167,6 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
             $router->get('/{id}/product_storage_history', ['App\Controllers\ProductController', 'getProductStorageHistoryByProduct']);
             $router->post('/{id}/product_storage_history', ['App\Controllers\ProductController', 'addStorageHistoryToProduct']);
 
-            $router->get('/{id}/inventory_check_details', ['App\Controllers\ProductController', 'getInventoryCheckDetailsByProduct']);
-
             $router->get('/{id}/product_categories', ['App\Controllers\ProductController', 'getProductCategoriesByProduct']);
             $router->get('/{id}/inventory_history', ['App\Controllers\ProductController', 'getInventoryHistoryByProduct']);
 
@@ -261,7 +259,6 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
             $router->get('/count', ['App\Controllers\MaterialController', 'countMaterials']);
 
             $router->get('/{id}/material_storage_history', ['App\Controllers\MaterialController', 'getMaterialStorageHistoryByMaterial']);
-            $router->get('/{id}/inventory_check_details', ['App\Controllers\MaterialController', 'getInventoryCheckDetailsByMaterial']);
             $router->get('/{id}/export_receipt_details', ['App\Controllers\MaterialController', 'getExportReceiptDetailsByMaterial']);
             $router->get('/{id}/import_receipt_details', ['App\Controllers\MaterialController', 'getImportReceiptDetailsByMaterial']);
             $router->get('/{id}/inventory_history', ['App\Controllers\MaterialController', 'getInventoryHistoryByMaterial']);
@@ -489,15 +486,9 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
 
         $router->group(array('prefix' => '/v1/inventory_check_details'), function (RouteCollector $router) {
             $router->get('/{id}/inventory_checks', ['App\Controllers\InventoryCheckDetailController', 'getInventoryChecksByInventoryCheckDetail']);
+
             $router->put('/{id}/storage_areas', ['App\Controllers\InventoryCheckDetailController', 'updateStorageAreaByInventoryCheck']);
-            $router->put('/{id}/materials', ['App\Controllers\InventoryCheckDetailController', 'updateMaterialInInventoryCheckDetail']);
-            $router->post('/{id}/materials', ['App\Controllers\InventoryCheckDetailController', 'addMaterialToInventoryCheckDetail']);
-            $router->get('/{id}/materials', ['App\Controllers\InventoryCheckDetailController', 'getMaterialsByInventoryCheckDetail']);
-            $router->delete('/{id}/materials', ['App\Controllers\InventoryCheckDetailController', 'removeMaterialFromInventoryCheckDetail']);
-            $router->put('/{id}/products', ['App\Controllers\InventoryCheckDetailController', 'updateProductInInventoryCheckDetail']);
-            $router->post('/{id}/products', ['App\Controllers\InventoryCheckDetailController', 'addProductToInventoryCheckDetail']);
-            $router->get('/{id}/products', ['App\Controllers\InventoryCheckDetailController', 'getProductsByInventoryCheckDetail']);
-            $router->delete('/{id}/products', ['App\Controllers\InventoryCheckDetailController', 'removeProductFromInventoryCheckDetail']);
+
             $router->put('/{id}', ['App\Controllers\InventoryCheckDetailController', 'updateInventoryCheckDetailById']);
             $router->delete('/{id}', ['App\Controllers\InventoryCheckDetailController', 'deleteInventoryCheckDetail']);
             $router->get('/{id}', ['App\Controllers\InventoryCheckDetailController', 'getInventoryCheckDetailById']);

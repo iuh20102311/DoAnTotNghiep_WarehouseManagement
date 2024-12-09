@@ -900,37 +900,6 @@ class MaterialController
         }
     }
 
-    public function getInventoryCheckDetailsByMaterial($id): array
-    {
-        try {
-            $perPage = (int)($_GET['per_page'] ?? 10);
-            $page = (int)($_GET['page'] ?? 1);
-
-            $material = Material::where('deleted', false)->find($id);
-
-            if (!$material) {
-                http_response_code(404);
-                return [
-                    'error' => 'Không tìm thấy vật liệu'
-                ];
-            }
-
-            $inventoryCheckDetailsQuery = $material->inventoryCheckDetails()
-                ->with(['material', 'inventoryCheck'])
-                ->whereNull('product_id')
-                ->getQuery();
-
-            return $this->paginateResults($inventoryCheckDetailsQuery, $perPage, $page)->toArray();
-
-        } catch (\Exception $e) {
-            error_log("Error in getInventoryCheckDetailsByMaterial: " . $e->getMessage());
-            return [
-                'error' => 'Database error occurred',
-                'details' => $e->getMessage()
-            ];
-        }
-    }
-
     public function getInventoryHistoryByMaterial($id): array
     {
         try {
