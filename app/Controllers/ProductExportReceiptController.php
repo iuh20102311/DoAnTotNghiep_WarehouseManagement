@@ -659,11 +659,11 @@ class ProductExportReceiptController
 
                 $order = Order::where('code', $data['order_code'])
                     ->where('deleted', false)
-                    ->where('status', 'PROCESSED')
+                    ->where('status', 'PENDING')
                     ->first();
 
                 if (!$order) {
-                    throw new \Exception("Đơn hàng {$data['order_code']} không tồn tại hoặc chưa được xử lý");
+                    throw new \Exception("Đơn hàng {$data['order_code']} không tồn tại");
                 }
 
                 $existingExport = ProductExportReceipt::where('order_code', $data['order_code'])
