@@ -18,6 +18,7 @@ class ProductStorageHistoryController
 
             $productStorageHistory = ProductStorageHistory::query()
                 ->where('deleted', false)
+                ->where('quantity_available', '>', 0)
                 ->with(['product', 'storageArea'])
                 ->orderBy('expiry_date', 'asc');
 
