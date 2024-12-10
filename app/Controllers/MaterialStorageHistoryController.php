@@ -18,6 +18,7 @@ class MaterialStorageHistoryController
 
             $materialStorageHistory = MaterialStorageHistory::query()
                 ->where('deleted', false)
+                ->where('quantity_available', '>', 0)
                 ->with(['material', 'provider', 'storageArea'])
                 ->orderBy('expiry_date', 'asc');
 
