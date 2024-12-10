@@ -651,7 +651,7 @@ class ProductExportReceiptController
             $parsedToken = $parser->parse($token);
             $createdById = $parsedToken->claims()->get('id');
 
-            // [BƯỚC 4] - Type specific validation
+            // [BƯỚC 4] - Validate order nếu là type NORMAL
             $order = null;
             if ($data['type'] === 'NORMAL') {
                 if (!isset($data['order_code'])) {
@@ -695,7 +695,8 @@ class ProductExportReceiptController
                     throw new \Exception("Số lượng xuất phải lớn hơn 0");
                 }
 
-                $history = ProductStorageHistory::where('id', $product['product_history_id'])
+                $history = ProductStorageHistory::with('product')
+                    ->where('id', $product['product_history_id'])
                     ->where('status', 'ACTIVE')
                     ->where('deleted', false)
                     ->first();
@@ -711,7 +712,7 @@ class ProductExportReceiptController
                     );
                 }
 
-                // Kiểm tra thêm cho type NORMAL
+                // Validate với order nếu là NORMAL
                 if ($data['type'] === 'NORMAL') {
                     $orderDetail = $order->orderDetails()
                         ->where('product_id', $history->product_id)
@@ -720,7 +721,7 @@ class ProductExportReceiptController
                         ->first();
 
                     if (!$orderDetail) {
-                        throw new \Exception("Sản phẩm không có trong đơn hàng");
+                        throw new \Exception("Sản phẩm {$history->product->name} không có trong đơn hàng");
                     }
 
                     if ($product['quantity'] > $orderDetail->quantity) {
@@ -776,41 +777,37 @@ class ProductExportReceiptController
                     'expiry_date' => $history->expiry_date
                 ]);
 
-                // Cập nhật exportQuantity trong order_detail nếu là xuất NORMAL
-                $orderDetail = $order->orderDetails()
-                    ->where('product_id', $history->product_id)
-                    ->where('deleted', false)
-                    ->where('status', 'ACTIVE')
-                    ->first();
+                // Xử lý cập nhật order detail nếu là NORMAL
+                if ($data['type'] === 'NORMAL') {
+                    $orderDetail = $order->orderDetails()
+                        ->where('product_id', $history->product_id)
+                        ->where('deleted', false)
+                        ->where('status', 'ACTIVE')
+                        ->first();
 
-                $currentExportQuantity = $orderDetail->exportQuantity ?? 0;
-                $newExportQuantity = $currentExportQuantity + $quantity;
+                    $currentExportQuantity = $orderDetail->exportQuantity ?? 0;
+                    $newExportQuantity = $currentExportQuantity + $quantity;
 
-                OrderDetail::query()
-                    ->where('order_id', $order->id)
-                    ->where('product_id', $history->product_id)
-                    ->where('deleted', false)
-                    ->where('status', 'ACTIVE')
-                    ->update(['exportQuantity' => $newExportQuantity]);
+                    $orderDetail->exportQuantity = $newExportQuantity;
+                    $orderDetail->save();
+                }
 
                 // Cập nhật số lượng trong bảng products
-                $productModel = Product::find($history->product_id);
-                $oldQuantity = $productModel->quantity_available;
-                $productModel->quantity_available -= $quantity;
-                $productModel->save();
+                $history->product->quantity_available -= $quantity;
+                $history->product->save();
 
                 // Tạo product inventory history
                 ProductStorageHistoryDetail::create([
                     'product_storage_history_id' => $history->id,
-                    'quantity_before' => $oldQuantity,
+                    'quantity_before' => $history->quantity_available + $quantity,
                     'quantity_change' => -$quantity,
-                    'quantity_after' => $productModel->quantity_available,
+                    'quantity_after' => $history->quantity_available,
                     'action_type' => $data['type'] === 'NORMAL' ? 'EXPORT_NORMAL' : 'EXPORT_CANCEL',
                     'created_by' => $createdById
                 ]);
             }
 
-            // Cập nhật trạng thái đơn hàng dựa trên exportQuantity
+            // [BƯỚC 9] - Cập nhật trạng thái đơn hàng nếu là NORMAL
             if ($data['type'] === 'NORMAL') {
                 $allOrderDetails = $order->orderDetails()
                     ->where('deleted', false)
@@ -818,7 +815,6 @@ class ProductExportReceiptController
                     ->get();
 
                 $allFullyExported = true;
-
                 foreach ($allOrderDetails as $detail) {
                     $exportedQuantity = $detail->exportQuantity ?? 0;
                     if ($exportedQuantity < $detail->quantity) {
@@ -827,19 +823,17 @@ class ProductExportReceiptController
                     }
                 }
 
-                Order::query()
-                    ->where('id', $order->id)
-                    ->update(['status' => $allFullyExported ? 'PROCESSED' : 'PARTIAL_SHIPPING']);
+                $order->status = $allFullyExported ? 'PROCESSED' : 'PARTIAL_SHIPPING';
+                $order->save();
             }
 
-            // [BƯỚC 9] - Load relationships for response
+            // [BƯỚC 10] - Prepare response
             $exportReceipt = ProductExportReceipt::with([
                 'details.product',
                 'details.storageArea',
                 'creator.profile'
             ])->find($productExportReceipt->id);
 
-            // [BƯỚC 10] - Prepare response
             $response = [
                 'success' => true,
                 'message' => 'Xuất kho thành công',
@@ -862,7 +856,7 @@ class ProductExportReceiptController
                 ]
             ];
 
-            // Thêm thông tin đơn hàng nếu có
+            // Thêm thông tin đơn hàng nếu là NORMAL
             if ($data['type'] === 'NORMAL' && $order) {
                 $response['data']['order'] = [
                     'code' => $order->code,
@@ -875,16 +869,8 @@ class ProductExportReceiptController
                 ];
             }
 
-            // Thêm chi tiết xuất kho và thông tin history
+            // Thêm chi tiết xuất kho
             $response['data']['details'] = $exportReceipt->details->map(function ($detail) {
-                // Lấy history mới nhất
-                $latestHistory = ProductStorageHistory::where([
-                    'product_id' => $detail->product_id,
-                    'storage_area_id' => $detail->storage_area_id,
-                    'status' => 'ACTIVE',
-                    'deleted' => false
-                ])->first();
-
                 return [
                     'id' => $detail->id,
                     'product' => [
@@ -899,11 +885,7 @@ class ProductExportReceiptController
                     ],
                     'quantity' => $detail->quantity,
                     'expiry_date' => $detail->expiry_date,
-                    'created_at' => $detail->created_at,
-                    'history' => [
-                        'quantity_available' => $latestHistory ? $latestHistory->quantity_available : 0,
-                        'status' => $latestHistory ? $latestHistory->status : null
-                    ]
+                    'created_at' => $detail->created_at
                 ];
             });
 
