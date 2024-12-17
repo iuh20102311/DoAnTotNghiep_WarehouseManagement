@@ -148,131 +148,131 @@ class InventoryCheckController
         }
     }
 
-    public function createInventoryCheck(): array
-    {
-        try {
-            $data = json_decode(file_get_contents('php://input'), true);
-
-            // Kiểm tra storage area tồn tại
-            $storageArea = (new StorageArea())->where('deleted', false)->find($data['storage_area_id']);
-            if (!$storageArea) {
-                http_response_code(422);
-                return [
-                    'success' => false,
-                    'error' => 'Không tìm thấy khu vực kho'
-                ];
-            }
-
-            // Lấy thông tin người đang đăng nhập
-            $headers = apache_request_headers();
-            $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
-            if (!$token) {
-                http_response_code(401);
-                throw new \Exception('Token không tồn tại');
-            }
-
-            $parser = new Parser(new JoseEncoder());
-            $parsedToken = $parser->parse($token);
-            $currentUserId = $parsedToken->claims()->get('id');
-
-            // Kiểm tra user và role
-            $user = (new User())->where('deleted', false)->find($currentUserId);
-            if (!$user) {
-                http_response_code(422);
-                return [
-                    'success' => false,
-                    'error' => 'Không tìm thấy thông tin người dùng'
-                ];
-            }
-
-//            $role = (new Role())->find($user->role_id);
-//            if (!$role || $role->name !== 'Staff') {
-//                http_response_code(403);
+//    public function createInventoryCheck(): array
+//    {
+//        try {
+//            $data = json_decode(file_get_contents('php://input'), true);
+//
+//            // Kiểm tra storage area tồn tại
+//            $storageArea = (new StorageArea())->where('deleted', false)->find($data['storage_area_id']);
+//            if (!$storageArea) {
+//                http_response_code(422);
 //                return [
 //                    'success' => false,
-//                    'error' => 'Chỉ nhân viên mới được tạo phiếu kiểm kê'
+//                    'error' => 'Không tìm thấy khu vực kho'
 //                ];
 //            }
-
-            // Chuẩn bị dữ liệu để validate và tạo phiếu
-            $checkData = [
-                'storage_area_id' => $data['storage_area_id'],
-                'check_date' => date('Y-m-d H:i:s'),
-                'status' => 'PENDING',
-                'note' => $data['note'] ?? null,
-                'created_by' => $currentUserId
-            ];
-
-            $inventoryCheck = new InventoryCheck();
-            $errors = $inventoryCheck->validate($checkData);
-
-            if ($errors) {
-                http_response_code(422);
-                return [
-                    'success' => false,
-                    'error' => 'Validation failed',
-                    'details' => $errors
-                ];
-            }
-
-            // Tạo phiếu kiểm kê
-            $inventoryCheck->fill($checkData);
-            $inventoryCheck->save();
-
-            // Lấy số lượng hiện tại từ kho
-            if ($storageArea->type === 'PRODUCT') {
-                $currentStock = (new ProductStorageHistory())
-                    ->where('storage_area_id', $storageArea->id)
-                    ->where('status', 'ACTIVE')
-                    ->where('deleted', false)
-                    ->get();
-
-                // Tạo chi tiết kiểm kê cho sản phẩm
-                foreach ($currentStock as $stock) {
-                    $detail = new InventoryCheckDetail();
-                    $detail->fill([
-                        'inventory_check_id' => $inventoryCheck->id,
-                        'product_history_id' => $stock->id,
-                        'system_quantity' => $stock->quantity_available,
-                        'actual_quantity' => null
-                    ]);
-                    $detail->save();
-                }
-            } else {
-                $currentStock = (new MaterialStorageHistory())
-                    ->where('storage_area_id', $storageArea->id)
-                    ->where('status', 'ACTIVE')
-                    ->where('deleted', false)
-                    ->get();
-
-                // Tạo chi tiết kiểm kê cho nguyên liệu
-                foreach ($currentStock as $stock) {
-                    $detail = new InventoryCheckDetail();
-                    $detail->fill([
-                        'inventory_check_id' => $inventoryCheck->id,
-                        'material_history_id' => $stock->id,
-                        'system_quantity' => $stock->quantity_available,
-                        'actual_quantity' => null
-                    ]);
-                    $detail->save();
-                }
-            }
-
-            return [
-                'success' => true,
-                'data' => $inventoryCheck->load(['details', 'storageArea', 'creator'])->toArray()
-            ];
-
-        } catch (Exception $e) {
-            error_log("Error in createInventoryCheck: " . $e->getMessage());
-            http_response_code(500);
-            return [
-                'success' => false,
-                'error' => 'Database error occurred',
-                'details' => $e->getMessage()
-            ];
-        }
-    }
+//
+//            // Lấy thông tin người đang đăng nhập
+//            $headers = apache_request_headers();
+//            $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
+//            if (!$token) {
+//                http_response_code(401);
+//                throw new \Exception('Token không tồn tại');
+//            }
+//
+//            $parser = new Parser(new JoseEncoder());
+//            $parsedToken = $parser->parse($token);
+//            $currentUserId = $parsedToken->claims()->get('id');
+//
+//            // Kiểm tra user và role
+//            $user = (new User())->where('deleted', false)->find($currentUserId);
+//            if (!$user) {
+//                http_response_code(422);
+//                return [
+//                    'success' => false,
+//                    'error' => 'Không tìm thấy thông tin người dùng'
+//                ];
+//            }
+//
+////            $role = (new Role())->find($user->role_id);
+////            if (!$role || $role->name !== 'Staff') {
+////                http_response_code(403);
+////                return [
+////                    'success' => false,
+////                    'error' => 'Chỉ nhân viên mới được tạo phiếu kiểm kê'
+////                ];
+////            }
+//
+//            // Chuẩn bị dữ liệu để validate và tạo phiếu
+//            $checkData = [
+//                'storage_area_id' => $data['storage_area_id'],
+//                'check_date' => date('Y-m-d H:i:s'),
+//                'status' => 'PENDING',
+//                'note' => $data['note'] ?? null,
+//                'created_by' => $currentUserId
+//            ];
+//
+//            $inventoryCheck = new InventoryCheck();
+//            $errors = $inventoryCheck->validate($checkData);
+//
+//            if ($errors) {
+//                http_response_code(422);
+//                return [
+//                    'success' => false,
+//                    'error' => 'Validation failed',
+//                    'details' => $errors
+//                ];
+//            }
+//
+//            // Tạo phiếu kiểm kê
+//            $inventoryCheck->fill($checkData);
+//            $inventoryCheck->save();
+//
+//            // Lấy số lượng hiện tại từ kho
+//            if ($storageArea->type === 'PRODUCT') {
+//                $currentStock = (new ProductStorageHistory())
+//                    ->where('storage_area_id', $storageArea->id)
+//                    ->where('status', 'ACTIVE')
+//                    ->where('deleted', false)
+//                    ->get();
+//
+//                // Tạo chi tiết kiểm kê cho sản phẩm
+//                foreach ($currentStock as $stock) {
+//                    $detail = new InventoryCheckDetail();
+//                    $detail->fill([
+//                        'inventory_check_id' => $inventoryCheck->id,
+//                        'product_history_id' => $stock->id,
+//                        'system_quantity' => $stock->quantity_available,
+//                        'actual_quantity' => null
+//                    ]);
+//                    $detail->save();
+//                }
+//            } else {
+//                $currentStock = (new MaterialStorageHistory())
+//                    ->where('storage_area_id', $storageArea->id)
+//                    ->where('status', 'ACTIVE')
+//                    ->where('deleted', false)
+//                    ->get();
+//
+//                // Tạo chi tiết kiểm kê cho nguyên liệu
+//                foreach ($currentStock as $stock) {
+//                    $detail = new InventoryCheckDetail();
+//                    $detail->fill([
+//                        'inventory_check_id' => $inventoryCheck->id,
+//                        'material_history_id' => $stock->id,
+//                        'system_quantity' => $stock->quantity_available,
+//                        'actual_quantity' => null
+//                    ]);
+//                    $detail->save();
+//                }
+//            }
+//
+//            return [
+//                'success' => true,
+//                'data' => $inventoryCheck->load(['details', 'storageArea', 'creator'])->toArray()
+//            ];
+//
+//        } catch (Exception $e) {
+//            error_log("Error in createInventoryCheck: " . $e->getMessage());
+//            http_response_code(500);
+//            return [
+//                'success' => false,
+//                'error' => 'Database error occurred',
+//                'details' => $e->getMessage()
+//            ];
+//        }
+//    }
 
     public function approveInventoryCheck(int $id): array
     {
@@ -360,204 +360,204 @@ class InventoryCheckController
         }
     }
 
-    public function updateInventoryCheckById(int $id): array
-    {
-        try {
-            $data = json_decode(file_get_contents('php://input'), true);
-
-            // [BƯỚC 1] - Validate payload cơ bản
-            if (!isset($data['created_by']) || !isset($data['details']) || !is_array($data['details'])) {
-                http_response_code(422);
-                return [
-                    'success' => false,
-                    'error' => 'Dữ liệu không hợp lệ'
-                ];
-            }
-
-            // [BƯỚC 2] - Kiểm tra phiếu kiểm kê tồn tại
-            $inventoryCheck = (new InventoryCheck())
-                ->where('deleted', false)
-                ->find($id);
-
-            if (!$inventoryCheck) {
-                http_response_code(422);
-                return [
-                    'success' => false,
-                    'error' => 'Không tìm thấy phiếu kiểm kê'
-                ];
-            }
-
-            // [BƯỚC 3] - Kiểm tra trạng thái phiếu
-            if ($inventoryCheck->status !== 'APPROVED') {
-                http_response_code(422);
-                return [
-                    'success' => false,
-                    'error' => 'Phiếu kiểm kê chưa được duyệt hoặc đã hoàn thành'
-                ];
-            }
-
-            // [BƯỚC 4] - Token validation
-            $headers = apache_request_headers();
-            $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
-            if (!$token) {
-                http_response_code(401);
-                throw new \Exception('Token không tồn tại');
-            }
-
-            $parser = new Parser(new JoseEncoder());
-            $parsedToken = $parser->parse($token);
-            $currentUserId = $parsedToken->claims()->get('id');
-
-            // [BƯỚC 5] - Kiểm tra user thực hiện và role
-            $user = (new User())->where('deleted', false)->find($data['created_by']);
-            if (!$user) {
-                http_response_code(422);
-                return [
-                    'success' => false,
-                    'error' => 'Không tìm thấy thông tin người thực hiện'
-                ];
-            }
-
-//            $role = (new Role())->find($user->role_id);
-//            if (!$role || $role->id !== 4) {
-//                http_response_code(403);
+//    public function updateInventoryCheckById(int $id): array
+//    {
+//        try {
+//            $data = json_decode(file_get_contents('php://input'), true);
+//
+//            // [BƯỚC 1] - Validate payload cơ bản
+//            if (!isset($data['created_by']) || !isset($data['details']) || !is_array($data['details'])) {
+//                http_response_code(422);
 //                return [
 //                    'success' => false,
-//                    'error' => 'Người thực hiện phải là nhân viên'
+//                    'error' => 'Dữ liệu không hợp lệ'
 //                ];
 //            }
-
-            // [BƯỚC 6] - Lấy và kiểm tra chi tiết kiểm kê
-            $currentDetails = (new InventoryCheckDetail())
-                ->where('inventory_check_id', $id)
-                ->where('deleted', false)
-                ->get();
-
-            $historyMap = [];
-            foreach ($currentDetails as $detail) {
-                $historyId = $detail->material_history_id ?? $detail->product_history_id;
-                if (!isset($historyMap[$historyId])) {
-                    $historyMap[$historyId] = $detail;
-                }
-            }
-
-            // [BƯỚC 7] - Kiểm tra kiểm kê đủ số lượng
-            $submittedIds = array_map(function($detail) {
-                return $detail['history_id'];
-            }, $data['details']);
-
-            $missingItems = array_diff(array_keys($historyMap), $submittedIds);
-            if (!empty($missingItems)) {
-                $missingCount = count($missingItems);
-                $type = $inventoryCheck->storageArea->type === 'PRODUCT' ? 'Sản phẩm' : 'Nguyên liệu';
-                http_response_code(422);
-                return [
-                    'success' => false,
-                    'error' => "Còn {$missingCount} {$type} chưa được kiểm kê"
-                ];
-            }
-
-            // [BƯỚC 8] - Xử lý cập nhật từng chi tiết
-            foreach ($data['details'] as $updateDetail) {
-                $historyId = $updateDetail['history_id'];
-
-                // Validate chi tiết
-                if (!isset($historyMap[$historyId])) {
-                    http_response_code(422);
-                    return [
-                        'success' => false,
-                        'error' => 'Không tìm thấy history trong phiếu kiểm kê'
-                    ];
-                }
-
-                if (!isset($updateDetail['actual_quantity']) || $updateDetail['actual_quantity'] < 0) {
-                    http_response_code(422);
-                    return [
-                        'success' => false,
-                        'error' => 'Số lượng thực tế không hợp lệ'
-                    ];
-                }
-
-                $detail = $historyMap[$historyId];
-                $isProduct = $detail->product_history_id !== null;
-
-                // Lấy history record hiện tại
-                if ($isProduct) {
-                    $currentHistory = ProductStorageHistory::find($detail->product_history_id);
-                } else {
-                    $currentHistory = MaterialStorageHistory::find($detail->material_history_id);
-                }
-
-                if (!$currentHistory) {
-                    http_response_code(422);
-                    return [
-                        'success' => false,
-                        'error' => 'Không tìm thấy history record'
-                    ];
-                }
-
-                // Cập nhật chi tiết kiểm kê
-                $detail->fill([
-                    'system_quantity' => $currentHistory->quantity_available,
-                    'actual_quantity' => $updateDetail['actual_quantity'],
-                    'reason' => $updateDetail['reason'] ?? null
-                ]);
-                $detail->save();
-
-                // Tạo history detail record
-                if ($isProduct) {
-                    ProductStorageHistoryDetail::create([
-                        'product_storage_history_id' => $currentHistory->id,
-                        'quantity_before' => $currentHistory->quantity_available,
-                        'quantity_change' => $updateDetail['actual_quantity'] - $currentHistory->quantity_available,
-                        'quantity_after' => $updateDetail['actual_quantity'],
-                        'action_type' => 'CHECK',
-                        'created_by' => $data['created_by']
-                    ]);
-                } else {
-                    MaterialStorageHistoryDetail::create([
-                        'material_storage_history_id' => $currentHistory->id,
-                        'quantity_before' => $currentHistory->quantity_available,
-                        'quantity_change' => $updateDetail['actual_quantity'] - $currentHistory->quantity_available,
-                        'quantity_after' => $updateDetail['actual_quantity'],
-                        'action_type' => 'CHECK',
-                        'created_by' => $data['created_by']
-                    ]);
-                }
-
-                // Cập nhật số lượng trong history
-                $currentHistory->quantity_available = $updateDetail['actual_quantity'];
-                $currentHistory->save();
-            }
-
-            // [BƯỚC 9] - Cập nhật trạng thái phiếu kiểm kê
-            $inventoryCheck->status = 'COMPLETED';
-            $inventoryCheck->completed_at = date('Y-m-d H:i:s');
-            $inventoryCheck->save();
-
-            // [BƯỚC 10] - Trả về kết quả
-            return [
-                'success' => true,
-                'data' => $inventoryCheck->load([
-                    'details' => function($query) {
-                        $query->where('deleted', false);
-                    },
-                    'storageArea',
-                    'creator',
-                    'approver'
-                ])->toArray()
-            ];
-
-        } catch (Exception $e) {
-            error_log("Error in updateInventoryCheck: " . $e->getMessage());
-            http_response_code(500);
-            return [
-                'success' => false,
-                'error' => 'Database error occurred',
-                'details' => $e->getMessage()
-            ];
-        }
-    }
+//
+//            // [BƯỚC 2] - Kiểm tra phiếu kiểm kê tồn tại
+//            $inventoryCheck = (new InventoryCheck())
+//                ->where('deleted', false)
+//                ->find($id);
+//
+//            if (!$inventoryCheck) {
+//                http_response_code(422);
+//                return [
+//                    'success' => false,
+//                    'error' => 'Không tìm thấy phiếu kiểm kê'
+//                ];
+//            }
+//
+//            // [BƯỚC 3] - Kiểm tra trạng thái phiếu
+//            if ($inventoryCheck->status !== 'APPROVED') {
+//                http_response_code(422);
+//                return [
+//                    'success' => false,
+//                    'error' => 'Phiếu kiểm kê chưa được duyệt hoặc đã hoàn thành'
+//                ];
+//            }
+//
+//            // [BƯỚC 4] - Token validation
+//            $headers = apache_request_headers();
+//            $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
+//            if (!$token) {
+//                http_response_code(401);
+//                throw new \Exception('Token không tồn tại');
+//            }
+//
+//            $parser = new Parser(new JoseEncoder());
+//            $parsedToken = $parser->parse($token);
+//            $currentUserId = $parsedToken->claims()->get('id');
+//
+//            // [BƯỚC 5] - Kiểm tra user thực hiện và role
+//            $user = (new User())->where('deleted', false)->find($data['created_by']);
+//            if (!$user) {
+//                http_response_code(422);
+//                return [
+//                    'success' => false,
+//                    'error' => 'Không tìm thấy thông tin người thực hiện'
+//                ];
+//            }
+//
+////            $role = (new Role())->find($user->role_id);
+////            if (!$role || $role->id !== 4) {
+////                http_response_code(403);
+////                return [
+////                    'success' => false,
+////                    'error' => 'Người thực hiện phải là nhân viên'
+////                ];
+////            }
+//
+//            // [BƯỚC 6] - Lấy và kiểm tra chi tiết kiểm kê
+//            $currentDetails = (new InventoryCheckDetail())
+//                ->where('inventory_check_id', $id)
+//                ->where('deleted', false)
+//                ->get();
+//
+//            $historyMap = [];
+//            foreach ($currentDetails as $detail) {
+//                $historyId = $detail->material_history_id ?? $detail->product_history_id;
+//                if (!isset($historyMap[$historyId])) {
+//                    $historyMap[$historyId] = $detail;
+//                }
+//            }
+//
+//            // [BƯỚC 7] - Kiểm tra kiểm kê đủ số lượng
+//            $submittedIds = array_map(function($detail) {
+//                return $detail['history_id'];
+//            }, $data['details']);
+//
+//            $missingItems = array_diff(array_keys($historyMap), $submittedIds);
+//            if (!empty($missingItems)) {
+//                $missingCount = count($missingItems);
+//                $type = $inventoryCheck->storageArea->type === 'PRODUCT' ? 'Sản phẩm' : 'Nguyên liệu';
+//                http_response_code(422);
+//                return [
+//                    'success' => false,
+//                    'error' => "Còn {$missingCount} {$type} chưa được kiểm kê"
+//                ];
+//            }
+//
+//            // [BƯỚC 8] - Xử lý cập nhật từng chi tiết
+//            foreach ($data['details'] as $updateDetail) {
+//                $historyId = $updateDetail['history_id'];
+//
+//                // Validate chi tiết
+//                if (!isset($historyMap[$historyId])) {
+//                    http_response_code(422);
+//                    return [
+//                        'success' => false,
+//                        'error' => 'Không tìm thấy history trong phiếu kiểm kê'
+//                    ];
+//                }
+//
+//                if (!isset($updateDetail['actual_quantity']) || $updateDetail['actual_quantity'] < 0) {
+//                    http_response_code(422);
+//                    return [
+//                        'success' => false,
+//                        'error' => 'Số lượng thực tế không hợp lệ'
+//                    ];
+//                }
+//
+//                $detail = $historyMap[$historyId];
+//                $isProduct = $detail->product_history_id !== null;
+//
+//                // Lấy history record hiện tại
+//                if ($isProduct) {
+//                    $currentHistory = ProductStorageHistory::find($detail->product_history_id);
+//                } else {
+//                    $currentHistory = MaterialStorageHistory::find($detail->material_history_id);
+//                }
+//
+//                if (!$currentHistory) {
+//                    http_response_code(422);
+//                    return [
+//                        'success' => false,
+//                        'error' => 'Không tìm thấy history record'
+//                    ];
+//                }
+//
+//                // Cập nhật chi tiết kiểm kê
+//                $detail->fill([
+//                    'system_quantity' => $currentHistory->quantity_available,
+//                    'actual_quantity' => $updateDetail['actual_quantity'],
+//                    'reason' => $updateDetail['reason'] ?? null
+//                ]);
+//                $detail->save();
+//
+//                // Tạo history detail record
+//                if ($isProduct) {
+//                    ProductStorageHistoryDetail::create([
+//                        'product_storage_history_id' => $currentHistory->id,
+//                        'quantity_before' => $currentHistory->quantity_available,
+//                        'quantity_change' => $updateDetail['actual_quantity'] - $currentHistory->quantity_available,
+//                        'quantity_after' => $updateDetail['actual_quantity'],
+//                        'action_type' => 'CHECK',
+//                        'created_by' => $data['created_by']
+//                    ]);
+//                } else {
+//                    MaterialStorageHistoryDetail::create([
+//                        'material_storage_history_id' => $currentHistory->id,
+//                        'quantity_before' => $currentHistory->quantity_available,
+//                        'quantity_change' => $updateDetail['actual_quantity'] - $currentHistory->quantity_available,
+//                        'quantity_after' => $updateDetail['actual_quantity'],
+//                        'action_type' => 'CHECK',
+//                        'created_by' => $data['created_by']
+//                    ]);
+//                }
+//
+//                // Cập nhật số lượng trong history
+//                $currentHistory->quantity_available = $updateDetail['actual_quantity'];
+//                $currentHistory->save();
+//            }
+//
+//            // [BƯỚC 9] - Cập nhật trạng thái phiếu kiểm kê
+//            $inventoryCheck->status = 'COMPLETED';
+//            $inventoryCheck->completed_at = date('Y-m-d H:i:s');
+//            $inventoryCheck->save();
+//
+//            // [BƯỚC 10] - Trả về kết quả
+//            return [
+//                'success' => true,
+//                'data' => $inventoryCheck->load([
+//                    'details' => function($query) {
+//                        $query->where('deleted', false);
+//                    },
+//                    'storageArea',
+//                    'creator',
+//                    'approver'
+//                ])->toArray()
+//            ];
+//
+//        } catch (Exception $e) {
+//            error_log("Error in updateInventoryCheck: " . $e->getMessage());
+//            http_response_code(500);
+//            return [
+//                'success' => false,
+//                'error' => 'Database error occurred',
+//                'details' => $e->getMessage()
+//            ];
+//        }
+//    }
 
     public function deleteInventoryCheck($id): array
     {
@@ -735,6 +735,200 @@ class InventoryCheckController
             return [
                 'success' => false,
                 'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function createInventoryCheck(): array
+    {
+        try {
+            $data = json_decode(file_get_contents('php://input'), true);
+
+            // Kiểm tra storage area tồn tại
+            $storageArea = (new StorageArea())->where('deleted', false)->find($data['storage_area_id']);
+            if (!$storageArea) {
+                http_response_code(422);
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy khu vực kho'
+                ];
+            }
+
+            // Lấy thông tin người đang đăng nhập
+            $headers = apache_request_headers();
+            $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
+            if (!$token) {
+                http_response_code(401);
+                throw new \Exception('Token không tồn tại');
+            }
+
+            $parser = new Parser(new JoseEncoder());
+            $parsedToken = $parser->parse($token);
+            $currentUserId = $parsedToken->claims()->get('id');
+
+            // Kiểm tra user và role
+            $user = (new User())->where('deleted', false)->find($currentUserId);
+            if (!$user) {
+                http_response_code(422);
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy thông tin người dùng'
+                ];
+            }
+
+            // Chuẩn bị dữ liệu để validate và tạo phiếu
+            $checkData = [
+                'storage_area_id' => $data['storage_area_id'],
+                'check_date' => date('Y-m-d H:i:s'),
+                'status' => 'PENDING',
+                'note' => $data['note'] ?? null,
+                'created_by' => $currentUserId
+            ];
+
+            $inventoryCheck = new InventoryCheck();
+            $errors = $inventoryCheck->validate($checkData);
+
+            if ($errors) {
+                http_response_code(422);
+                return [
+                    'success' => false,
+                    'error' => 'Validation failed',
+                    'details' => $errors
+                ];
+            }
+
+            // Tạo phiếu kiểm kê
+            $inventoryCheck->fill($checkData);
+            $inventoryCheck->save();
+
+            return [
+                'success' => true,
+                'data' => $inventoryCheck->load(['storageArea', 'creator'])->toArray()
+            ];
+
+        } catch (Exception $e) {
+            error_log("Error in createInventoryCheck: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'success' => false,
+                'error' => 'Database error occurred',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    public function createInventoryCheckDetails(int $id): array
+    {
+        try {
+            // [BƯỚC 1] - Kiểm tra phiếu kiểm kê tồn tại
+            $inventoryCheck = (new InventoryCheck())
+                ->where('deleted', false)
+                ->find($id);
+
+            if (!$inventoryCheck) {
+                http_response_code(422);
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy phiếu kiểm kê'
+                ];
+            }
+
+            // [BƯỚC 2] - Kiểm tra trạng thái phiếu kiểm kê
+            if ($inventoryCheck->status !== 'APPROVED') {
+                http_response_code(422);
+                return [
+                    'success' => false,
+                    'error' => 'Phiếu kiểm kê chưa được duyệt hoặc đã hoàn thành'
+                ];
+            }
+
+            // [BƯỚC 3] - Xác định loại kho
+            $storageArea = $inventoryCheck->storageArea;
+            if (!$storageArea) {
+                http_response_code(422);
+                return [
+                    'success' => false,
+                    'error' => 'Không tìm thấy khu vực kho'
+                ];
+            }
+
+            // [BƯỚC 4] - Lấy danh sách hàng tồn kho
+            $currentStock = $storageArea->type === 'PRODUCT'
+                ? (new ProductStorageHistory())
+                    ->where('storage_area_id', $storageArea->id)
+                    ->where('status', 'ACTIVE')
+                    ->where('deleted', false)
+                    ->get()
+                : (new MaterialStorageHistory())
+                    ->where('storage_area_id', $storageArea->id)
+                    ->where('status', 'ACTIVE')
+                    ->where('deleted', false)
+                    ->get();
+
+            // [BƯỚC 5] - Lấy thông tin người dùng hiện tại từ token
+            $headers = apache_request_headers();
+            $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
+            if (!$token) {
+                http_response_code(401);
+                throw new \Exception('Token không tồn tại');
+            }
+
+            $parser = new Parser(new JoseEncoder());
+            $parsedToken = $parser->parse($token);
+            $currentUserId = $parsedToken->claims()->get('id');
+
+            // [BƯỚC 6] - Lấy dữ liệu từ request
+            $data = json_decode(file_get_contents('php://input'), true);
+
+            // [BƯỚC 7] - Tạo chi tiết kiểm kê
+            $inventoryCheckDetails = [];
+            foreach ($currentStock as $stock) {
+                $historyId = $storageArea->type === 'PRODUCT' ? $stock->id : $stock->id;
+                $actualQuantity = null;
+                foreach ($data['details'] as $detail) {
+                    if ($detail['history_id'] == $historyId) {
+                        $actualQuantity = $detail['actual_quantity'];
+                        break;
+                    }
+                }
+                $detail = new InventoryCheckDetail();
+                $detail->fill([
+                    'inventory_check_id' => $inventoryCheck->id,
+                    // Lựa chọn trường phù hợp với loại kho
+                    $storageArea->type === 'PRODUCT'
+                        ? 'product_history_id'
+                        : 'material_history_id' => $stock->id,
+                    'system_quantity' => $stock->quantity_available,
+                    'actual_quantity' => $actualQuantity,
+                    'created_by' => $currentUserId
+                ]);
+                $detail->save();
+                $inventoryCheckDetails[] = $detail;
+            }
+
+            // [BƯỚC 8] - Cập nhật trạng thái phiếu kiểm kê
+            $inventoryCheck->status = 'COMPLETED';
+            $inventoryCheck->save();
+
+            // [BƯỚC 9] - Trả về kết quả
+            return [
+                'success' => true,
+                'data' => [
+                    'inventory_check' => $inventoryCheck->load([
+                        'storageArea',
+                        'creator'
+                    ])->toArray(),
+                    'total_items' => count($inventoryCheckDetails)
+                ]
+            ];
+
+        } catch (Exception $e) {
+            error_log("Error in createInventoryCheckDetails: " . $e->getMessage());
+            http_response_code(500);
+            return [
+                'success' => false,
+                'error' => 'Đã có lỗi xảy ra',
                 'details' => $e->getMessage()
             ];
         }
