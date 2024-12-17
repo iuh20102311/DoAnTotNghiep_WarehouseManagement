@@ -475,7 +475,9 @@ $router->group(array('prefix' => '/api'), function (RouteCollector $router) {
             $router->put('/{id}/users', ['App\Controllers\InventoryCheckController', 'updateUserByInventoryCheck']);
             $router->get('/{id}/users', ['App\Controllers\InventoryCheckController', 'getUserByInventoryCheck']);
 
-            $router->put('/{id}', ['App\Controllers\InventoryCheckController', 'updateInventoryCheckById']);
+            // $router->put('/{id}', ['App\Controllers\InventoryCheckController', 'updateInventoryCheckById']);
+            $router->post('/{id}/details', ['App\Controllers\InventoryCheckController', 'createInventoryCheckDetails']);
+
             $router->delete('/{id}', ['App\Controllers\InventoryCheckController', 'deleteInventoryCheck']);
             $router->get('/{id}', ['App\Controllers\InventoryCheckController', 'getInventoryCheckById']);
             $router->post('/', ['App\Controllers\InventoryCheckController', 'createInventoryCheck']);
