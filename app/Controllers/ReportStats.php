@@ -6,9 +6,10 @@ use App\Models\Customer;
 use App\Models\Material;
 use App\Models\MaterialImportReceipt;
 use App\Models\Order;
+use App\Models\OrderDetail;
 use App\Models\Product;
 use App\Models\User;
-use App\Utils\PaginationTrait;
+use Illuminate\Database\Capsule\Manager as DB;
 use DateTime;
 
 class ReportStats
@@ -47,7 +48,25 @@ class ReportStats
                 $endDate = $today->format('Y-m-d');
             }
 
-            // [BƯỚC 3] - Get total available
+            // [BƯỚC 3] - Lấy dữ liệu thống kê doanh số theo thành phẩm
+            $productStats = OrderDetail::select('product_id', DB::raw('SUM(quantity) as totalQuantity'), DB::raw('SUM(quantity * price) as totalRevenue'))
+                ->whereHas('order', function($query) use ($startDate, $endDate) {
+                    $query->where('status', 'DELIVERED')
+                        ->where('deleted', false)
+                        ->whereBetween('order_date', [$startDate, $endDate]);
+                })
+                ->with('product') // Eager load thông tin sản phẩm
+                ->groupBy('product_id')
+                ->get()
+                ->map(function ($item) {
+                    return [
+                        'name' => $item->product->name ?? 'Unknown',
+                        'totalQuantity' => (int)$item->totalQuantity,
+                        'totalRevenue' => (int)$item->totalRevenue
+                    ];
+                });
+
+            // [BƯỚC 4] - Get tổng hợp thống kê khác (giữ nguyên như hiện tại)
             $totalProduct = Product::where('deleted', false)
                 ->where('status', 'ACTIVE')
                 ->count();
@@ -73,7 +92,7 @@ class ReportStats
                 ->where('status', 'PENDING_APPROVED')
                 ->count();
 
-            // [BƯỚC 4] - Generate revenue data for each date in range
+            // [BƯỚC 5] - Generate revenue data for each date in range
             $revenueData = [];
             $currentDate = new DateTime($startDate);
             $endDateTime = new DateTime($endDate);
@@ -95,7 +114,7 @@ class ReportStats
                 $currentDate->modify('+1 day');
             }
 
-            // [BƯỚC 5] - Prepare response
+            // [BƯỚC 6] - Prepare response
             $response = [
                 'summary' => [
                     'totalProduct' => (int)$totalProduct,
@@ -105,7 +124,8 @@ class ReportStats
                     'todayRevenue' => (int)$todayRevenue,
                     'pendingImports' => (int)$pendingImports
                 ],
-                'revenue' => $revenueData
+                'revenue' => $revenueData,
+                'productStats' => $productStats
             ];
 
             header('Content-Type: application/json');
