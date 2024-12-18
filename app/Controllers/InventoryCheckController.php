@@ -823,7 +823,7 @@ class InventoryCheckController
     public function createInventoryCheckDetails(int $id): array
     {
         try {
-            // [BƯỚC 1] - Kiểm tra phiếu kiểm kê tồn tại
+            // [STEP 1] - Check if the inventory check exists
             $inventoryCheck = (new InventoryCheck())
                 ->where('deleted', false)
                 ->find($id);
@@ -832,30 +832,30 @@ class InventoryCheckController
                 http_response_code(422);
                 return [
                     'success' => false,
-                    'error' => 'Không tìm thấy phiếu kiểm kê'
+                    'error' => 'Inventory check not found'
                 ];
             }
 
-            // [BƯỚC 2] - Kiểm tra trạng thái phiếu kiểm kê
+            // [STEP 2] - Check the status of the inventory check
             if ($inventoryCheck->status !== 'APPROVED') {
                 http_response_code(422);
                 return [
                     'success' => false,
-                    'error' => 'Phiếu kiểm kê chưa được duyệt hoặc đã hoàn thành'
+                    'error' => 'Inventory check is not approved or already completed'
                 ];
             }
 
-            // [BƯỚC 3] - Xác định loại kho
+            // [STEP 3] - Determine the storage area type
             $storageArea = $inventoryCheck->storageArea;
             if (!$storageArea) {
                 http_response_code(422);
                 return [
                     'success' => false,
-                    'error' => 'Không tìm thấy khu vực kho'
+                    'error' => 'Storage area not found'
                 ];
             }
 
-            // [BƯỚC 4] - Lấy danh sách hàng tồn kho
+            // [STEP 4] - Get the current stock list
             $currentStock = $storageArea->type === 'PRODUCT'
                 ? (new ProductStorageHistory())
                     ->where('storage_area_id', $storageArea->id)
@@ -868,87 +868,102 @@ class InventoryCheckController
                     ->where('deleted', false)
                     ->get();
 
-            // [BƯỚC 5] - Lấy thông tin người dùng hiện tại từ token
+            // [STEP 5] - Get the current user information from the token
             $headers = apache_request_headers();
             $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
             if (!$token) {
                 http_response_code(401);
-                throw new \Exception('Token không tồn tại');
+                throw new \Exception('Token not found');
             }
 
             $parser = new Parser(new JoseEncoder());
             $parsedToken = $parser->parse($token);
             $currentUserId = $parsedToken->claims()->get('id');
 
-            // [BƯỚC 6] - Lấy dữ liệu từ request
+            // [STEP 6] - Get data from the request
             $data = json_decode(file_get_contents('php://input'), true);
 
-            // [BƯỚC 7] - Tạo chi tiết kiểm kê
+            // [STEP 7] - Create inventory check details
             $inventoryCheckDetails = [];
+            $requestedHistoryIds = array_column($data['details'], 'history_id');
+
             foreach ($currentStock as $stock) {
                 $historyId = $storageArea->type === 'PRODUCT' ? $stock->id : $stock->id;
-                $actualQuantity = null;
-                foreach ($data['details'] as $detail) {
-                    if ($detail['history_id'] == $historyId) {
-                        $actualQuantity = $detail['actual_quantity'];
-                        break;
+
+                // Check if the current inventory item has a corresponding actual_quantity in the request
+                if (in_array($historyId, $requestedHistoryIds)) {
+                    $actualQuantity = null;
+                    foreach ($data['details'] as $detail) {
+                        if ($detail['history_id'] == $historyId) {
+                            $actualQuantity = $detail['actual_quantity'];
+                            break;
+                        }
                     }
-                }
-                $detail = new InventoryCheckDetail();
-                $detail->fill([
-                    'inventory_check_id' => $inventoryCheck->id,
-                    // Lựa chọn trường phù hợp với loại kho
-                    $storageArea->type === 'PRODUCT'
-                        ? 'product_history_id'
-                        : 'material_history_id' => $stock->id,
-                    'system_quantity' => $stock->quantity_available,
-                    'actual_quantity' => $actualQuantity,
-                    'created_by' => $currentUserId
-                ]);
-                $detail->save();
-                $inventoryCheckDetails[] = $detail;
 
-                // Cập nhật chi tiết lịch sử kho
-                if ($storageArea->type === 'PRODUCT') {
-                    ProductStorageHistoryDetail::create([
-                        'product_storage_history_id' => $stock->id,
-                        'quantity_before' => $stock->quantity_available,
-                        'quantity_change' => $actualQuantity - $stock->quantity_available,
-                        'quantity_after' => $actualQuantity,
-                        'action_type' => 'CHECK',
+                    $detail = new InventoryCheckDetail();
+                    $detail->fill([
+                        'inventory_check_id' => $inventoryCheck->id,
+                        // Select the appropriate field based on the storage area type
+                        $storageArea->type === 'PRODUCT'
+                            ? 'product_history_id'
+                            : 'material_history_id' => $stock->id,
+                        'system_quantity' => $stock->quantity_available,
+                        'actual_quantity' => $actualQuantity,
                         'created_by' => $currentUserId
                     ]);
+                    $detail->save();
+                    $inventoryCheckDetails[] = $detail;
 
-                    // Cập nhật số lượng trong bảng Product
-                    $product = Product::find($stock->product_id);
-                    $product->quantity_available -= ($stock->quantity_available - $actualQuantity);
-                    $product->save();
-                } else {
-                    MaterialStorageHistoryDetail::create([
-                        'material_storage_history_id' => $stock->id,
-                        'quantity_before' => $stock->quantity_available,
-                        'quantity_change' => $actualQuantity - $stock->quantity_available,
-                        'quantity_after' => $actualQuantity,
-                        'action_type' => 'CHECK',
-                        'created_by' => $currentUserId
-                    ]);
+                    // Update storage history details
+                    if ($storageArea->type === 'PRODUCT') {
+                        ProductStorageHistoryDetail::create([
+                            'product_storage_history_id' => $stock->id,
+                            'quantity_before' => $stock->quantity_available,
+                            'quantity_change' => $actualQuantity - $stock->quantity_available,
+                            'quantity_after' => $actualQuantity,
+                            'action_type' => 'CHECK',
+                            'created_by' => $currentUserId
+                        ]);
+
+                        // Update quantity in the Product table
+                        $product = Product::find($stock->product_id);
+                        if ($product) {
+                            $product->quantity_available -= ($stock->quantity_available - $actualQuantity);
+                            $product->save();
+                        } else {
+                            error_log("Product not found for product_id: " . $stock->product_id);
+                        }
+                    } else {
+                        MaterialStorageHistoryDetail::create([
+                            'material_storage_history_id' => $stock->id,
+                            'quantity_before' => $stock->quantity_available,
+                            'quantity_change' => $actualQuantity - $stock->quantity_available,
+                            'quantity_after' => $actualQuantity,
+                            'action_type' => 'CHECK',
+                            'created_by' => $currentUserId
+                        ]);
+
+                        // Update quantity in the Material table
+                        $material = Material::find($stock->material_id);
+                        if ($material) {
+                            $material->quantity_available -= ($stock->quantity_available - $actualQuantity);
+                            $material->save();
+                        } else {
+                            error_log("Material not found for material_id: " . $stock->material_id);
+                        }
+                    }
+
+                    // Update the quantity in the storage history
+                    $stock->quantity_available = $actualQuantity;
+                    $stock->save();
                 }
-
-                // Cập nhật số lượng trong bảng Material
-                $material = Material::find($stock->material_id);
-                $material->quantity_available -= ($stock->quantity_available - $actualQuantity);
-                $material->save();
-
-                // Cập nhật số lượng trong lịch sử kho
-                $stock->quantity_available = $actualQuantity;
-                $stock->save();
             }
 
-            // [BƯỚC 8] - Cập nhật trạng thái phiếu kiểm kê
+            // [STEP 8] - Update the status of the inventory check
             $inventoryCheck->status = 'COMPLETED';
             $inventoryCheck->save();
 
-            // [BƯỚC 9] - Trả về kết quả
+            // [STEP 9] - Return the result
             return [
                 'success' => true,
                 'data' => [
@@ -959,13 +974,12 @@ class InventoryCheckController
                     'total_items' => count($inventoryCheckDetails)
                 ]
             ];
-
         } catch (Exception $e) {
             error_log("Error in createInventoryCheckDetails: " . $e->getMessage());
             http_response_code(500);
             return [
                 'success' => false,
-                'error' => 'Đã có lỗi xảy ra',
+                'error' => 'An error occurred',
                 'details' => $e->getMessage()
             ];
         }
