@@ -4,8 +4,10 @@ namespace App\Controllers;
 
 use App\Models\InventoryCheck;
 use App\Models\InventoryCheckDetail;
+use App\Models\Material;
 use App\Models\MaterialStorageHistoryDetail;
 use App\Models\MaterialStorageHistory;
+use App\Models\Product;
 use App\Models\ProductStorageHistoryDetail;
 use App\Models\ProductStorageHistory;
 use App\Models\Role;
@@ -905,6 +907,41 @@ class InventoryCheckController
                 ]);
                 $detail->save();
                 $inventoryCheckDetails[] = $detail;
+
+                // Cập nhật chi tiết lịch sử kho
+                if ($storageArea->type === 'PRODUCT') {
+                    ProductStorageHistoryDetail::create([
+                        'product_storage_history_id' => $stock->id,
+                        'quantity_before' => $stock->quantity_available,
+                        'quantity_change' => $actualQuantity - $stock->quantity_available,
+                        'quantity_after' => $actualQuantity,
+                        'action_type' => 'CHECK',
+                        'created_by' => $currentUserId
+                    ]);
+
+                    // Cập nhật số lượng trong bảng Product
+                    $product = Product::find($stock->product_id);
+                    $product->quantity_available -= ($stock->quantity_available - $actualQuantity);
+                    $product->save();
+                } else {
+                    MaterialStorageHistoryDetail::create([
+                        'material_storage_history_id' => $stock->id,
+                        'quantity_before' => $stock->quantity_available,
+                        'quantity_change' => $actualQuantity - $stock->quantity_available,
+                        'quantity_after' => $actualQuantity,
+                        'action_type' => 'CHECK',
+                        'created_by' => $currentUserId
+                    ]);
+                }
+
+                // Cập nhật số lượng trong bảng Material
+                $material = Material::find($stock->material_id);
+                $material->quantity_available -= ($stock->quantity_available - $actualQuantity);
+                $material->save();
+
+                // Cập nhật số lượng trong lịch sử kho
+                $stock->quantity_available = $actualQuantity;
+                $stock->save();
             }
 
             // [BƯỚC 8] - Cập nhật trạng thái phiếu kiểm kê
