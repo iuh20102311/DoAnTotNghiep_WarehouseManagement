@@ -124,7 +124,9 @@ class InventoryCheckController
                                 $q->select('user_id', 'first_name', 'last_name');
                             }]);
                     },
-                    'details'])
+                    'details.materialHistory.material',
+                    'details.productHistory.product'
+                ])
                 ->find($id);
 
             if (!$inventoryCheck) {
@@ -139,11 +141,27 @@ class InventoryCheckController
                 $data['creator']['full_name'] = trim($data['creator']['profile']['first_name'] . ' ' . $data['creator']['profile']['last_name']);
             }
 
-            return $data;
+            $products = [];
+            $materials = [];
+
+            foreach ($data['details'] as $detail) {
+                if (isset($detail['product_history'])) {
+                    $products[] = $detail['product_history']['product'];
+                } elseif (isset($detail['material_history'])) {
+                    $materials[] = $detail['material_history']['material'];
+                }
+            }
+
+            return [
+                'inventoryCheck' => $data,
+                'products' => $products,
+                'materials' => $materials
+            ];
 
         } catch (\Exception $e) {
             error_log("Error in getInventoryCheckById: " . $e->getMessage());
             return [
+                'success' => false,
                 'error' => 'Database error occurred',
                 'details' => $e->getMessage()
             ];
