@@ -141,22 +141,7 @@ class InventoryCheckController
                 $data['creator']['full_name'] = trim($data['creator']['profile']['first_name'] . ' ' . $data['creator']['profile']['last_name']);
             }
 
-            $products = [];
-            $materials = [];
-
-            foreach ($data['details'] as $detail) {
-                if (isset($detail['product_history'])) {
-                    $products[] = $detail['product_history']['product'];
-                } elseif (isset($detail['material_history'])) {
-                    $materials[] = $detail['material_history']['material'];
-                }
-            }
-
-            return [
-                'inventoryCheck' => $data,
-                'products' => $products,
-                'materials' => $materials
-            ];
+            return $data;
 
         } catch (\Exception $e) {
             error_log("Error in getInventoryCheckById: " . $e->getMessage());
