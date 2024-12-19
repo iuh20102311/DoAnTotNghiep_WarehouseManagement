@@ -213,7 +213,7 @@ class MaterialController
             // Generate new sku for material
             $currentMonth = date('m');
             $currentYear = date('y');
-            $prefix = "SP" . $currentMonth . $currentYear;
+            $prefix = "NVL" . $currentMonth . $currentYear;
 
             // Get latest material sku with current prefix
             $latestMaterial = Material::query()
