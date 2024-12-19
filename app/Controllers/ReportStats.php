@@ -51,7 +51,7 @@ class ReportStats
             // [STEP 3] - Get product sales statistics
             $productStatsQuery = OrderDetail::select('product_id', DB::raw('SUM(quantity) as totalQuantity'), DB::raw('SUM(quantity * price) as totalRevenue'))
                 ->join('orders', 'order_details.order_id', '=', 'orders.id')
-                ->where('orders.status', 'DELIVERED')
+                ->where('orders.status', 'PROCESSED')
                 ->where('orders.deleted', false)
                 ->with('product') // Eager load product information
                 ->groupBy('product_id');
@@ -85,7 +85,7 @@ class ReportStats
                 ->count();
 
             $todayRevenue = Order::where('deleted', false)
-                ->where('status', 'DELIVERED')
+                ->where('status', 'PROCESSED')
                 ->whereDate('created_at', date('Y-m-d'))
                 ->sum('total_price');
 
@@ -111,7 +111,7 @@ class ReportStats
 
                 // Get revenue for this specific date
                 $revenue = Order::where('deleted', false)
-                    ->where('status', 'DELIVERED')
+                    ->where('status', 'PROCESSED')
                     ->whereDate('created_at', $dateStr)
                     ->sum('total_price');
 
