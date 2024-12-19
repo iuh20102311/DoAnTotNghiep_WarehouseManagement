@@ -102,7 +102,7 @@ class ReportStats
 
                 // Get revenue for this specific date
                 $revenue = Order::where('deleted', false)
-                    ->where('status', 'DELIVERED')
+                    ->where('status', 'PROCESSED')
                     ->whereDate('created_at', $dateStr)
                     ->sum('total_price');
 
