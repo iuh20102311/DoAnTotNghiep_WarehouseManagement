@@ -17,24 +17,24 @@ class ReportStats
     public function getStats(): void
     {
         try {
-            // [BƯỚC 1] - Token validation
+            // [STEP 1] - Token validation
             $headers = apache_request_headers();
             $token = isset($headers['Authorization']) ? str_replace('Bearer ', '', $headers['Authorization']) : null;
             if (!$token) {
                 throw new \Exception('Token không tồn tại');
             }
 
-            // [BƯỚC 2] - Parse date parameters cho 3 trường hợp
+            // [STEP 2] - Parse date parameters for 3 cases
             $queryParams = $_GET;
             $startDate = null;
             $endDate = null;
 
             if (isset($queryParams['date'])) {
-                // Trường hợp 1: Xem theo ngày cụ thể
+                // Case 1: View by specific date
                 $startDate = date('Y-m-d', strtotime($queryParams['date']));
                 $endDate = $startDate;
             } elseif (isset($queryParams['startDate']) && isset($queryParams['endDate'])) {
-                // Trường hợp 2: Xem theo khoảng thời gian
+                // Case 2: View by date range
                 $startDate = date('Y-m-d', strtotime($queryParams['startDate']));
                 $endDate = date('Y-m-d', strtotime($queryParams['endDate']));
 
@@ -42,31 +42,40 @@ class ReportStats
                     throw new \Exception('Ngày bắt đầu không được lớn hơn ngày kết thúc');
                 }
             } else {
-                // Trường hợp 3: Không truyền param (mặc định từ thứ 2 đến hôm nay)
+                // Case 3: No params (default from Monday to today)
                 $today = new DateTime();
                 $startDate = (new DateTime())->modify('monday this week')->format('Y-m-d');
                 $endDate = $today->format('Y-m-d');
             }
 
-            // [BƯỚC 3] - Lấy dữ liệu thống kê doanh số theo thành phẩm
-            $productStats = OrderDetail::select('product_id', DB::raw('SUM(quantity) as totalQuantity'), DB::raw('SUM(quantity * price) as totalRevenue'))
-                ->whereHas('order', function($query) use ($startDate, $endDate) {
-                    $query->where('status', 'DELIVERED')
-                        ->where('deleted', false)
-                        ->whereBetween('order_date', [$startDate, $endDate]);
-                })
-                ->with('product') // Eager load thông tin sản phẩm
-                ->groupBy('product_id')
-                ->get()
-                ->map(function ($item) {
-                    return [
-                        'name' => $item->product->name ?? 'Unknown',
-                        'totalQuantity' => (int)$item->totalQuantity,
-                        'totalRevenue' => (int)$item->totalRevenue
-                    ];
-                });
+            // [STEP 3] - Get product sales statistics
+            $productStatsQuery = OrderDetail::select('product_id', DB::raw('SUM(quantity) as totalQuantity'), DB::raw('SUM(quantity * price) as totalRevenue'))
+                ->join('orders', 'order_details.order_id', '=', 'orders.id')
+                ->where('orders.status', 'PROCESSED')
+                ->where('orders.deleted', false)
+                ->with('product') // Eager load product information
+                ->groupBy('product_id');
 
-            // [BƯỚC 4] - Get tổng hợp thống kê khác (giữ nguyên như hiện tại)
+            // Apply date filters
+            if (isset($queryParams['date'])) {
+                $productStatsQuery->whereDate('orders.created_at', $startDate);
+            } elseif (isset($queryParams['startDate']) && isset($queryParams['endDate'])) {
+                $productStatsQuery->whereDate('orders.created_at', '>=', $startDate)
+                    ->whereDate('orders.created_at', '<=', $endDate);
+            } else {
+                $productStatsQuery->whereDate('orders.created_at', '>=', $startDate)
+                    ->whereDate('orders.created_at', '<=', $endDate);
+            }
+
+            $productStats = $productStatsQuery->get()->map(function ($item) {
+                return [
+                    'name' => $item->product->name ?? 'Unknown',
+                    'totalQuantity' => (int)$item->totalQuantity,
+                    'totalRevenue' => (int)$item->totalRevenue
+                ];
+            });
+
+            // [STEP 4] - Get other summary statistics (unchanged)
             $totalProduct = Product::where('deleted', false)
                 ->where('status', 'ACTIVE')
                 ->count();
@@ -76,7 +85,7 @@ class ReportStats
                 ->count();
 
             $todayRevenue = Order::where('deleted', false)
-                ->where('status', 'DELIVERED')
+                ->where('status', 'PROCESSED')
                 ->whereDate('created_at', date('Y-m-d'))
                 ->sum('total_price');
 
@@ -92,7 +101,7 @@ class ReportStats
                 ->where('status', 'PENDING_APPROVED')
                 ->count();
 
-            // [BƯỚC 5] - Generate revenue data for each date in range
+            // [STEP 5] - Generate revenue data for each date in range
             $revenueData = [];
             $currentDate = new DateTime($startDate);
             $endDateTime = new DateTime($endDate);
@@ -114,7 +123,7 @@ class ReportStats
                 $currentDate->modify('+1 day');
             }
 
-            // [BƯỚC 6] - Prepare response
+            // [STEP 6] - Prepare response
             $response = [
                 'summary' => [
                     'totalProduct' => (int)$totalProduct,
