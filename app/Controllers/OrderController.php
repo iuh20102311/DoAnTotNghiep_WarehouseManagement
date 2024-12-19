@@ -451,7 +451,8 @@ class OrderController
             return [
                 'status' => 'success',
                 'message' => 'Tạo đơn hàng thành công',
-                'order_id' => $order->id
+                'order_id' => $order->id,
+                'code' => $order->code
             ];
         } catch (\Exception $e) {
             error_log("Error in createOrder: " . $e->getMessage());
@@ -561,7 +562,8 @@ class OrderController
             return [
                 'status' => 'success',
                 'message' => 'Cập nhật đơn hàng thành công',
-                'order_id' => $order->id
+                'order_id' => $order->id,
+                'code' => $order->code
             ];
         } catch (Exception $e) {
             error_log("ERROR: " . $e->getMessage());

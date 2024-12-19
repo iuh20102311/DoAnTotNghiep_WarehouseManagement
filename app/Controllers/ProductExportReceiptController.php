@@ -12,6 +12,7 @@ use App\Models\StorageArea;
 use App\Utils\PaginationTrait;
 use Lcobucci\JWT\Encoding\JoseEncoder;
 use Lcobucci\JWT\Token\Parser;
+use Illuminate\Database\Capsule\Manager as DB;
 
 
 class ProductExportReceiptController
@@ -724,16 +725,22 @@ class ProductExportReceiptController
                         throw new \Exception("Product {$history->product->name} is not in the order");
                     }
 
-                    if ($product['quantity'] > $orderDetail->quantity) {
+                    $currentExportQuantity = $orderDetail->exportQuantity ?? 0;
+                    $newExportQuantity = $currentExportQuantity + $product['quantity'];
+
+                    // Check if new exportQuantity exceeds the allowed quantity
+                    if ($newExportQuantity > $orderDetail->quantity) {
                         throw new \Exception(
-                            "Export quantity ({$product['quantity']}) exceeds order quantity ({$orderDetail->quantity})"
+                            "Export quantity for product {$history->product->name} exceeds order quantity. " .
+                            "Allowed: {$orderDetail->quantity}, Current exported: {$currentExportQuantity}, Attempting to export: {$product['quantity']}"
                         );
                     }
                 }
 
                 $validatedProducts[] = [
                     'history' => $history,
-                    'quantity' => $product['quantity']
+                    'quantity' => $product['quantity'],
+                    'orderDetail' => isset($orderDetail) ? $orderDetail : null
                 ];
             }
 
@@ -764,6 +771,7 @@ class ProductExportReceiptController
             foreach ($validatedProducts as $product) {
                 $history = $product['history'];
                 $quantity = $product['quantity'];
+                $orderDetail = $product['orderDetail'];
 
                 // Update available quantity in history
                 $history->quantity_available -= $quantity;
@@ -780,6 +788,22 @@ class ProductExportReceiptController
                 // Update product quantity
                 $history->product->quantity_available -= $quantity;
                 $history->product->save();
+
+                // Update exportQuantity in order detail if type is NORMAL
+                if ($data['type'] === 'NORMAL' && $orderDetail) {
+                    $currentTimestamp = date('Y-m-d H:i:s');
+
+                    // Use order_id and product_id for the update
+                    DB::table('order_details')
+                        ->where('order_id', $orderDetail->order_id)
+                        ->where('product_id', $orderDetail->product_id)
+                        ->where('deleted', false)
+                        ->where('status', 'ACTIVE')
+                        ->update([
+                            'exportQuantity' => DB::raw('COALESCE(exportQuantity, 0) + ' . $quantity),
+                            'updated_at' => $currentTimestamp
+                        ]);
+                }
 
                 // Create product inventory history
                 ProductStorageHistoryDetail::create([
